@@ -1,6 +1,7 @@
 """
 Tests for the main application endpoints
 """
+
 from fastapi.testclient import TestClient
 
 
@@ -22,7 +23,9 @@ def test_health_endpoint(client: TestClient):
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "healthy"
+    assert "success" in data
+    assert data["success"] is True
+    assert "message" in data
 
 
 def test_supabase_connection(client: TestClient):
@@ -32,5 +35,5 @@ def test_supabase_connection(client: TestClient):
     response = client.get("/api/v1/test-supabase")
     assert response.status_code == 200
     data = response.json()
-    assert data["success"] == True
-    assert "Successfully connected" in data["message"] 
+    assert data["success"]
+    assert "Successfully connected" in data["message"]
