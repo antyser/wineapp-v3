@@ -19,20 +19,20 @@
 
 ### Backend Setup (in backend/ directory)
 - [x] Set up Python 3.12+ environment with uv package manager
-- [ ] Reorganize FastAPI project structure (by domain)
-  - [ ] Create src folder with domain directories (auth, cellar, wines, notes, chat, core)
-  - [ ] Move core functionality (config, database) to core module
-  - [ ] Set up tests directory mirroring domain structure
-  - [ ] Create supabase/migrations directory for database migrations
-- [ ] Set up local Supabase environment with Docker for testing
+- [x] Reorganize FastAPI project structure (by domain)
+  - [x] Create src folder with domain directories (auth, cellar, wines, notes, chat, core)
+  - [x] Move core functionality (config, database) to core module
+  - [x] Set up tests directory mirroring domain structure
+  - [x] Create supabase/migrations directory for database migrations
+- [x] Configure Docker Compose for local Supabase instance
 - [ ] Initialize Supabase client connection
 - [ ] Run database schema migrations on local Supabase instance
 
 ### Local Development Environment
-- [ ] Configure Docker Compose for local Supabase instance
+- [x] Configure Docker Compose for local Supabase instance
 - [ ] Run database migrations on local Supabase instance
 - [ ] Create initial seed data for testing
-- [ ] Implement integration tests with local Supabase
+- [x] Implement integration tests with local Supabase
 - [ ] Connect frontend to backend API
 
 ## Phase 2: Feature Implementation - Wine Management
