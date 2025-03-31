@@ -1,0 +1,67 @@
+[
+  {
+    "id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+    "name": "Cabernet Sauvignon Reserve",
+    "winery": "Oakridge Vineyards",
+    "vintage": 2018,
+    "region": "Napa Valley",
+    "varietal": "Cabernet Sauvignon",
+    "type": "Red",
+    "price": 65.99,
+    "rating": 92,
+    "notes": "Bold with black currant and cedar notes",
+    "image_url": "https://example.com/wines/cabernet.jpg"
+  },
+  {
+    "id": "6ecd8c99-4036-403d-bf84-cf8400f67836",
+    "name": "Chardonnay",
+    "winery": "Sunshine Winery",
+    "vintage": 2020,
+    "region": "Sonoma",
+    "varietal": "Chardonnay",
+    "type": "White",
+    "price": 28.99,
+    "rating": 89,
+    "notes": "Crisp apple and vanilla flavors",
+    "image_url": "https://example.com/wines/chardonnay.jpg"
+  },
+  {
+    "id": "9f0a47c5-5b62-4a3e-9dcd-6b191ac47ce7",
+    "name": "Pinot Noir",
+    "winery": "Foggy Hill Vineyard",
+    "vintage": 2019,
+    "region": "Willamette Valley",
+    "varietal": "Pinot Noir",
+    "type": "Red",
+    "price": 42.50,
+    "rating": 91,
+    "notes": "Elegant with cherry and spice notes",
+    "image_url": "https://example.com/wines/pinot.jpg"
+  },
+  {
+    "id": "c1c3d5d7-4c5e-4b9f-b8a1-c2d3e4f5a6b7",
+    "name": "Sauvignon Blanc",
+    "winery": "Green Valley Estate",
+    "vintage": 2021,
+    "region": "Marlborough",
+    "varietal": "Sauvignon Blanc",
+    "type": "White",
+    "price": 19.99,
+    "rating": 88,
+    "notes": "Zesty with grapefruit and tropical notes",
+    "image_url": "https://example.com/wines/sauvblanc.jpg"
+  },
+  {
+    "id": "d3f4g5h6-j7k8-l9m1-n2o3-p4q5r6s7t8u9",
+    "name": "Merlot",
+    "winery": "Rolling Hills",
+    "vintage": 2017,
+    "region": "Columbia Valley",
+    "varietal": "Merlot",
+    "type": "Red",
+    "price": 32.99,
+    "rating": 87,
+    "notes": "Smooth with plum and chocolate notes",
+    "image_url": "https://example.com/wines/merlot.jpg"
+  }
+] 

@@ -25,13 +25,13 @@
   - [x] Set up tests directory mirroring domain structure
   - [x] Create supabase/migrations directory for database migrations
 - [x] Configure Docker Compose for local Supabase instance
-- [ ] Initialize Supabase client connection
-- [ ] Run database schema migrations on local Supabase instance
+- [x] Initialize Supabase client connection
+- [x] Run database schema migrations on local Supabase instance
 
 ### Local Development Environment
 - [x] Configure Docker Compose for local Supabase instance
-- [ ] Run database migrations on local Supabase instance
-- [ ] Create initial seed data for testing
+- [x] Run database migrations on local Supabase instance
+- [x] Create initial seed data for testing
 - [x] Implement integration tests with local Supabase
 - [ ] Connect frontend to backend API
 

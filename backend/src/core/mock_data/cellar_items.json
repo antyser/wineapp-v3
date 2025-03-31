@@ -1,0 +1,35 @@
+[
+  {
+    "id": "item0000-0000-0000-0000-000000000001",
+    "cellar_id": "ce11ar00-0000-0000-0000-000000000001",
+    "wine_id": "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed",
+    "quantity": 2,
+    "purchase_date": "2023-03-15",
+    "purchase_price": 59.99,
+    "notes": "Birthday gift",
+    "drinking_window_start": 2023,
+    "drinking_window_end": 2030
+  },
+  {
+    "id": "item0000-0000-0000-0000-000000000002",
+    "cellar_id": "ce11ar00-0000-0000-0000-000000000001",
+    "wine_id": "9f0a47c5-5b62-4a3e-9dcd-6b191ac47ce7",
+    "quantity": 3,
+    "purchase_date": "2023-05-20",
+    "purchase_price": 39.99,
+    "notes": "Great deal at wine shop",
+    "drinking_window_start": 2023,
+    "drinking_window_end": 2026
+  },
+  {
+    "id": "item0000-0000-0000-0000-000000000003",
+    "cellar_id": "ce11ar00-0000-0000-0000-000000000002",
+    "wine_id": "c1c3d5d7-4c5e-4b9f-b8a1-c2d3e4f5a6b7",
+    "quantity": 6,
+    "purchase_date": "2023-01-10",
+    "purchase_price": 18.99,
+    "notes": "Summer stock",
+    "drinking_window_start": 2023,
+    "drinking_window_end": 2024
+  }
+] 
