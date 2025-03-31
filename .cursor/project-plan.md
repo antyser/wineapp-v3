@@ -1,0 +1,701 @@
+# **Wine App - Project Plan**
+
+## **Table of Contents**
+1. [Project Overview](#1-project-overview)
+2. [In-Scope vs. Out-of-Scope](#2-in-scope-vs-out-of-scope)
+3. [User Flow](#3-user-flow)
+4. [Core Features](#4-core-features)
+5. [Tech Stack & Tools](#5-tech-stack--tools)
+6. [Database Schema](#6-database-schema)
+7. [API Endpoints](#7-api-endpoints)
+8. [UI Components & Screens](#8-ui-components--screens)
+9. [Implementation Plan](#9-implementation-plan)
+10. [Database Optimization](#10-database-optimization)
+11. [User-Scanned Wine Images](#11-user-scanned-wine-images)
+
+## **1. Project Overview**
+
+The Wine App is a mobile-first application designed for wine enthusiasts like "Jenny" to seamlessly discover, document, manage, and enjoy their wine experiences. Users can scan wine labels or search by text to retrieve detailed wine information, leveraging external data sources like Wine Searcher—and, if unavailable, fall back to LLM-based (e.g., Gemini) data generation. The app helps users record tasting notes, manage personal wine cellars (including purchases, consumption, and value), create wishlists, and receive personalized recommendations via an AI chat feature.
+
+The goal is to provide an intuitive, centralized platform for all wine-related activities. Success is measured by user engagement, user growth, accuracy of wine information, and overall satisfaction.
+
+## **2. In-Scope vs. Out-of-Scope**
+
+### **In-Scope**
+
+1. **User Authentication**: 
+   * Secure login/signup via Email, Google, Apple through Supabase Auth
+   * Users can skip sign-in initially but must sign in for save actions (adding to cellar, taking notes, etc.)
+
+2. **Wine Search & Discovery**:
+   * Text or image (label) search
+   * Primary data from Wine Searcher; fallback to LLM-generated data if Wine Searcher is down
+   * Single vs. multiple results handling
+   * **Implementation Note**: Detailed implementation requires clarification before proceeding
+
+3. **Wine Card**:
+   * Comprehensive wine details (Vintage, Name, Region, Winery, Grapes) plus AI insights (Food Pairing, Drinking Window)
+   * Cached Price/Offers data
+   * Primary user actions: Add to Wishlist, Add to Cellar, Tasting Notes, Consumption
+
+4. **Consumption** (Separate Feature):
+   * Users can record consumption of any wine, whether it's in their cellar or not
+   * If the wine is also present in the user's cellar, the app asks if they want to decrement the cellar quantity
+   * Backend API will be updated to support consuming wines not in cellar
+
+5. **Cellar Management**:
+   * Users can create multiple named cellars
+   * Each cellar can have multiple sections
+   * Adding wines (always tracking vintage)
+   * Sorting/organizing bottles by region, variety, vintage, etc.
+   * Basic cellar reports (inventory count, region/vintage breakdown, total investment)
+
+6. **Tasting Notes**:
+   * Simple note format: Free-text notes with a 5-star rating (supporting fractional ratings)
+   * Photo uploads
+   * **P1 Feature**: Pro Version (WSET 3) with structured fields (Appearance, Nose, Palate, Conclusion)
+
+7. **AI Chat** (P1):
+   * Conversational AI for recommendations, pairings, etc.
+   * Pulls context from user data (searches, cellar, notes, wishlist)
+   * **Implementation Note**: Detailed AI integration requires clarification before proceeding
+
+8. **My Wines Hub**:
+   * Central access point for user's Cellar, Wishlist, Tasting Notes, and Wine Journal
+
+9. **Wine Journal**:
+   * For initial implementation, only include scanned wines activities
+   * Future expansion to include all user interactions (notes added, cellar additions, consumption events)
+
+10. **Mobile-First Design**:
+    * React Native app with a user-friendly, responsive interface
+    * Bottom tab navigation for main sections (not drawer navigation)
+
+### **Out-of-Scope**
+
+* **In-App Purchasing/E-commerce**: The app surfaces offers but does not process payments
+* **Advanced Social Networking**: No friend systems or extensive activity feeds
+* **Offline Mode**: Active internet is required for core features
+* **Integration with Smart Wine Fridges**: Beyond label scanning, no direct hardware support
+* **Advanced Chemical Analysis**: Focus remains on standard wine data, tasting notes, and metadata
+* **Advanced Cellar Reporting**: Only basic P1-level reporting is included
+* **Cellar Sharing/Collaboration**: Potential P2 feature
+* **Tasting Note Sharing**: Not currently part of this version
+
+## **3. User Flow**
+
+1. **Onboarding & Authentication**:
+   * When a first-time user opens the Wine App, a brief series of onboarding screens introduces key features
+   * Users can skip sign-in initially to explore the app anonymously
+   * Sign-in prompt appears when trying to save data (add to cellar, take notes, etc.)
+   * Login options: Email, Google, Apple (via Supabase Auth)
+
+2. **Home Screen**:
+   * Central interface with search bar (text) or label scanning feature
+   * Navigation tabs at the bottom for Home, My Wines, Chat, and Profile
+
+3. **Search**:
+   * If one wine is found, go directly to its Wine Card
+   * If multiple matches, display a Wine List to choose from
+   * User can select any wine from the list to view its Wine Card
+   * If Wine Searcher is down, provide LLM-based wine data
+   * If label is ambiguous, prompt the user for more info or re-scan
+
+4. **Wine Card**:
+   * Displays wine details and AI insights
+   * Actions: Add to Wishlist, Add to Cellar, Tasting Notes, Consume
+
+5. **Consumption**:
+   * Initiated from the Wine Card (even if the wine is not in a cellar)
+   * If the wine is in the user's cellar, the app prompts user to decrement quantity
+
+6. **My Wines**:
+   * Central hub to manage Cellar, Wishlist, Tasting Notes, and the Wine Journal
+   * Shows multiple cellars if user has created them
+
+7. **Chat**:
+   * AI-based recommendations or Q&A about wines
+
+8. **Profile**:
+   * Account settings, preferences, user info
+
+## **4. Core Features**
+
+### **Wine Search & Information Extraction**
+* **Multi-Modal Search**: Text or image label scanning
+* **Primary Data Source**: Wine Searcher; fallback to LLM-based generation if necessary
+* **Single or Multiple Results**: Direct Wine Card or Wine List
+
+### **Wine Card**
+* **Display**: Detailed wine info (vintage, region, grapes), AI insights (food pairings, drinking window), cached offers
+* **User Actions**:
+  1. **Wishlist**: Toggle add/remove to user's wishlist
+  2. **Cellar**: Add bottles (with vintage) to user's cellar
+  3. **Tasting Notes**: Create or view notes
+  4. **Consumption**: Record a consumed bottle, with an optional prompt to reduce cellar stock if applicable
+
+### **Consumption (Separate Feature)**
+* **Consumption Entry**: Users can mark any wine as consumed, whether it is in their cellar or not
+* **Cellar Decrement**: If the wine exists in the cellar, prompt user to reduce the corresponding bottle count
+* **Journal Entry**: Each consumption event is logged in the Wine Journal
+
+### **Cellar Management**
+* **Multiple Cellars**: Users can create/nickname multiple cellars
+* **Sections**: Each cellar can have multiple sections (stored as JSONB in the database)
+* **Bottle Details**: Vintage, purchase price, location, quantity, etc.
+* **Cellar Reports (P1)**: Basic insights on inventory counts, type/vintage breakdown, cost totals
+
+### **Tasting Notes**
+* **Simple Format (Initial Implementation)**: Free-text notes with a 5-star rating (supporting fractional ratings)
+* **Photo Upload**: Capture or upload images of the wine/label
+* **Pro Version (P1 Feature)**: Structured fields (Appearance, Nose, Palate, Conclusion) following WSET 3 format
+
+### **AI Chat**
+* **Conversational**: Recommends wines, pairing ideas, or next steps in management
+* **Context Aware**: Draws on user's cellar, notes, and wishlist for personalized suggestions
+* **Implementation Note**: Detailed AI integration requires clarification before proceeding
+
+### **Wine Journal**
+* **Initial Scope**: Track scanned wines activities only
+* **Future Expansion**: Chronological record of all major user interactions with a wine
+
+## **5. Tech Stack & Tools**
+
+### **Backend**:
+* **Supabase** (PostgreSQL, Auth, Storage, Edge Functions if needed)
+* **FastAPI** (Python 3.12+)
+* **Package Management**: uv for Python dependencies
+
+### **Frontend**:
+* **Framework**: Expo
+* **Language**: TypeScript
+* **UI Library**: React Native Paper
+* **Navigation**: React Navigation with bottom tabs (not drawer)
+* **State Management**: Zustand (used internally)
+
+### **AI Integrations**: 
+* Preferred LLM is Gemini, though GPT or Claude may be substituted
+* **Implementation Note**: Detailed AI integration requires clarification before proceeding
+
+### **External Data**: 
+* Wine Searcher API (primary)
+* Fallback to LLM if API is unavailable
+
+### **Search**: 
+* Supabase Full-Text Search or alternative indexing solutions
+* **Implementation Note**: Detailed search implementation requires clarification before proceeding
+
+## **6. Database Schema**
+
+### **wines Table**
+```sql
+CREATE TABLE IF NOT EXISTS public.wines (
+  id               uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
+  name             text           NOT NULL,
+  region           text,
+  country          text,
+  producer         text,
+  vintage          text,     -- text to allow "NV", "MV", etc.
+  wine_type        text,     -- e.g., "red", "white"
+  grape_variety    text,
+  image_url        text,
+  average_price    numeric(10,2),
+  description      text,
+  wine_searcher_id text,     -- if set, references external data (Wine Searcher, etc.)
+  created_at       timestamptz  NOT NULL DEFAULT now(),
+  updated_at       timestamptz  NOT NULL DEFAULT now()
+);
+```
+
+### **cellars Table**
+```sql
+CREATE TABLE IF NOT EXISTS public.cellars (
+  id         uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid         NOT NULL,       -- references auth.users(id)
+  name       text         NOT NULL,
+  sections   jsonb,                       -- e.g. ["Rack A", "Shelf 1"]
+  image_url  text,
+  created_at timestamptz  NOT NULL DEFAULT now(),
+  updated_at timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_cellars_user
+    FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
+);
+```
+
+### **cellar_wines Table**
+```sql
+CREATE TABLE IF NOT EXISTS public.cellar_wines (
+  id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  cellar_id       uuid         NOT NULL,   -- references cellars.id
+  wine_id         uuid         NOT NULL,   -- references wines.id
+  purchase_date   date,
+  purchase_price  numeric(10,2),
+  quantity        integer      NOT NULL DEFAULT 1,
+  size            text,
+  section         text,
+  condition       text,
+  status          text         NOT NULL DEFAULT 'in_stock',
+  created_at      timestamptz  NOT NULL DEFAULT now(),
+  updated_at      timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_cellarwines_cellar
+    FOREIGN KEY (cellar_id) REFERENCES public.cellars (id) ON DELETE CASCADE,
+  CONSTRAINT fk_cellarwines_wine
+    FOREIGN KEY (wine_id) REFERENCES public.wines (id) ON DELETE CASCADE
+);
+```
+
+### **notes Table**
+```sql
+CREATE TABLE IF NOT EXISTS public.notes (
+  id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid         NOT NULL,      -- references auth.users.id
+  wine_id         uuid         NOT NULL,      -- references wines.id
+  cellar_wine_id  uuid,
+  tasting_date    date         DEFAULT now(),
+  note_text       text         NOT NULL,
+  rating_5        float,       -- float for fractional ratings
+  created_at      timestamptz  NOT NULL DEFAULT now(),
+  updated_at      timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_notes_user
+    FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_notes_wine
+    FOREIGN KEY (wine_id) REFERENCES public.wines (id) ON DELETE CASCADE,
+  CONSTRAINT fk_notes_cellar_wine
+    FOREIGN KEY (cellar_wine_id) REFERENCES public.cellar_wines (id) ON DELETE SET NULL
+);
+```
+
+### **user_wines Table (Simplified)**
+```sql
+CREATE TABLE IF NOT EXISTS public.user_wines (
+  id             uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id        uuid         NOT NULL,
+  wine_id        uuid         NOT NULL,
+  wishlist       boolean      NOT NULL DEFAULT false,
+  created_at     timestamptz  NOT NULL DEFAULT now(),
+  updated_at     timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_user_wines_user
+    FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_user_wines_wine
+    FOREIGN KEY (wine_id) REFERENCES public.wines (id) ON DELETE CASCADE,
+  CONSTRAINT user_wines_unique_pair
+    UNIQUE (user_id, wine_id)
+);
+```
+
+### **user_activities Table (Enhanced)**
+```sql
+CREATE TABLE IF NOT EXISTS public.user_activities (
+  id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid         NOT NULL,  
+  activity_type   text         NOT NULL,  -- 'scan', 'add_to_cellar', 'consume', 'note', 'wishlist', etc.
+  wine_id         uuid,                   -- Optional: specific wine related to this activity
+  cellar_id       uuid,                   -- Optional: related cellar if applicable
+  cellar_wine_id  uuid,                   -- Optional: related cellar_wine if applicable
+  file_url        text,                   -- For scan activities: path to the scanned image
+  metadata        jsonb,                  -- Flexible data storage for activity-specific details
+  created_at      timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_user_activities_user
+    FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE,
+  CONSTRAINT fk_user_activities_wine
+    FOREIGN KEY (wine_id) REFERENCES public.wines (id) ON DELETE SET NULL,
+  CONSTRAINT fk_user_activities_cellar
+    FOREIGN KEY (cellar_id) REFERENCES public.cellars (id) ON DELETE SET NULL,
+  CONSTRAINT fk_user_activities_cellar_wine
+    FOREIGN KEY (cellar_wine_id) REFERENCES public.cellar_wines (id) ON DELETE SET NULL
+);
+```
+
+### **chat_sessions & chat_messages Tables**
+```sql
+CREATE TABLE IF NOT EXISTS public.chat_sessions (
+  id         uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid         NOT NULL,
+  started_at timestamptz  NOT NULL DEFAULT now(),
+  updated_at timestamptz  NOT NULL DEFAULT now(),
+  context    jsonb,
+  CONSTRAINT fk_chat_sessions_user
+    FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS public.chat_messages (
+  id            uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id    uuid         NOT NULL,
+  sender        text         NOT NULL,   -- "user" or "agent"
+  message       text,
+  media_url     text,
+  sent_at       timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_chat_messages_session
+    FOREIGN KEY (session_id) REFERENCES public.chat_sessions (id) ON DELETE CASCADE
+);
+```
+
+## **7. API Endpoints**
+
+### **Auth**
+* Supabase Auth handles all authentication flows
+
+### **Wines**
+* `GET /wines` - Search wines
+* `GET /wines/{wine_id}` - Get wine details
+* `GET /wines/{wine_id}/images` - Get wine images (including user-scanned images)
+* `POST /wines` - Custom wine creation
+
+### **Cellars**
+* `GET /cellars` - List user's cellars
+* `POST /cellars` - Create a new cellar
+* `POST /cellars/{cellar_id}/wines` - Add a wine to the cellar
+* `PATCH /cellars/{cellar_id}/wines/{cellar_wine_id}/quantity` - Update quantity (for consumption)
+
+### **Consumption (Updated)**
+* `POST /consumption` - Record consumption of any wine (whether in cellar or not)
+
+### **Notes**
+* `POST /notes` - Create a new note
+* `GET /notes` - List user's notes
+
+### **Activities**
+* `POST /activities` - Record a user activity (scan, wishlist, etc.)
+* `GET /activities` - Retrieve user's activity timeline (initially just scanned wines)
+
+### **Chat**
+* `POST /chat/sessions` - Start AI session
+* `POST /chat/messages` - Send messages
+* `GET /chat/messages` - Get messages
+
+## **8. UI Components & Screens**
+
+### **Navigation**
+* Bottom tab navigation with 4 tabs: Home, My Wines, Chat, and Profile
+
+### **Home Screen**
+* Search bar for text input
+* Camera button for label scanning
+* Recent activity summary (optional)
+
+### **Search Results & Wine List**
+* Displays multiple recognized wines when applicable
+* Each item shows: Vintage, Name, Region, Average Price (if available)
+* User can select any wine to see its Wine Card
+
+### **Wine Card**
+* Wine details section
+* AI insights section
+* User's scanned image (if available) with badge indicating it's their scan
+* Action buttons: Add to Wishlist, Add to Cellar, Tasting Notes, Consume
+* Previous notes section (if any exist)
+
+### **My Wines Screen**
+* Tabs or segments for: Cellar, Wishlist, Notes, Journal
+* Cellar view shows all user's cellars with ability to add new ones
+* Individual cellar view shows wines organized by sections
+
+### **Tasting Notes**
+* Simple format with free text and 5-star rating
+* Photo upload option
+* Pro Version (P1 future feature) with structured WSET 3 fields
+
+### **Consume Screen**
+* Date of consumption
+* Optional tasting note
+* If applicable, prompt to decrement cellar quantity
+
+### **Chat Screen**
+* Text input for user queries
+* AI response display
+* Context from user's wine history
+
+### **Profile Screen**
+* User account details
+* Settings and preferences
+* Logout option
+
+## **9. Implementation Plan**
+
+### **Phase 1: Core Setup**
+1. Set up Expo project with TypeScript
+2. Configure Supabase and create database schema
+3. Implement basic authentication flow with Supabase Auth
+4. Create bottom tab navigation structure
+
+### **Phase 2: Wine Search & Display**
+1. Implement text search functionality
+2. Build Wine List and Wine Card components
+3. Create label scanning feature
+4. Implement Wine Searcher API integration with LLM fallback
+
+### **Phase 3: Cellar Management**
+1. Build cellar creation and management screens
+2. Implement "Add to Cellar" functionality
+3. Build cellar views with section organization
+4. Implement basic cellar reports
+
+### **Phase 4: Notes & Consumption**
+1. Create simple note taking interface
+2. Implement consumption feature for any wine
+3. Add cellar decrement functionality when consuming cellar wines
+
+### **Phase 5: Journal & Wishlist**
+1. Implement activity tracking for wine scans
+2. Build wishlist functionality
+3. Create Wine Journal view (initially just showing scanned wines)
+
+### **Phase 6: AI Chat (P1)**
+1. Design chat interface
+2. Implement AI integration (after clarification)
+3. Add context-awareness to chat functionality
+
+### **Phase 7: Testing & Refinement**
+1. Conduct user testing
+2. Fix bugs and improve UX
+3. Performance optimization
+
+## **10. Database Optimization**
+
+### **Table Consolidation Approach**
+
+We have consolidated the database schema by:
+
+1. **Simplifying `user_wines`**:
+   - Removed `last_scan_date` as this information is now in the activities table
+   - Focused solely on wishlist functionality
+
+2. **Merging `user_scans` into an enhanced `user_activities` table**:
+   - Single table for all user activities including scans
+   - Direct foreign keys to related entities (wines, cellars) for easier querying
+   - Added `file_url` field specifically for scan activities
+   - Using `metadata` JSONB field for activity-specific data
+
+### **Activity Types with Sample Metadata**
+
+1. **scan**
+   ```json
+   {
+     "recognized_count": 3,
+     "recognized_wines": [
+       {"wine_id": "uuid1", "confidence": 0.95, "name": "Château Margaux 2015"},
+       {"wine_id": "uuid2", "confidence": 0.85, "name": "Château Lafite 2015"}
+     ]
+   }
+   ```
+
+2. **add_to_cellar**
+   ```json
+   {
+     "quantity": 2,
+     "purchase_price": 45.99,
+     "section": "Rack A"
+   }
+   ```
+
+3. **consume**
+   ```json
+   {
+     "quantity": 1,
+     "from_cellar": true,
+     "occasion": "Anniversary dinner" 
+   }
+   ```
+
+4. **note**
+   ```json
+   {
+     "note_id": "uuid",
+     "rating": 4.5,
+     "summary": "Excellent balance and structure"
+   }
+   ```
+
+5. **wishlist_add** / **wishlist_remove**
+   ```json
+   {
+     "reason": "Recommended by friend"
+   }
+   ```
+
+### **Benefits of This Approach**
+
+1. **Simplified Schema**: Reduced from 3 tables to 2
+2. **Improved Query Performance**: Direct foreign keys to related entities
+3. **Greater Flexibility**: The metadata JSONB field handles activity-specific details
+4. **Easier Reporting**: Single source of truth for the Wine Journal
+5. **Cleaner Wine-User Relationship**: `user_wines` focuses solely on wishlist functionality
+6. **Data consistency**: Less redundancy means fewer opportunities for data inconsistencies
+
+## **11. User-Scanned Wine Images**
+
+### **Implementation Strategy**
+
+#### **1. Wine Images API Endpoint**
+
+```python
+@router.get("/wines/{wine_id}/images")
+async def get_wine_images(
+    wine_id: uuid.UUID,
+    current_user_id: uuid.UUID = Depends(get_current_user_id)
+):
+    # First, check if this user has any scanned images for this wine
+    user_scans = await db.fetch_all(
+        """
+        SELECT file_url, created_at
+        FROM user_activities 
+        WHERE user_id = :user_id 
+        AND wine_id = :wine_id 
+        AND activity_type = 'scan'
+        AND file_url IS NOT NULL
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        {"user_id": current_user_id, "wine_id": wine_id}
+    )
+    
+    # If user has scanned this wine, return their most recent scan image
+    if user_scans and len(user_scans) > 0 and user_scans[0]["file_url"]:
+        return {
+            "image_url": user_scans[0]["file_url"],
+            "is_user_scan": True,
+            "scan_date": user_scans[0]["created_at"]
+        }
+    
+    # Otherwise, return the default wine image from the wines table
+    wine = await db.fetch_one(
+        "SELECT image_url FROM wines WHERE id = :wine_id",
+        {"wine_id": wine_id}
+    )
+    
+    return {
+        "image_url": wine["image_url"] if wine and wine["image_url"] else None,
+        "is_user_scan": False
+    }
+```
+
+#### **2. Wine Card Component**
+
+```typescript
+// WineCardScreen.tsx
+import React, { useState, useEffect } from 'react';
+import { View, Image, StyleSheet, Text } from 'react-native';
+import { Card, Title, Paragraph } from 'react-native-paper';
+import { fetchWineImages } from '../api/wines';
+
+const WineCardScreen = ({ route }) => {
+  const { wineId } = route.params;
+  const [wine, setWine] = useState(null);
+  const [wineImage, setWineImage] = useState({
+    imageUrl: null,
+    isUserScan: false,
+    scanDate: null
+  });
+  
+  useEffect(() => {
+    // Fetch wine details...
+    
+    // Fetch wine image information
+    const loadWineImages = async () => {
+      try {
+        const imageData = await fetchWineImages(wineId);
+        setWineImage(imageData);
+      } catch (error) {
+        console.error('Failed to load wine images:', error);
+      }
+    };
+    
+    loadWineImages();
+  }, [wineId]);
+  
+  return (
+    <View style={styles.container}>
+      <Card>
+        {wineImage.imageUrl ? (
+          <View>
+            <Card.Cover source={{ uri: wineImage.imageUrl }} style={styles.wineImage} />
+            {wineImage.isUserScan && (
+              <Text style={styles.userScanBadge}>
+                Your scan from {new Date(wineImage.scanDate).toLocaleDateString()}
+              </Text>
+            )}
+          </View>
+        ) : (
+          <View style={styles.placeholderImage}>
+            <Text>No image available</Text>
+          </View>
+        )}
+        
+        <Card.Content>
+          <Title>{wine?.name}</Title>
+          <Paragraph>{wine?.vintage} • {wine?.region}</Paragraph>
+          {/* Rest of wine details */}
+        </Card.Content>
+      </Card>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  wineImage: {
+    height: 200,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  placeholderImage: {
+    height: 200,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userScanBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    color: 'white',
+    padding: 4,
+    borderRadius: 4,
+    fontSize: 12,
+  },
+});
+```
+
+#### **3. Recording Scan Activities**
+
+```typescript
+// ScanResultsScreen.tsx
+const selectWine = async (recognizedWine) => {
+  try {
+    // Record the selected wine and associate it with the scan image
+    await api.post('/activities', {
+      activity_type: 'scan',
+      wine_id: recognizedWine.id,
+      file_url: scanImageUrl, // URL of uploaded scan image
+      metadata: {
+        recognized_count: recognizedWines.length,
+        selected_from_multiple: recognizedWines.length > 1,
+        confidence: recognizedWine.confidence
+      }
+    });
+    
+    // Navigate to the Wine Card
+    navigation.navigate('WineCard', { wineId: recognizedWine.id });
+  } catch (error) {
+    console.error('Failed to record wine selection:', error);
+  }
+};
+```
+
+#### **4. Implementation Considerations**
+
+1. **Storage Management**: Implement proper policies for storing and potentially compressing user-scanned images in Supabase Storage
+
+2. **Privacy & Permissions**: Ensure you have appropriate permissions to store and use the user's images
+
+3. **Performance**: Consider caching frequently accessed images to improve load times
+
+4. **UI Feedback**: Clearly indicate when displaying the user's own scanned image vs an official image
+
+5. **Image Quality**: Provide a way for users to retake/replace low-quality scanned images
+
+By implementing this approach, the Wine Card will display the user's own scanned images of wines when available, creating a more personalized and engaging experience. 
