@@ -6,21 +6,24 @@ This is the backend service for the Wine App, built with FastAPI and Supabase.
 
 - Python 3.12+
 - uv package manager
-- Supabase account
+- Docker or OrbStack for local Supabase
+- Supabase CLI
 
 ## Setup
 
-1. **Create a Supabase Project**:
-   - Go to [Supabase](https://supabase.com/) and create a new project
-   - Note your project URL and API keys
+1. **Local development with Supabase**:
+   - Install [Docker](https://www.docker.com/get-started/) or [OrbStack](https://orbstack.dev/) (faster alternative for macOS)
+   - Install [Supabase CLI](https://supabase.com/docs/guides/cli)
+   - Run `supabase start` from the project root
 
 2. **Set up the database schema**:
-   - In the Supabase dashboard, go to the SQL Editor
-   - Run the SQL schema in `db/schema.sql`
+   - The schema will be automatically applied when starting Supabase locally
+   - For production, use the Supabase dashboard SQL Editor to run the SQL schema in `db/schema.sql`
 
 3. **Set up environment variables**:
    - Copy `.env.example` to `.env`
-   - Update with your Supabase project URL and API keys
+   - For local development, the default values will work with local Supabase
+   - For production, update with your Supabase project URL and API keys
 
 4. **Install dependencies**:
    ```
@@ -63,10 +66,12 @@ Tests require a running local Supabase instance. There are two ways to run tests
    ```
    ./run_with_supabase.sh
    ```
+   
+   **Note for OrbStack users**: The script will automatically detect and start OrbStack if needed.
 
 2. **Manual approach**:
    
-   a. First, start the local Supabase server:
+   a. First, ensure Docker/OrbStack is running, then start the local Supabase server:
    ```
    cd .. && supabase start
    ```
