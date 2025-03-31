@@ -14,7 +14,7 @@ def get_supabase_client() -> Client:
     """
     Returns a Supabase client with anonymous key (for user operations)
     """
-    # If in test mode, use local Supabase defaults
+    # Get the Supabase URL and key from environment or use defaults
     url = settings.SUPABASE_URL or DEFAULT_LOCAL_URL
     key = settings.SUPABASE_ANON_KEY or DEFAULT_LOCAL_KEY
     
@@ -22,13 +22,29 @@ def get_supabase_client() -> Client:
     if settings.ENVIRONMENT == "test":
         print(f"Connecting to Supabase at {url}")
     
-    return create_client(url, key)
+    try:
+        # Create the client
+        client = create_client(url, key)
+        
+        # Optional: Test the connection in test mode
+        if settings.ENVIRONMENT == "test":
+            try:
+                response = client.table("wines").select("*").limit(1).execute()
+                print(f"Successfully connected to Supabase: {len(response.data)} records returned")
+            except Exception as e:
+                print(f"Warning: Connected to Supabase but test query failed: {e}")
+        
+        return client
+    except Exception as e:
+        print(f"Error connecting to Supabase: {e}")
+        # For tests, return a client anyway as we'll test it during actual operations
+        return create_client(url, key)
 
 def get_supabase_admin_client() -> Client:
     """
     Returns a Supabase client with service role key (for admin operations)
     """
-    # If in test mode, use local Supabase defaults
+    # Get the Supabase URL and key from environment or use defaults
     url = settings.SUPABASE_URL or DEFAULT_LOCAL_URL
     key = settings.SUPABASE_SERVICE_KEY or DEFAULT_LOCAL_SERVICE_KEY
     

@@ -58,20 +58,18 @@ Once the server is running, you can access the API documentation at:
 
 ### Testing
 
-Tests require a running local Supabase instance. There are two ways to run tests:
+There are multiple ways to run tests depending on your setup:
 
-1. **Run tests with Supabase automatically**:
+1. **Run tests with Supabase automatically** (requires Docker/OrbStack):
    
    Use the provided script that will start Supabase, run tests, and stop Supabase:
    ```
    ./run_with_supabase.sh
    ```
-   
-   **Note for OrbStack users**: The script will automatically detect and start OrbStack if needed.
 
-2. **Manual approach**:
+2. **Manual approach with local Supabase** (requires Docker/OrbStack):
    
-   a. First, ensure Docker/OrbStack is running, then start the local Supabase server:
+   a. First, start the local Supabase server:
    ```
    cd .. && supabase start
    ```
@@ -86,4 +84,18 @@ Tests require a running local Supabase instance. There are two ways to run tests
    cd .. && supabase stop
    ```
 
-The tests use the real local Supabase instance rather than mocks to ensure accurate testing of database interactions. 
+3. **Run tests with a remote Supabase instance** (no Docker/OrbStack required):
+   
+   Use the provided script with your Supabase credentials:
+   ```
+   ./run_tests_no_docker.sh <SUPABASE_URL> <SUPABASE_ANON_KEY> [SUPABASE_SERVICE_KEY]
+   ```
+   
+   This approach can be useful when:
+   - Docker is not available or not working on your system
+   - You want to test against a staging environment
+   - You're running tests in a CI/CD pipeline
+
+When using Docker/OrbStack, ensure it's running before starting any of the test processes.
+
+The tests use a real Supabase instance rather than mocks to ensure accurate testing of database interactions. 
