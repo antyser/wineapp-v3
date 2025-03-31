@@ -20,8 +20,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.0.262",
+    "httpx>=0.24.0",  # For TestClient
 ]
 
 [build-system]
@@ -33,4 +35,15 @@ select = ["E", "F", "I"]
 line-length = 88
 
 [tool.black]
-line-length = 88 
+line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_functions = "test_*"
+python_classes = "Test*"
+addopts = "-v --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests that require infrastructure (deselect with '-m \"not integration\"')",
+] 
