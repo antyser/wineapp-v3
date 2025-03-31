@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.src.core import get_supabase_admin_client, get_supabase_client, settings
+from backend.src.wines import wines_router
 from supabase import Client
 
 app = FastAPI(
@@ -19,6 +20,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include API routers
+app.include_router(wines_router, prefix=settings.API_V1_STR)
 
 # API routes will be included here as we develop each domain
 # For now, just include some basic endpoints

@@ -38,12 +38,12 @@
 ## Phase 2: Feature Implementation - Wine Management
 
 ### Wine Domain Implementation
-- [ ] Define wine model and schema
-- [ ] Implement wine CRUD operations
-- [ ] Create wine service for business logic
-- [ ] Add wine routes and endpoints
-- [ ] Implement wine search and filtering
-- [ ] Add integration tests for wine domain
+- [x] Define wine model and schema
+- [x] Implement wine CRUD operations
+- [x] Create wine service for business logic
+- [x] Add wine routes and endpoints
+- [x] Implement wine search and filtering
+- [x] Add integration tests for wine domain
 
 ### Cellar Domain Implementation
 - [ ] Define cellar model and schema
