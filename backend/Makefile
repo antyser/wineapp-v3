@@ -25,9 +25,7 @@ test-file:
 
 # Run formatting
 format:
-	@echo "Note: temporarily skipping black due to Python 3.12.5 compatibility issue"
-	@echo "Please upgrade to Python 3.12.6 or downgrade to 3.12.4 to use black"
-	# black .
+	black .
 	ruff check --fix .
 	ruff format .
 
@@ -48,10 +46,10 @@ help:
 	@echo "  run          - Run the application"
 	@echo "  test         - Run tests"
 	@echo "  test-file    - Run tests for a specific file (usage: make test-file file=path/to/test.py)"
-	@echo "  format       - Format code using ruff (black temporarily disabled)"
+	@echo "  format       - Format code using black and ruff"
 	@echo "  lint         - Run linter to check code quality"
 	@echo "  install      - Install production dependencies"
 	@echo "  dev-install  - Install development dependencies"
 	@echo "  clean        - Remove cache files"
 	@echo "  all          - Run format, lint, and test (default)"
-	@echo "  help         - Show this help message" 
+	@echo "  help         - Show this help message"
