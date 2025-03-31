@@ -55,8 +55,30 @@ Once the server is running, you can access the API documentation at:
 
 ### Testing
 
-Run tests with pytest:
+Tests require a running local Supabase instance. There are two ways to run tests:
 
-```
-pytest
-``` 
+1. **Run tests with Supabase automatically**:
+   
+   Use the provided script that will start Supabase, run tests, and stop Supabase:
+   ```
+   ./run_with_supabase.sh
+   ```
+
+2. **Manual approach**:
+   
+   a. First, start the local Supabase server:
+   ```
+   cd .. && supabase start
+   ```
+   
+   b. Then run the tests:
+   ```
+   python -m pytest tests/
+   ```
+   
+   c. When done, stop the Supabase server:
+   ```
+   cd .. && supabase stop
+   ```
+
+The tests use the real local Supabase instance rather than mocks to ensure accurate testing of database interactions. 

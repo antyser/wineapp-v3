@@ -7,8 +7,16 @@ from fastapi.testclient import TestClient
 
 # Set the environment to test mode
 os.environ["ENVIRONMENT"] = "test"
-# Use real client for tests
+# We'll use the real client for tests but with local default values
 os.environ["USE_MOCK_CLIENT"] = "false"
+
+# Important message for developers
+print("\n")
+print("="*80)
+print(" IMPORTANT: Make sure the local Supabase server is running before running tests.")
+print(" Run 'supabase start' from the project root if you haven't started it yet.")
+print("="*80)
+print("\n")
 
 # Add the parent directory to sys.path for proper imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
