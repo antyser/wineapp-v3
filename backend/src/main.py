@@ -1,8 +1,8 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src.core import get_supabase_admin_client, get_supabase_client, settings
+from src.wines import wines_router
 
-from backend.src.core import get_supabase_admin_client, get_supabase_client, settings
-from backend.src.wines import wines_router
 from supabase import Client
 
 app = FastAPI(

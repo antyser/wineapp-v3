@@ -12,13 +12,13 @@ def main():
     """Run the tests"""
     # Set environment variables for testing
     os.environ["ENVIRONMENT"] = "test"
-    os.environ["USE_MOCK_CLIENT"] = "true"
+    os.environ["USE_MOCK_CLIENT"] = "false"
     
     # Add project root to PYTHONPATH to allow imports
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     
     # Run pytest with our arguments
-    sys.exit(pytest.main(["backend/tests"]))
+    sys.exit(pytest.main(["tests"]))
 
 if __name__ == "__main__":
     main() 

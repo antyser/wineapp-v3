@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import Generator
 
 import pytest
@@ -6,12 +7,15 @@ from fastapi.testclient import TestClient
 
 # Set the environment to test mode
 os.environ["ENVIRONMENT"] = "test"
-# Use mock client for tests by default
-os.environ["USE_MOCK_CLIENT"] = "true"
+# Use real client for tests
+os.environ["USE_MOCK_CLIENT"] = "false"
+
+# Add the parent directory to sys.path for proper imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Import after setting environment variables
-from backend.src.core import get_supabase_client, settings
-from backend.src.main import app  # We'll create this file next
+from src.core import get_supabase_client, settings
+from src.main import app
 
 
 @pytest.fixture
@@ -27,6 +31,6 @@ def client() -> Generator:
 def supabase():
     """
     Create a Supabase client for testing
-    For tests, this will return the mock client
+    For tests, this will return the real local Supabase client
     """
     return get_supabase_client() 

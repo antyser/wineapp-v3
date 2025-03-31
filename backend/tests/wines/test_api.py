@@ -6,10 +6,9 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-
-from backend.src.main import app
-from backend.src.wines import wines_router
-from backend.tests.conftest import client  # Import the test client fixture
+from src.main import app
+from src.wines import wines_router
+from tests.conftest import client  # Import the test client fixture
 
 
 def test_register_router():
@@ -17,7 +16,8 @@ def test_register_router():
     Test that the wines router is registered with the app
     """
     app.include_router(wines_router, prefix="/api/v1")
-    assert any(r.prefix == "/api/v1/wines" for r in app.routes)
+    # Check that the route pattern contains the expected prefix
+    assert any("/api/v1/wines" in str(r.path) for r in app.routes)
 
 
 def test_list_wines(client: TestClient):
