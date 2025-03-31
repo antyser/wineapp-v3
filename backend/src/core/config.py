@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""  # Public/anon key
     SUPABASE_SERVICE_KEY: str = ""  # Service role key (for admin operations)
+    SUPABASE_DB_NAME: str = ""  # Database name (for test environment)
     
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
@@ -21,11 +22,28 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
-    # Development
+    # Environment - supporting 'development', 'test' and 'production'
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    
+    @property
+    def is_development(self) -> bool:
+        """Check if current environment is development."""
+        return self.ENVIRONMENT == "development"
+    
+    @property
+    def is_test(self) -> bool:
+        """Check if current environment is test."""
+        return self.ENVIRONMENT == "test"
+    
+    @property
+    def is_production(self) -> bool:
+        """Check if current environment is production."""
+        return self.ENVIRONMENT == "production"
 
     class Config:
-        env_file = ".env"
+        # Choose the right .env file based on environment
+        env_file = f".env.{os.getenv('ENVIRONMENT', 'development')}" if os.path.exists(f".env.{os.getenv('ENVIRONMENT', 'development')}") else ".env"
         case_sensitive = True
+
 
 settings = Settings() 

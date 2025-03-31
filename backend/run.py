@@ -1,29 +1,21 @@
 #!/usr/bin/env python
 """
-Run script for the Wine App API
+Script to run the backend server
 """
 import os
 import sys
 
-import uvicorn
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.src.core import settings
-
-
-def main():
-    """Run the API server"""
-    # Get host and port from environment or settings
-    host = os.getenv("HOST", "0.0.0.0")  
-    port = int(os.getenv("PORT", "8000"))
-    
-    # Run uvicorn
-    uvicorn.run(
-        "backend.src.main:app",
-        host=host,
-        port=port,
-        reload=True,
-        log_level="info",
-    )
+from src.core import settings
+from src.main import app
 
 if __name__ == "__main__":
-    main() 
+    """Run the server"""
+    import uvicorn
+    uvicorn.run(
+        "src.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    ) 
