@@ -33,6 +33,11 @@ This is the backend service for the Wine App, built with FastAPI and Supabase.
    uv pip install -e .
    ```
 
+   For development, install the development dependencies:
+   ```
+   uv pip install -e ".[dev]"
+   ```
+
 5. **Run the server**:
    ```
    # For development (default)
@@ -60,6 +65,45 @@ Once the server is running, you can access the API documentation at:
   - `services/`: Business logic
   - `utils/`: Utility functions
 - `db/`: Database migrations and schema
+
+### Code Style and Formatting
+
+The project uses the following tools for code quality and formatting:
+
+1. **Ruff** - Fast Python linter and formatter:
+   - Enforces proper import organization
+   - Checks for errors and code smells
+   - Automatically fixes many issues
+
+2. **Black** - Code formatter:
+   - Ensures consistent code style
+   - Note: There's a compatibility issue with Python 3.12.5. Use Python 3.12.6+ or 3.12.4 if you want to use Black.
+
+3. **Pre-commit Hooks**:
+   - Automatically run formatters and linters before commits
+   - Install the hooks with: `pre-commit install`
+
+4. **Absolute Imports**:
+   - Use absolute imports throughout the codebase (e.g., `from src.core import settings` instead of relative imports)
+   - This reduces confusion and avoids circular import issues
+
+#### Using the Makefile
+
+We provide a Makefile with common development tasks:
+
+```bash
+# Format code
+make format
+
+# Run linting checks
+make lint
+
+# Run tests
+make test
+
+# Run a specific test file
+make test-file file=tests/path/to/test.py
+```
 
 ### Environment Configuration
 

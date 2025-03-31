@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.core import get_supabase_admin_client, get_supabase_client, settings
+from src.cellar import cellar_router
+from src.core import get_supabase_client, settings
 from src.wines import wines_router
 
 from supabase import Client
@@ -23,17 +24,32 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(wines_router, prefix=settings.API_V1_STR)
+app.include_router(cellar_router, prefix=settings.API_V1_STR)
 
 # API routes will be included here as we develop each domain
 # For now, just include some basic endpoints
+
 
 @app.get("/")
 async def root():
     return {"message": f"Welcome to the {settings.PROJECT_NAME}"}
 
-@app.get("/health")
+
+@app.get("/health", tags=["health"])
 async def health_check():
-    return {"status": "healthy"}
+    """
+    Health check endpoint to verify the API is running
+    and the Supabase connection is working
+    """
+    try:
+        # This is just to test the connection
+        client = get_supabase_client()
+        # Execute a query to verify connection
+        client.table("wines").select("*").execute()
+        return {"success": True, "message": "Successfully connected to Supabase"}
+    except Exception as e:
+        return {"success": False, "message": f"Failed to connect to Supabase: {str(e)}"}
+
 
 @app.get(f"{settings.API_V1_STR}/test-supabase")
 async def test_supabase(supabase: Client = Depends(get_supabase_client)):
@@ -42,7 +58,7 @@ async def test_supabase(supabase: Client = Depends(get_supabase_client)):
     """
     try:
         # This is just to test the connection
-        response = supabase.table("wines").select("*").execute()
+        supabase.table("wines").select("*").execute()
         return {"success": True, "message": "Successfully connected to Supabase"}
     except Exception as e:
-        return {"success": False, "message": f"Failed to connect to Supabase: {str(e)}"} 
+        return {"success": False, "message": f"Failed to connect to Supabase: {str(e)}"}

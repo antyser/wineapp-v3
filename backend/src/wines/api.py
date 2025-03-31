@@ -1,11 +1,16 @@
-from typing import Annotated, Any, Dict, Union
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Body, HTTPException, Path, Query, status
 
-from ..core import get_supabase_client
-from .schemas import Wine, WineCreate, WineSearchParams, WineSearchResults, WineUpdate
-from .service import create_wine, delete_wine, get_wine, get_wines, update_wine
+from src.wines.schemas import (
+    Wine,
+    WineCreate,
+    WineSearchParams,
+    WineSearchResults,
+    WineUpdate,
+)
+from src.wines.service import create_wine, delete_wine, get_wine, get_wines, update_wine
 
 router = APIRouter(prefix="/wines", tags=["wines"])
 
@@ -13,17 +18,31 @@ router = APIRouter(prefix="/wines", tags=["wines"])
 @router.get("", response_model=WineSearchResults)
 async def list_wines(
     # Query parameters for filtering and pagination
-    query: Annotated[str | None, Query(description="Search term for wine name, winery, etc.")] = None,
+    query: Annotated[
+        str | None, Query(description="Search term for wine name, winery, etc.")
+    ] = None,
     region: Annotated[str | None, Query(description="Filter by region")] = None,
     country: Annotated[str | None, Query(description="Filter by country")] = None,
-    varietal: Annotated[str | None, Query(description="Filter by grape variety")] = None,
-    type: Annotated[str | None, Query(description="Filter by wine type (red, white, etc.)")] = None,
+    varietal: Annotated[
+        str | None, Query(description="Filter by grape variety")
+    ] = None,
+    type: Annotated[
+        str | None, Query(description="Filter by wine type (red, white, etc.)")
+    ] = None,
     min_price: Annotated[float | None, Query(description="Minimum price")] = None,
     max_price: Annotated[float | None, Query(description="Maximum price")] = None,
-    min_rating: Annotated[int | None, Query(description="Minimum rating (0-100)")] = None,
-    min_vintage: Annotated[int | None, Query(description="Minimum vintage year")] = None,
-    max_vintage: Annotated[int | None, Query(description="Maximum vintage year")] = None,
-    limit: Annotated[int, Query(description="Number of results per page", ge=1, le=100)] = 20,
+    min_rating: Annotated[
+        int | None, Query(description="Minimum rating (0-100)")
+    ] = None,
+    min_vintage: Annotated[
+        int | None, Query(description="Minimum vintage year")
+    ] = None,
+    max_vintage: Annotated[
+        int | None, Query(description="Maximum vintage year")
+    ] = None,
+    limit: Annotated[
+        int, Query(description="Number of results per page", ge=1, le=100)
+    ] = 20,
     offset: Annotated[int, Query(description="Number of results to skip", ge=0)] = 0,
 ) -> WineSearchResults:
     """
@@ -42,17 +61,14 @@ async def list_wines(
         min_vintage=min_vintage,
         max_vintage=max_vintage,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
-    
+
     # Get wines
     result = await get_wines(search_params)
-    
+
     # Return results
-    return WineSearchResults(
-        items=result["items"],
-        total=result["total"]
-    )
+    return WineSearchResults(items=result["items"], total=result["total"])
 
 
 @router.get("/{wine_id}", response_model=Wine)
@@ -66,7 +82,7 @@ async def get_wine_by_id(
     if wine is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Wine with ID {wine_id} not found"
+            detail=f"Wine with ID {wine_id} not found",
         )
     return wine
 
@@ -93,7 +109,7 @@ async def update_wine_by_id(
     if updated_wine is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Wine with ID {wine_id} not found"
+            detail=f"Wine with ID {wine_id} not found",
         )
     return updated_wine
 
@@ -109,5 +125,5 @@ async def delete_wine_by_id(
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Wine with ID {wine_id} not found"
-        ) 
+            detail=f"Wine with ID {wine_id} not found",
+        )
