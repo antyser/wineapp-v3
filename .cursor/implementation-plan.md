@@ -3,28 +3,29 @@
 ## Phase 1: Core Setup
 
 ### Version Control Setup
-- [ ] Configure version control (Git)
-- [ ] Initialize repository with README and .gitignore
-- [ ] Create directory structure (frontend/ for Expo app, backend/ for FastAPI)
-- [ ] Set up initial branch strategy (main, develop, feature branches)
+- [x] Configure version control (Git)
+- [x] Initialize repository with README and .gitignore
+- [x] Create directory structure (frontend/ for Expo app, backend/ for FastAPI)
+- [x] Set up initial branch strategy (main, develop, feature branches)
 
 ### Frontend Setup (in frontend/ directory)
-- [ ] Initialize Expo project with TypeScript
-- [ ] Configure ESLint and Prettier for code quality
-- [ ] Set up directory structure (screens, components, api, utils, etc.)
-- [ ] Install and configure React Native Paper for UI components
-- [ ] Set up React Navigation with bottom tabs (Home, My Wines, Chat, Profile)
-- [ ] Create basic layout templates and theme constants
-- [ ] Configure Zustand for state management
+- [x] Initialize Expo project with TypeScript
+- [x] Configure ESLint and Prettier for code quality
+- [x] Set up directory structure (screens, components, api, utils, etc.)
+- [x] Install and configure React Native Paper for UI components
+- [x] Set up React Navigation with bottom tabs (Home, My Wines, Chat, Profile)
+- [x] Create basic layout templates and theme constants
+- [x] Configure Zustand for state management
 
 ### Backend Setup (in backend/ directory)
-- [ ] Set up Python 3.12+ environment with uv package manager
-- [ ] Initialize FastAPI project structure
+- [x] Set up Python 3.12+ environment with uv package manager
+- [x] Initialize FastAPI project structure
 - [ ] Create Supabase project
-- [ ] Configure environment variables and connection settings
-- [ ] Implement database schema (create all tables)
+- [x] Configure environment variables for Supabase connection
+- [x] Set up Supabase client in the backend
+- [x] Implement database schema in Supabase (create all tables)
 - [ ] Set up authentication with Supabase Auth
-- [ ] Create basic API structure with route organization
+- [x] Create basic API structure with route organization
 
 ### DevOps
 - [ ] Set up development, testing, and production environments
