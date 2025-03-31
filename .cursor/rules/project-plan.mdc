@@ -1,17 +1,21 @@
+---
+description: This rule attached to every chat and command+k request
+globs: 
+---
 # **Wine App - Project Plan**
 
 ## **Table of Contents**
-1. [Project Overview](#1-project-overview)
-2. [In-Scope vs. Out-of-Scope](#2-in-scope-vs-out-of-scope)
-3. [User Flow](#3-user-flow)
-4. [Core Features](#4-core-features)
-5. [Tech Stack & Tools](#5-tech-stack--tools)
-6. [Database Schema](#6-database-schema)
-7. [API Endpoints](#7-api-endpoints)
-8. [UI Components & Screens](#8-ui-components--screens)
-9. [Implementation Plan](#9-implementation-plan)
-10. [Database Optimization](#10-database-optimization)
-11. [User-Scanned Wine Images](#11-user-scanned-wine-images)
+1. [Project Overview](mdc:#1-project-overview)
+2. [In-Scope vs. Out-of-Scope](mdc:#2-in-scope-vs-out-of-scope)
+3. [User Flow](mdc:#3-user-flow)
+4. [Core Features](mdc:#4-core-features)
+5. [Tech Stack & Tools](mdc:#5-tech-stack--tools)
+6. [Database Schema](mdc:#6-database-schema)
+7. [API Endpoints](mdc:#7-api-endpoints)
+8. [UI Components & Screens](mdc:#8-ui-components--screens)
+9. [Implementation Plan](mdc:#9-implementation-plan)
+10. [Database Optimization](mdc:#10-database-optimization)
+11. [User-Scanned Wine Images](mdc:#11-user-scanned-wine-images)
 
 ## **1. Project Overview**
 

@@ -19,34 +19,55 @@
 
 ### Backend Setup (in backend/ directory)
 - [x] Set up Python 3.12+ environment with uv package manager
-- [x] Initialize FastAPI project structure
-- [ ] Create Supabase project
-- [x] Configure environment variables for Supabase connection
-- [x] Set up Supabase client in the backend
-- [x] Implement database schema in Supabase (create all tables)
-- [ ] Set up authentication with Supabase Auth
-- [x] Create basic API structure with route organization
+- [ ] Reorganize FastAPI project structure (by domain)
+  - [ ] Create src folder with domain directories (auth, cellar, wines, notes, chat, core)
+  - [ ] Move core functionality (config, database) to core module
+  - [ ] Set up tests directory mirroring domain structure
+  - [ ] Create supabase/migrations directory for database migrations
+- [ ] Set up local Supabase environment with Docker for testing
+- [ ] Initialize Supabase client connection
+- [ ] Run database schema migrations on local Supabase instance
 
-### DevOps
-- [ ] Set up development, testing, and production environments
-- [ ] Create CI/CD pipeline for automated testing and deployment
-- [ ] Establish logging and error monitoring
+### Local Development Environment
+- [ ] Configure Docker Compose for local Supabase instance
+- [ ] Run database migrations on local Supabase instance
+- [ ] Create initial seed data for testing
+- [ ] Implement integration tests with local Supabase
+- [ ] Connect frontend to backend API
 
-## Phase 2: Wine Search & Display
+## Phase 2: Feature Implementation - Wine Management
+
+### Wine Domain Implementation
+- [ ] Define wine model and schema
+- [ ] Implement wine CRUD operations
+- [ ] Create wine service for business logic
+- [ ] Add wine routes and endpoints
+- [ ] Implement wine search and filtering
+- [ ] Add integration tests for wine domain
+
+### Cellar Domain Implementation
+- [ ] Define cellar model and schema
+- [ ] Implement cellar CRUD operations
+- [ ] Create cellar-wine relationship management
+- [ ] Add cellar routes and endpoints
+- [ ] Implement cellar statistics calculation
+- [ ] Add integration tests for cellar domain
+
+### Wine UI Components
+- [ ] Design and implement Wine Card UI
+- [ ] Create Wine List component for displaying search results
+- [ ] Implement wine detail view
+- [ ] Add sorting and filtering options for search results
+- [ ] Build cellar management UI
+
+## Phase 3: Feature Implementation - Search & Scanning
 
 ### Search Implementation
 - [ ] Build text search functionality
 - [ ] Integrate with Wine Searcher API
 - [ ] Implement LLM fallback for when Wine Searcher is unavailable
-- [ ] Create Wine List component for displaying search results
-- [ ] Add sorting and filtering options for search results
-
-### Wine Card
-- [ ] Design and implement Wine Card UI
-- [ ] Fetch and display basic wine details (vintage, name, region, etc.)
-- [ ] Implement AI insights section (food pairings, drinking window)
-- [ ] Add action buttons (Add to Wishlist, Add to Cellar, Tasting Notes, Consume)
-- [ ] Display previous notes section if available
+- [ ] Create search history and suggestions
+- [ ] Add integration tests for search functionality
 
 ### Image Scanning
 - [ ] Integrate camera functionality for label scanning
@@ -54,111 +75,56 @@
 - [ ] Create image processing pipeline
 - [ ] Build scan results display
 - [ ] Handle ambiguous scan results with user prompts
+- [ ] Add integration tests for image scanning
 
-## Phase 3: Cellar Management
+## Phase 4: Feature Implementation - User Features
 
-### Cellar Creation
-- [ ] Build "Create Cellar" form with name and section inputs
-- [ ] Implement cellar management screens
-- [ ] Create UI for adding/removing cellar sections
-- [ ] Add cellar listing and selection interface
+### Auth Domain Implementation
+- [ ] Set up authentication with Supabase Auth
+- [ ] Create auth service and middleware
+- [ ] Implement user profile management
+- [ ] Add auth routes and endpoints
+- [ ] Create login and signup screens
+- [ ] Add integration tests for auth domain
 
-### Wine Management
-- [ ] Build "Add to Cellar" form with quantity, purchase price, etc.
-- [ ] Create wine detail view within cellar
-- [ ] Implement wine quantity update functionality
-- [ ] Add sorting and filtering by region, variety, vintage, etc.
+### Notes Domain Implementation
+- [ ] Define note model and schema
+- [ ] Implement notes CRUD operations
+- [ ] Create note service for business logic
+- [ ] Add notes routes and endpoints
+- [ ] Create tasting note form UI
+- [ ] Build note detail view and history
+- [ ] Add rating system
+- [ ] Add integration tests for notes domain
 
-### Cellar Reports
-- [ ] Create inventory count display
-- [ ] Implement region/vintage breakdown visualizations
-- [ ] Build total investment calculation and display
-- [ ] Add cellar value tracking over time
+### Wishlist & Collection
+- [ ] Implement wishlist functionality
+- [ ] Create UI for managing wishlist
+- [ ] Build collection view and statistics
+- [ ] Add sharing capabilities
+- [ ] Add integration tests for wishlist
 
-## Phase 4: Notes & Consumption
+## Phase 5: Advanced Features & Refinement
 
-### Tasting Notes
-- [ ] Build simple note-taking interface
-- [ ] Implement 5-star rating with support for fractional ratings
-- [ ] Add photo upload capability for wine/label images
-- [ ] Create notes listing and filtering interface
-- [ ] Build note detail view
+### Chat Domain Implementation
+- [ ] Define chat models and schema
+- [ ] Implement chat CRUD operations
+- [ ] Create chat service for AI integration
+- [ ] Add chat routes and endpoints
+- [ ] Implement AI-powered wine recommendations
+- [ ] Create AI chat interface
+- [ ] Add food pairing suggestions
+- [ ] Implement drinking window predictions
+- [ ] Add integration tests for chat domain
 
-### Consumption Tracking
-- [ ] Create "Consume Wine" screen with date entry
-- [ ] Implement optional note creation during consumption
-- [ ] Build cellar quantity decrement functionality
-- [ ] Add consumption confirmation workflow
-- [ ] Create consumption history view
+### Analytics & Reporting
+- [ ] Create cellar value tracking
+- [ ] Implement consumption analytics
+- [ ] Build collection diversity insights
+- [ ] Add vintage performance tracking
 
-## Phase 5: Journal & Wishlist
-
-### Activity Tracking
-- [ ] Implement user activity logging for scans
-- [ ] Create backend API for recording and retrieving activities
-- [ ] Build Wine Journal UI displaying scanned wines
-- [ ] Implement activity detail view
-
-### Wishlist
-- [ ] Add wishlist toggle functionality on Wine Card
-- [ ] Create wishlist view showing all wishlist wines
-- [ ] Implement wishlist management (add/remove)
-- [ ] Add sorting and filtering for wishlist items
-
-## Phase 6: AI Chat (P1)
-
-### Chat Interface
-- [ ] Design conversational UI for AI chat
-- [ ] Implement message input and display
-- [ ] Create chat session management
-- [ ] Build message history persistence
-
-### AI Integration
-- [ ] Establish connection with Gemini or alternative LLMs
-- [ ] Implement context gathering from user data (cellar, wishlist, etc.)
-- [ ] Create prompt engineering for wine recommendations
-- [ ] Build response parsing and formatting
-
-## Phase 7: Testing & Refinement
-
-### Testing
-- [ ] Create unit tests for critical functions
-- [ ] Implement integration tests for API endpoints
-- [ ] Conduct end-to-end testing of key user flows
-- [ ] Perform cross-device compatibility testing
-- [ ] Test offline behavior and error handling
-
-### Performance
-- [ ] Optimize image loading and processing
-- [ ] Implement caching strategies
-- [ ] Reduce API call frequency and payload size
-- [ ] Optimize database queries
-- [ ] Profile and improve app startup time
-
-### User Experience
-- [ ] Conduct usability testing with wine enthusiasts
-- [ ] Gather feedback on UI/UX
-- [ ] Implement loading states and animations
-- [ ] Improve error messages and user guidance
-- [ ] Add onboarding tutorial for first-time users
-
-## Phase 8: Deployment & Launch
-
-### Final Preparations
-- [ ] Complete documentation (API, codebase, user manual)
-- [ ] Perform security audit
-- [ ] Ensure proper handling of user data and privacy
-- [ ] Set up analytics to track user engagement
-
-### Deployment
-- [ ] Deploy backend to production environment
-- [ ] Configure production database
-- [ ] Publish app to App Store (iOS)
-- [ ] Publish app to Google Play (Android)
-- [ ] Monitor initial user feedback and issues
-
-### Post-Launch
-- [ ] Establish bug reporting and feature request system
-- [ ] Plan for regular maintenance and updates
-- [ ] Create roadmap for P1 features (WSET 3 tasting notes, etc.)
-- [ ] Monitor performance and scale resources as needed 
+### DevOps & Deployment
+- [ ] Set up development, testing, and production environments
+- [ ] Create CI/CD pipeline for automated testing and deployment
+- [ ] Implement error monitoring and logging
+- [ ] Deploy to production 
