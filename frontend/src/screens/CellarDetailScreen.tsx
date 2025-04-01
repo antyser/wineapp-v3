@@ -3,7 +3,8 @@ import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { Text, Appbar, Portal, Dialog, Button } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { CellarWineList } from '../components/cellar';
-import { cellarService, CellarWine, Cellar } from '../api/services';
+import cellarService from '../api/cellarService';
+import { CellarWine, Cellar } from '../api/cellarService';
 
 // Define valid status types
 type WineStatus = 'in_stock' | 'consumed' | 'gifted' | 'sold';
@@ -33,12 +34,11 @@ const CellarDetailScreen = () => {
       setLoading(true);
       console.log(`Fetching cellar details for cellarId: ${cellarId}`);
 
-      // Use the correct method name: getCellarById instead of getCellar
       const cellarData = await cellarService.getCellarById(cellarId);
       setCellar(cellarData);
       console.log('Cellar data loaded:', cellarData);
 
-      // Use the correct method name: getBottlesByCellarId instead of getCellarWines
+      // Call the corrected endpoint (/wines)
       const winesResult = await cellarService.getBottlesByCellarId(cellarId);
       console.log('Wines data loaded:', winesResult);
 
@@ -55,7 +55,7 @@ const CellarDetailScreen = () => {
 
   const handleUpdateQuantity = async (wine: CellarWine, quantity: number) => {
     try {
-      // Update this to use the correct method from cellarService
+      // Ensure we use the correct method `updateBottle`
       await cellarService.updateBottle(wine.cellar_id, wine.id, { quantity });
 
       // Update local state to reflect change
@@ -94,7 +94,7 @@ const CellarDetailScreen = () => {
         throw new Error('Wine not found');
       }
 
-      // Update this to use the correct method from cellarService
+      // Ensure we use the correct method `updateBottle`
       await cellarService.updateBottle(wine.cellar_id, wineId, { status: newStatus });
 
       // Update local state

@@ -93,7 +93,7 @@ export const cellarService = {
   // Get wines in a cellar
   getBottlesByCellarId: async (cellarId: string): Promise<CellarWinesResponse> => {
     console.log(`Calling getBottlesByCellarId API for cellarId: ${cellarId}`);
-    const response = await apiClient.get(`/api/v1/cellars/${cellarId}/bottles`);
+    const response = await apiClient.get(`/api/v1/cellars/${cellarId}/wines`);
     return response.data;
   },
 
