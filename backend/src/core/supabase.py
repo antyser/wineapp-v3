@@ -34,9 +34,7 @@ def get_supabase_client() -> Client:
     env_name = (
         "TEST"
         if settings.is_test
-        else "DEVELOPMENT"
-        if settings.is_development
-        else "PRODUCTION"
+        else "DEVELOPMENT" if settings.is_development else "PRODUCTION"
     )
     logger.info(f"Connecting to Supabase ({env_name}) at {url}")
 

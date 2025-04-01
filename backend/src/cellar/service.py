@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Optional
 from uuid import UUID, uuid4
 
 from src.cellar.schemas import (
@@ -18,8 +18,6 @@ from src.cellar.schemas import (
     CellarWineUpdate,
 )
 from src.core import get_supabase_client
-from src.wines.service import get_wine
-
 from supabase import Client
 
 
@@ -447,36 +445,36 @@ async def add_wine_to_cellar(
 
 
 async def update_cellar_wine(
-    cellar_wine_id: UUID,
-    cellar_wine: CellarWineUpdate,
-    client: Optional[Client] = None
+    cellar_wine_id: UUID, cellar_wine: CellarWineUpdate, client: Optional[Client] = None
 ) -> Optional[CellarWineResponse]:
     """
     Update a cellar wine
-    
+
     Args:
         cellar_wine_id: UUID of the cellar wine to update
         cellar_wine: Cellar wine data to update
         client: Supabase client (optional, will use default if not provided)
-        
+
     Returns:
         Updated cellar wine with wine details if found, None otherwise
     """
     if client is None:
         client = get_supabase_client()
-    
+
     # First check if cellar wine exists
     existing = await get_cellar_wine(cellar_wine_id, client)
     if not existing:
         return None
-    
+
     # Update cellar wine
     cellar_wine_data = cellar_wine.model_dump(exclude_unset=True)
     cellar_wine_data["updated_at"] = datetime.now().isoformat()
-    
+
     # Execute the update
-    client.table("cellar_wines").update(cellar_wine_data).eq("id", str(cellar_wine_id)).execute()
-    
+    client.table("cellar_wines").update(cellar_wine_data).eq(
+        "id", str(cellar_wine_id)
+    ).execute()
+
     # Get the updated cellar wine with wine details
     return await get_cellar_wine(cellar_wine_id, client)
 

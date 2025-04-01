@@ -1,2 +1,2 @@
 # Notes module
-# Handles user tasting notes and reviews 
+# Handles user tasting notes and reviews

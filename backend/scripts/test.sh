@@ -142,7 +142,7 @@ export ENVIRONMENT="test"
 export SUPABASE_URL="http://127.0.0.1:54321"
 export SUPABASE_DB_NAME="$TEST_DB_NAME"
 export PGDATABASE="$TEST_DB_NAME"  # Set PostgreSQL database name
-export PGOPTIONS="-c search_path=public"  # Ensure we're using the public schema 
+export PGOPTIONS="-c search_path=public"  # Ensure we're using the public schema
 
 # Determine test path
 TEST_PATH="tests/"
@@ -161,4 +161,4 @@ if [ $? -eq 0 ]; then
 else
   echo -e "\n${RED}Tests failed.${NC}"
   exit 1
-fi 
+fi

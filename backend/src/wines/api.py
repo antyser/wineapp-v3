@@ -1,8 +1,9 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, HTTPException, Path, Query, status
 
+from src.wines import service
 from src.wines.schemas import (
     Wine,
     WineCreate,
@@ -127,3 +128,29 @@ async def delete_wine_by_id(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Wine with ID {wine_id} not found",
         )
+
+
+@router.get("/search/wine-searcher", response_model=Wine)
+async def search_wine_searcher(
+    query: Annotated[str, Query(description="Wine name to search for")],
+    vintage: Annotated[
+        Optional[int], Query(description="Optional vintage to search for")
+    ] = None,
+    use_crawler: Annotated[
+        bool, Query(description="Use third-party crawler (Firecrawl)")
+    ] = True,
+):
+    """
+    Search for wine on Wine-Searcher and return first result
+
+    This endpoint searches for wines on Wine-Searcher.com using the provided query.
+    It returns the first result found, or 404 if no wine is found.
+
+    The search can use a third-party crawler (Firecrawl) or fetch directly with HTTP/2.
+    """
+    wine = await service.fetch_wine_from_wine_searcher(
+        query, vintage, use_crawler=use_crawler
+    )
+    if not wine:
+        raise HTTPException(status_code=404, detail="Wine not found on Wine-Searcher")
+    return wine

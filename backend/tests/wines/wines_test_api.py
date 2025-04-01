@@ -3,6 +3,7 @@ Tests for the wines API endpoints
 """
 
 from fastapi.testclient import TestClient
+
 from src.main import app
 from src.wines import wines_router
 
@@ -53,7 +54,7 @@ def test_list_wines_with_filters(client: TestClient):
     response2 = client.get("/api/v1/wines?limit=1&offset=1")
     data1 = response1.json()
     data2 = response2.json()
-    
+
     # Just verify the structure is correct
     assert len(data1["items"]) <= 1  # Should be 1 or 0
     assert "total" in data1

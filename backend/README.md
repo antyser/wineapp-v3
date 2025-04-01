@@ -42,7 +42,7 @@ This is the backend service for the Wine App, built with FastAPI and Supabase.
    ```
    # For development (default)
    python run.py
-   
+
    # For production
    ENVIRONMENT=production python run.py
    ```
@@ -177,4 +177,4 @@ chmod +x scripts/test.sh
    ./scripts/test.sh tests/wines/test_service.py::test_get_wines
    ```
 
-The tests use a separate test database to ensure they don't interfere with your development environment. This allows you to run tests while the frontend is connected to the development database. 
+The tests use a separate test database to ensure they don't interfere with your development environment. This allows you to run tests while the frontend is connected to the development database.

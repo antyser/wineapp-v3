@@ -8,7 +8,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from supabase import Client, create_client
+from supabase import create_client
 
 # Add the parent directory to sys.path for proper imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -22,8 +22,6 @@ from src.main import app
 os.environ["ENVIRONMENT"] = "development"
 # Force the Supabase URL to use the correct local endpoint
 os.environ["SUPABASE_URL"] = "http://127.0.0.1:54321"
-# We'll use the real client for tests
-os.environ["USE_MOCK_CLIENT"] = "false"
 
 # Important message for developers
 print("\n")

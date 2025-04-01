@@ -1,2 +1,2 @@
 # Auth module
-# Handles user authentication, registration, and profile management 
+# Handles user authentication, registration, and profile management

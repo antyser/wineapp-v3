@@ -95,4 +95,4 @@ echo -e "${YELLOW}The server will be available at http://localhost:8000${NC}"
 echo -e "${YELLOW}API docs will be available at http://localhost:8000/docs${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
 
-python run.py 
+python run.py

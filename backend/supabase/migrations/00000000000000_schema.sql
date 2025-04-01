@@ -124,4 +124,4 @@ CREATE POLICY wishlist_insert_policy ON wishlist
 CREATE POLICY wishlist_update_policy ON wishlist
     FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY wishlist_delete_policy ON wishlist
-    FOR DELETE USING (auth.uid() = user_id); 
+    FOR DELETE USING (auth.uid() = user_id);

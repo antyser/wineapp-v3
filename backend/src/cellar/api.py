@@ -21,7 +21,7 @@ from src.cellar.schemas import (
 router = APIRouter(prefix="/cellars", tags=["cellars"])
 
 
-@router.get("/", response_model=CellarListResult)
+@router.get("", response_model=CellarListResult)
 async def list_cellars(
     user_id: Annotated[Optional[UUID], Query(description="Filter by user ID")] = None,
     limit: Annotated[
@@ -49,7 +49,7 @@ async def get_cellar(
     return cellar
 
 
-@router.post("/", response_model=Cellar, status_code=201)
+@router.post("", response_model=Cellar, status_code=201)
 async def create_cellar(cellar: CellarCreate):
     """
     Create a new cellar

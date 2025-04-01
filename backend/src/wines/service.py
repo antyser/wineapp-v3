@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
+from loguru import logger
+
 from src.core import get_supabase_client
 from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
 from supabase import Client
@@ -223,3 +225,78 @@ async def delete_wine(wine_id: UUID, client: Optional[Client] = None) -> bool:
         return updated is None
 
     return True
+
+
+async def fetch_wine_from_wine_searcher(
+    search_term: str, vintage: Optional[int] = None, use_crawler: bool = True
+) -> Optional[Wine]:
+    """
+    Fetch wine information from Wine-Searcher.com.
+
+    Args:
+        search_term: Wine name to search for
+        vintage: Optional vintage to filter results
+        use_crawler: Whether to use a third-party crawler (default: True)
+
+    Returns:
+        Wine object if found, None otherwise
+    """
+    try:
+        # Import here to avoid circular imports
+        from src.crawler.wine_searcher import fetch_wine
+
+        logger.info(f"Fetching wine from Wine-Searcher: {search_term}")
+
+        # Use the wine searcher to fetch the wine
+        wine_searcher = await fetch_wine(
+            wine_name=search_term,
+            vintage=vintage,
+            country="usa",
+            use_crawler=use_crawler,
+        )
+
+        # Return None if wine not found
+        if not wine_searcher:
+            logger.warning(f"Wine not found on Wine-Searcher: {search_term}")
+            return None
+
+        # Convert WineSearcherWine to Wine
+        wine = convert_wine_searcher_to_wine(wine_searcher)
+
+        logger.info(f"Found wine from Wine-Searcher: {wine.name} ({wine.vintage})")
+        return wine
+    except Exception as e:
+        logger.error(f"Error fetching wine from Wine-Searcher: {str(e)}")
+        return None
+
+
+def convert_wine_searcher_to_wine(wine_searcher: "WineSearcherWine") -> Wine:
+    """
+    Convert WineSearcherWine to Wine.
+
+    Args:
+        wine_searcher: WineSearcherWine object
+
+    Returns:
+        Wine object
+    """
+    return Wine(
+        id=wine_searcher.id,
+        name=wine_searcher.name,
+        region=wine_searcher.region,
+        country=wine_searcher.origin,
+        producer=wine_searcher.producer,
+        vintage=str(wine_searcher.vintage),
+        wine_type=wine_searcher.wine_type,
+        grape_variety=wine_searcher.grape_variety,
+        image_url=wine_searcher.image,
+        average_price=wine_searcher.average_price,
+        description=wine_searcher.description,
+        wine_searcher_id=(
+            str(wine_searcher.wine_searcher_id)
+            if wine_searcher.wine_searcher_id
+            else None
+        ),
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )

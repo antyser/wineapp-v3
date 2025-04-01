@@ -14,17 +14,20 @@ class WineBase(BaseModel):
     alcohol_content: Optional[float] = None
     price: Optional[float] = None
 
+
 class WineCreate(WineBase):
     pass
+
 
 class Wine(WineBase):
     id: str
     image_url: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class WineCellarEntryBase(BaseModel):
     wine_id: str
@@ -34,8 +37,10 @@ class WineCellarEntryBase(BaseModel):
     drink_by_date: Optional[datetime] = None
     notes: Optional[str] = None
 
+
 class WineCellarEntryCreate(WineCellarEntryBase):
     pass
+
 
 class WineCellarEntry(WineCellarEntryBase):
     id: str
@@ -43,9 +48,10 @@ class WineCellarEntry(WineCellarEntryBase):
     cellar_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
+
 
 class TastingNoteBase(BaseModel):
     wine_id: str
@@ -57,14 +63,16 @@ class TastingNoteBase(BaseModel):
     overall_notes: Optional[str] = None
     tasting_date: datetime = Field(default_factory=datetime.now)
 
+
 class TastingNoteCreate(TastingNoteBase):
     pass
+
 
 class TastingNote(TastingNoteBase):
     id: str
     user_id: str
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
-        from_attributes = True 
+        from_attributes = True

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 class WineBase(BaseModel):
     """Base fields for a wine"""
+
     name: str
     winery: Optional[str] = None
     vintage: Optional[int] = None
@@ -21,11 +22,13 @@ class WineBase(BaseModel):
 
 class WineCreate(WineBase):
     """Fields required to create a wine"""
+
     pass
 
 
 class WineUpdate(BaseModel):
     """Fields that can be updated"""
+
     name: Optional[str] = None
     winery: Optional[str] = None
     vintage: Optional[int] = None
@@ -41,6 +44,7 @@ class WineUpdate(BaseModel):
 
 class Wine(WineBase):
     """Full wine model with all fields"""
+
     id: UUID
     image_url: Optional[HttpUrl] = None
     created_at: datetime
@@ -52,6 +56,7 @@ class Wine(WineBase):
 
 class WineSearchParams(BaseModel):
     """Parameters for searching wines"""
+
     query: Optional[str] = None
     region: Optional[str] = None
     country: Optional[str] = None
@@ -68,5 +73,6 @@ class WineSearchParams(BaseModel):
 
 class WineSearchResults(BaseModel):
     """Results from a wine search"""
+
     items: List[Wine]
-    total: int 
+    total: int

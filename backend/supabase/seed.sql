@@ -32,4 +32,4 @@ VALUES
 INSERT INTO tasting_notes (id, user_id, wine_id, rating, tasting_date, appearance, nose, palate, finish, notes)
 VALUES
   ('note0000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed', 90, '2023-06-12', 'Deep ruby', 'Black fruit, cedar', 'Full-bodied, tannic', 'Long, dry', 'Excellent with steak'),
-  ('note0000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', '6ecd8c99-4036-403d-bf84-cf8400f67836', 87, '2023-07-04', 'Pale gold', 'Apple, pear, oak', 'Medium body, crisp acidity', 'Clean, refreshing', 'Great summer wine'); 
+  ('note0000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002', '6ecd8c99-4036-403d-bf84-cf8400f67836', 87, '2023-07-04', 'Pale gold', 'Apple, pear, oak', 'Medium body, crisp acidity', 'Clean, refreshing', 'Great summer wine');

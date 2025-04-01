@@ -1,9 +1,9 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from src.cellar import cellar_router
 from src.core import get_supabase_client, settings
 from src.wines import wines_router
-
 from supabase import Client
 
 app = FastAPI(
