@@ -44,7 +44,7 @@ export default function MainTabs() {
         options={{
           title: 'My Wines',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="wine" color={color} size={size} />
+            <MaterialCommunityIcons name="glass-wine" color={color} size={size} />
           ),
         }}
       />
@@ -68,4 +68,4 @@ export default function MainTabs() {
       />
     </Tab.Navigator>
   );
-} 
+}

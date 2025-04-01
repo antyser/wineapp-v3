@@ -1,6 +1,7 @@
 ---
-description: 
+description: when use agent framework
 globs: **/*.{py}
+alwaysApply: false
 ---
 # OpenAI Agents Python SDK - Simplified Guide
 
@@ -69,7 +70,7 @@ from agents import Agent, Runner, function_tool
 @function_tool
 def get_weather(city: str) -> str:
     """Fetch the weather for a given location.
-    
+
     Args:
         city: The name of the city to get weather for.
     """
@@ -107,7 +108,7 @@ class Location(TypedDict):
 @function_tool
 async def fetch_weather(location: Location) -> str:
     """Fetch the weather for a given location.
-    
+
     Args:
         location: The location coordinates.
     """
@@ -215,8 +216,8 @@ os.environ["OPENAI_AGENTS_DISABLE_TRACING"] = "1"
 from agents.run import RunConfig
 
 result = await Runner.run(
-    agent, 
-    "Hello", 
+    agent,
+    "Hello",
     config=RunConfig(tracing_disabled=True)
 )
 ```

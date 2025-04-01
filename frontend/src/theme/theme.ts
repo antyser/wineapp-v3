@@ -9,14 +9,16 @@ export const theme = {
   fonts: configureFonts({ config: fontConfig }),
   colors: {
     ...MD3LightTheme.colors,
-    primary: '#8E2430', // Wine red
-    secondary: '#F2D4AB', // Cream
-    tertiary: '#A78F7F', // Taupe
-    accent: '#4B0D12', // Dark wine
-    background: '#F9F9F9',
-    surface: '#FFFFFF',
-    text: '#1A1A1A',
-    error: '#D32F2F',
+    primary: '#000000', // Black
+    secondary: '#E0E0E0', // Light gray
+    tertiary: '#F0F0F0', // Very light gray
+    accent: '#000000', // Black
+    background: '#FFFFFF', // White
+    surface: '#FFFFFF', // White
+    text: '#000000', // Black
+    error: '#000000', // Black
+    onSurface: '#000000', // Black
+    outline: '#E0E0E0', // Light gray
   },
   roundness: 8,
 };

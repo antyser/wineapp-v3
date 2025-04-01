@@ -14,7 +14,7 @@ const ChatScreen = () => {
             <Avatar.Icon size={40} icon="robot" />
             <View style={styles.messageBubble}>
               <Text>
-                Hello! I'm your wine assistant. Ask me anything about wines, food pairings, 
+                Hello! I'm your wine assistant. Ask me anything about wines, food pairings,
                 or recommendations based on your preferences.
               </Text>
             </View>
@@ -30,9 +30,9 @@ const ChatScreen = () => {
           onChangeText={setMessage}
           style={styles.input}
         />
-        <Button 
-          mode="contained" 
-          onPress={() => {}} 
+        <Button
+          mode="contained"
+          onPress={() => {}}
           style={styles.sendButton}
           icon="send"
         >
@@ -83,4 +83,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChatScreen; 
+export default ChatScreen;

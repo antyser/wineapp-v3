@@ -1,10 +1,11 @@
 ---
 description: This rule attached to every chat and command+k request
-globs: 
+globs:
+alwaysApply: false
 ---
 # Instructions
 
-During you interaction with the user, if you find anything reusable in this project (e.g. version of a library, model name), especially about a fix to a mistake you made or a correction you received, you should take note in the `.cursor/lesson.md` section so you will not make the same mistake again. 
+During you interaction with the user, if you find anything reusable in this project (e.g. version of a library, model name), especially about a fix to a mistake you made or a correction you received, you should take note in the `.cursor/lesson.md` section so you will not make the same mistake again.
 
 You should read the [project-plan.md](mdc:.cursor/project-plan.md) for high level and work through the [implementation-plan.md](mdc:.cursor/implementation-plan.md). When you're done, mark it as checked. If you find out the problem is more complicated and need to breakdown the tasks, feel free to do so.
 
@@ -14,4 +15,3 @@ The goal is to help you maintain a big picture as well as the progress of the ta
 # Tools
 
 Note all the tools are in python. So in the case you need to do batch processing, you can always consult the python files and write your own script. You should put your scripts in ./cursor_scripts.
-

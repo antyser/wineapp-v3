@@ -1,6 +1,7 @@
 ---
-description: 
-globs: globs: **/*.{py}
+description: when writes python
+globs:
+alwaysApply: false
 ---
 - Use pydantic v2
 - Use `BaseModel` for data validation and serialization

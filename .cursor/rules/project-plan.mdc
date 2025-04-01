@@ -1,6 +1,7 @@
 ---
-description: This rule attached to every chat and command+k request
-globs: 
+description:
+globs:
+alwaysApply: true
 ---
 # **Wine App - Project Plan**
 
@@ -27,7 +28,7 @@ The goal is to provide an intuitive, centralized platform for all wine-related a
 
 ### **In-Scope**
 
-1. **User Authentication**: 
+1. **User Authentication**:
    * Secure login/signup via Email, Google, Apple through Supabase Auth
    * Users can skip sign-in initially but must sign in for save actions (adding to cellar, taking notes, etc.)
 
@@ -177,15 +178,15 @@ The goal is to provide an intuitive, centralized platform for all wine-related a
 * **Navigation**: React Navigation with bottom tabs (not drawer)
 * **State Management**: Zustand (used internally)
 
-### **AI Integrations**: 
+### **AI Integrations**:
 * Preferred LLM is Gemini, though GPT or Claude may be substituted
 * **Implementation Note**: Detailed AI integration requires clarification before proceeding
 
-### **External Data**: 
+### **External Data**:
 * Wine Searcher API (primary)
 * Fallback to LLM if API is unavailable
 
-### **Search**: 
+### **Search**:
 * Supabase Full-Text Search or alternative indexing solutions
 * **Implementation Note**: Detailed search implementation requires clarification before proceeding
 
@@ -291,7 +292,7 @@ CREATE TABLE IF NOT EXISTS public.user_wines (
 ```sql
 CREATE TABLE IF NOT EXISTS public.user_activities (
   id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id         uuid         NOT NULL,  
+  user_id         uuid         NOT NULL,
   activity_type   text         NOT NULL,  -- 'scan', 'add_to_cellar', 'consume', 'note', 'wishlist', etc.
   wine_id         uuid,                   -- Optional: specific wine related to this activity
   cellar_id       uuid,                   -- Optional: related cellar if applicable
@@ -332,6 +333,45 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
   CONSTRAINT fk_chat_messages_session
     FOREIGN KEY (session_id) REFERENCES public.chat_sessions (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS public.wine_searcher_wines (
+  id character varying(20) NOT NULL,
+  wine_searcher_id integer NOT NULL,
+  vintage integer NOT NULL,
+  name character varying(255) NOT NULL,
+  url text NULL,
+  region character varying(255) NULL,
+  region_image text NULL,
+  origin character varying(255) NULL,
+  grape_variety character varying(255) NULL,
+  image text NULL,
+  producer character varying(255) NULL,
+  average_price double precision NULL,
+  wine_type character varying(255) NULL,
+  wine_style character varying(255) NULL,
+  min_price double precision NULL,
+  description text NULL,
+  offers_count integer NULL,
+  CONSTRAINT wine_pkey PRIMARY KEY (id),
+  CONSTRAINT wines_name_key UNIQUE (name)
+);
+CREATE INDEX IF NOT EXISTS idx_wine_name ON public.wine_searcher_wines USING btree (name);
+
+CREATE TABLE IF NOT EXISTS public.offers (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  wine_id text NOT NULL,
+  price double precision NOT NULL,
+  unit_price double precision NOT NULL,
+  description text NULL,
+  seller_name character varying NULL,
+  url character varying NULL,
+  seller_address_region character varying NULL,
+  seller_address_country character varying NULL,
+  name character varying NULL,
+  CONSTRAINT offers_pkey PRIMARY KEY (id),
+  CONSTRAINT offers_wine_id_fkey FOREIGN KEY (wine_id) REFERENCES wine_searcher_wines(id) ON DELETE CASCADE
+);
+
 ```
 
 ## **7. API Endpoints**
@@ -497,7 +537,7 @@ We have consolidated the database schema by:
    {
      "quantity": 1,
      "from_cellar": true,
-     "occasion": "Anniversary dinner" 
+     "occasion": "Anniversary dinner"
    }
    ```
 
@@ -542,9 +582,9 @@ async def get_wine_images(
     user_scans = await db.fetch_all(
         """
         SELECT file_url, created_at
-        FROM user_activities 
-        WHERE user_id = :user_id 
-        AND wine_id = :wine_id 
+        FROM user_activities
+        WHERE user_id = :user_id
+        AND wine_id = :wine_id
         AND activity_type = 'scan'
         AND file_url IS NOT NULL
         ORDER BY created_at DESC
@@ -552,7 +592,7 @@ async def get_wine_images(
         """,
         {"user_id": current_user_id, "wine_id": wine_id}
     )
-    
+
     # If user has scanned this wine, return their most recent scan image
     if user_scans and len(user_scans) > 0 and user_scans[0]["file_url"]:
         return {
@@ -560,13 +600,13 @@ async def get_wine_images(
             "is_user_scan": True,
             "scan_date": user_scans[0]["created_at"]
         }
-    
+
     # Otherwise, return the default wine image from the wines table
     wine = await db.fetch_one(
         "SELECT image_url FROM wines WHERE id = :wine_id",
         {"wine_id": wine_id}
     )
-    
+
     return {
         "image_url": wine["image_url"] if wine and wine["image_url"] else None,
         "is_user_scan": False
@@ -590,10 +630,10 @@ const WineCardScreen = ({ route }) => {
     isUserScan: false,
     scanDate: null
   });
-  
+
   useEffect(() => {
     // Fetch wine details...
-    
+
     // Fetch wine image information
     const loadWineImages = async () => {
       try {
@@ -603,10 +643,10 @@ const WineCardScreen = ({ route }) => {
         console.error('Failed to load wine images:', error);
       }
     };
-    
+
     loadWineImages();
   }, [wineId]);
-  
+
   return (
     <View style={styles.container}>
       <Card>
@@ -624,7 +664,7 @@ const WineCardScreen = ({ route }) => {
             <Text>No image available</Text>
           </View>
         )}
-        
+
         <Card.Content>
           <Title>{wine?.name}</Title>
           <Paragraph>{wine?.vintage} • {wine?.region}</Paragraph>
@@ -681,7 +721,7 @@ const selectWine = async (recognizedWine) => {
         confidence: recognizedWine.confidence
       }
     });
-    
+
     // Navigate to the Wine Card
     navigation.navigate('WineCard', { wineId: recognizedWine.id });
   } catch (error) {
@@ -702,4 +742,4 @@ const selectWine = async (recognizedWine) => {
 
 5. **Image Quality**: Provide a way for users to retake/replace low-quality scanned images
 
-By implementing this approach, the Wine Card will display the user's own scanned images of wines when available, creating a more personalized and engaging experience. 
+By implementing this approach, the Wine Card will display the user's own scanned images of wines when available, creating a more personalized and engaging experience.

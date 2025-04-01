@@ -20,4 +20,4 @@ services:
       - ./backend/supabase/seed.sql:/docker-entrypoint-initdb.d/seed.sql
 
 volumes:
-  postgres_data: 
+  postgres_data:

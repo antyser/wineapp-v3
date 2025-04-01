@@ -1,0 +1,220 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Below is a **Frontend Guideline Document** tailored to your Wine App, taking into account your preferences for React Native Paper as the UI library, a simple black-and-white color scheme, a drawer-based navigation, and minimal additional libraries. This guideline is intended to help align the development team on best practices and ensure consistency across the entire frontend codebase.
+
+---
+
+# **Wine App – Frontend Guideline Document**
+
+## **1\. Overview**
+
+This document outlines the frontend architecture, design principles, and technologies used for the Wine App. The objective is to enable developers, designers, and stakeholders to easily understand and contribute to the application’s mobile interface and user experience. Although this is a mobile-first application, many of the principles are universal in ensuring consistency, performance, and ease of maintainability.
+
+---
+
+## **2\. Architecture & Framework**
+
+### **2.1 Expo & TypeScript**
+
+* **Expo** is the primary framework for building cross-platform mobile apps targeting both iOS and Android from a single codebase.
+
+* **TypeScript** ensures type safety and helps detect common coding errors at compile time, improving developer productivity and code quality.
+
+### **2.2 UI Library: React Native Paper**
+
+* **React Native Paper** is used for its well-documented, Material Design–inspired components.
+
+* Out-of-the-box theming supports a consistent appearance (dark and light modes) should you decide to expand theming in the future.
+
+* Minimal external libraries are introduced; styling and layout primarily use React Native Paper’s built-in features.
+
+### **2.3 Navigation: React Navigation**
+
+* **Drawer Navigation** is preferred over bottom tabs.
+
+  * A left (or right) drawer panel will list major sections (Home, My Wines, Chat, Profile, etc.).
+
+  * Sub-routes (like Wine Details, Add to Cellar, Tasting Notes) will typically use a stack navigator nested within the drawer for screen transitions.
+
+* This approach keeps navigation straightforward and consistent with large-screen layouts in mind.
+
+---
+
+## **3\. Design Principles**
+
+### **3.1 Simplicity & Clarity**
+
+* Focus on a **black-and-white color palette** for a clean, minimal look:
+
+  * **Primary Background**: White (\#FFFFFF)
+
+  * **Primary Text**: Black (\#000000)
+
+  * **Accent**: Shades of gray for dividers, subtle borders, and elevated surfaces (e.g., \#F0F0F0 or \#E0E0E0).
+
+* Buttons and interactive elements should be clearly distinguishable (e.g., black text on white background or vice versa).
+
+* Avoid clutter—keep the interface minimal to avoid overwhelming the user with too many visual elements.
+
+### **3.2 Consistency**
+
+* Use **React Native Paper** components consistently (e.g., `Button`, `Card`, `TextInput`, `Appbar`, `List`, etc.) to ensure uniform styling, hover/touch states, and spacing.
+
+* Adopt standard spacing units (e.g., increments of 8 pixels) to maintain visual coherence across screens.
+
+### **3.3 Accessibility (Basic)**
+
+* Even though there’s no specific WCAG-level requirement, aim for **clear contrast** between text and background for readability (e.g., black text on white).
+
+* Use React Native Paper’s built-in accessibility props when possible (`accessible`, `accessibilityLabel`, etc.).
+
+* Provide descriptive labels for icons or images to aid screen reader usage where feasible.
+
+---
+
+## **4\. Styling & Theming**
+
+### **4.1 React Native Paper Theme**
+
+* **Default Theme**: Start with Paper’s default light theme.
+
+* **Color Customizations**:
+
+  * `colors.background = "#FFFFFF"`
+
+  * `colors.text = "#000000"`
+
+  * `colors.primary = "#000000"` (if you want black as your main accent for buttons)
+
+  * `colors.accent = "#E0E0E0"` (light gray, or choose a slightly different shade if needed)
+
+* Optionally add a **dark theme** extension later if needed.
+
+### **4.2 Layout & Spacing**
+
+* Keep consistent padding and margin for all major screens (e.g., 16px for outer content margins).
+
+* Use Paper’s **Layout** components (`Surface`, `Card`) to group related elements for a cohesive, layered look.
+
+### **4.3 Font & Typography**
+
+* Leverage the default system fonts or specify a single custom font if desired (e.g., Roboto or SF Pro).
+
+* Maintain a consistent font scale across headings, subtitles, and body text:
+
+  * Headline: \~20-24pt
+
+  * Subheading: \~16-18pt
+
+  * Body text: \~14-16pt
+
+---
+
+## **5\. Component Structure**
+
+### **5.1 Organization**
+
+* **Screens** directory for top-level pages (e.g., `HomeScreen`, `SearchScreen`, `WineCardScreen`, etc.).
+
+* **Components** directory for shared UI pieces (e.g., `WineListItem`, `CellarItemCard`, `EmptyState`, etc.).
+
+* **Navigation** directory for configuration of navigators (e.g., `AppDrawer`, `RootStack`).
+
+* **Context** or **Store** directory for global state (if needed), though the PRD indicates only minimal mention of Zustand usage.
+
+### **5.2 Reusability**
+
+* Build smaller, composable components to avoid duplication and improve clarity:
+
+  * e.g., `WineItem` used in multiple lists (search results, wishlist, cellar).
+
+* Keep **business logic** outside of UI components when possible. Use hooks or context providers to handle data fetching and state updates.
+
+---
+
+## **6\. State Management**
+
+### **6.1 Zustand (Minimal Usage)**
+
+* Even though state management details aren’t deeply specified, **Zustand** can store user session data or ephemeral states (e.g., user authentication status, search filters).
+
+* Keep local state in components where feasible, resort to Zustand only for cross-cutting concerns (e.g., user profile, chat sessions if needed).
+
+* Alternatively, rely on built-in React Context if usage of Zustand remains minimal.
+
+---
+
+## **7\. Performance & Testing**
+
+### **7.1 Performance Considerations**
+
+* **Image Loading**: Optimize label scan images or user-uploaded photos. Possibly compress them before uploading to the backend to reduce memory usage.
+
+* **Lazy Loading**: If certain screens (e.g., advanced cellar reports) are rarely accessed, consider lazy-loading them to improve initial load times.
+
+* **Drawer Navigation**: The initial route should load quickly (e.g., HomeScreen). Subsequent screens load asynchronously.
+
+### **7.2 Testing Tools**
+
+* **Unit Tests**:
+
+  * Use **Jest** with **React Native Testing Library** for component-level testing.
+
+* **End-to-End (E2E)**:
+
+  * **Detox** is a popular choice for E2E tests in React Native, automating user flows on real/simulated devices.
+
+Testing ensures new changes don’t break existing screens or flows (search, cellar updates, note creation, etc.).
+
+---
+
+## **8\. Build & Deployment**
+
+* A single codebase targets both **iOS** and **Android** via React Native.
+
+* Follow platform guidelines for app icons, splash screens, and store submissions:
+
+  * iOS: Xcode, App Store Connect
+
+  * Android: Android Studio, Google Play Console
+
+(You have indicated no platform-specific design nuances beyond standard React Native Paper usage.)
+
+---
+
+## **9\. Additional Guidelines**
+
+1. **Version Control**:
+
+   * Keep consistent Git branch naming (e.g., `feature/add-cellar-report`, `fix/search-bug`) and use pull requests for code review.
+
+2. **Coding Standards**:
+
+   * Follow a linter like **ESLint** \+ **Prettier** with TypeScript rules for consistent code formatting.
+
+3. **Error Handling & Messages**:
+
+   * Show user-friendly errors (e.g., “Scan failed, please retry”) rather than raw error stacks.
+
+4. **Analytics/Instrumentation** (if needed later):
+
+   * If you decide to track user events (e.g., user performed a search, user added to cellar), ensure minimal overhead and privacy compliance.
+
+---
+
+## **10\. Summary**
+
+By adhering to these **Frontend Guidelines**, the Wine App will maintain:
+
+* **Consistent & Minimal UI**: A black-and-white theme, reliance on React Native Paper for components.
+
+* **Drawer Navigation**: Clear categorization of screens, making the user journey straightforward.
+
+* **Scalability & Clarity**: TypeScript \+ a structured approach to screens and components.
+
+* **Testability & Maintainability**: Jest, React Native Testing Library, and Detox for robust testing coverage.
+
+These guidelines ensure that the Wine App remains cohesive, user-friendly, and easy to evolve—meeting the needs of wine enthusiasts while maintaining a high-quality codebase over time.

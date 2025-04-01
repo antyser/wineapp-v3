@@ -82,4 +82,4 @@ Both frontend and backend code have their own README files with more detailed de
 
 ## License
 
-[MIT](LICENSE) 
+[MIT](LICENSE)

@@ -24,4 +24,4 @@ docker exec -i "$(docker-compose ps -q supabase)" psql -U postgres -d postgres -
 
 echo "Local development environment is ready!"
 echo "Supabase is available at: http://localhost:8000"
-echo "You can now start the backend with: cd backend && make run" 
+echo "You can now start the backend with: cd backend && make run"

@@ -83,9 +83,9 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        <Button 
-          mode="text" 
-          textColor="crimson" 
+        <Button
+          mode="text"
+          textColor="crimson"
           style={styles.logoutButton}
         >
           Log Out
@@ -138,4 +138,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfileScreen; 
+export default ProfileScreen;

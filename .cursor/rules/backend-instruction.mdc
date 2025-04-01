@@ -1,0 +1,35 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+Okay, here are the updated instructions with the addition of `black` and `ruff`:
+
+**Python Backend Development Instructions:**
+
+1.  **Project Structure**: Organize code by domain or feature. Group related models, schemas, services, and API endpoints together. Keep core utilities and configurations separate.
+2.  **Dependency Injection**: Inject dependencies (like the Supabase client) using function parameters.
+3.  **Data Validation**: Use Pydantic schemas for request/response validation. Create distinct models for Create, Update, and Response operations.
+4.  **Service Layer Pattern**: Separate business logic into a service layer, distinct from API route handlers.
+5.  **Testing Strategy**: Write unit tests for business logic (consider using a local database). Implement integration tests for API endpoints. Use parameterized tests and fixtures.
+6.  **Error Handling**: Implement consistent error responses with proper HTTP status codes and descriptive messages (without exposing internal details).
+7.  **Async Programming**: Use `async`/`await` for I/O-bound operations.
+8.  **Type Hints**: Use Python type annotations throughout the codebase.
+9.  **Documentation**: Write docstrings for functions and classes. Generate API documentation (OpenAPI/Swagger). Add clear comments for complex logic.
+10. **Configuration Management**: Use environment-based configuration. Implement secrets management (avoid hardcoding). Consider using feature flags.
+11. **Use dev database**: When developing feature, use the dev supabase client instead of mocking it.
+
+**General Python Coding Instructions:**
+
+1.  Use Meaningful Names for variables, functions, and classes.
+2.  Follow PEP 8 style guidelines.
+3.  Use Docstrings to document functions and classes.
+4.  Keep code Simple and clear.
+5.  Use List Comprehensions where appropriate.
+6.  Handle Exceptions using `try-except` blocks.
+7.  Use `uv` for dependency management (as a virtual environment alternative).
+8.  Write Tests to ensure code reliability.
+9.  Use Type Hints for better code clarity.
+10. Avoid Global Variables.
+11. Always use Absolute imports.
+12. **Follow Black and Ruff coding style**: Ensure code is automatically formatted with `black` and adheres to the rules enforced by `ruff`.

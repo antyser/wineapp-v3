@@ -46,27 +46,28 @@
 - [x] Add integration tests for wine domain
 
 ### Cellar Domain Implementation
-- [ ] Define cellar model and schema
-- [ ] Implement cellar CRUD operations
-- [ ] Create cellar-wine relationship management
-- [ ] Add cellar routes and endpoints
-- [ ] Implement cellar statistics calculation
+- [x] Define cellar model and schema
+- [x] Implement cellar CRUD operations
+- [x] Create cellar-wine relationship management
+- [x] Add cellar routes and endpoints
+- [x] Implement cellar statistics calculation
 - [ ] Add integration tests for cellar domain
 
 ### Wine UI Components
-- [ ] Design and implement Wine Card UI
-- [ ] Create Wine List component for displaying search results
-- [ ] Implement wine detail view
-- [ ] Add sorting and filtering options for search results
+- [x] Design and implement Wine Card UI
+- [x] Create Wine List component for displaying search results
+- [x] Implement wine detail view
+- [x] Add sorting and filtering options for search results
 - [ ] Build cellar management UI
 
 ## Phase 3: Feature Implementation - Search & Scanning
 
 ### Search Implementation
-- [ ] Build text search functionality
-- [ ] Integrate with Wine Searcher API
+- [x] Build text search functionality
+- [x] Implement Firecrawl API for Wine-Searcher data scraping
+- [x] Implement wine data extraction and parsing
 - [ ] Implement LLM fallback for when Wine Searcher is unavailable
-- [ ] Create search history and suggestions
+- [x] Create search history and suggestions
 - [ ] Add integration tests for search functionality
 
 ### Image Scanning
@@ -127,4 +128,4 @@
 - [ ] Set up development, testing, and production environments
 - [ ] Create CI/CD pipeline for automated testing and deployment
 - [ ] Implement error monitoring and logging
-- [ ] Deploy to production 
+- [ ] Deploy to production

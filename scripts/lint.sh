@@ -10,4 +10,4 @@ cd "$(dirname "$0")/.."
 echo "Running ruff linter..."
 ruff check backend/
 
-echo "Linting complete!" 
+echo "Linting complete!"
