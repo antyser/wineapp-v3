@@ -62,7 +62,7 @@ const TestCellarAddScreen = () => {
       try {
         const result = await cellarService.getCellars();
         console.log('[TestCellarAddScreen] getCellars result:', result);
-        Alert.alert('getCellars Success', `Found ${result.items?.length || 0} cellars`);
+        Alert.alert('getCellars Success', `Found ${result.cellars?.length || 0} cellars`);
       } catch (err) {
         console.error('[TestCellarAddScreen] getCellars error:', err);
         Alert.alert('getCellars Error', err.message || 'Unknown error');

@@ -58,21 +58,21 @@ export const cellarService = {
   // Get all user's cellars
   getCellars: async (): Promise<CellarsResponse> => {
     console.log('Calling getCellars API');
-    const response = await apiClient.get('/cellars');
+    const response = await apiClient.get('/api/v1/cellars');
     return response.data;
   },
 
   // Get cellar by ID
   getCellarById: async (id: string): Promise<Cellar> => {
     console.log(`Calling getCellarById API for ID: ${id}`);
-    const response = await apiClient.get(`/cellars/${id}`);
+    const response = await apiClient.get(`/api/v1/cellars/${id}`);
     return response.data.cellar;
   },
 
   // Create a new cellar
   createCellar: async (cellarData: Partial<Cellar>): Promise<Cellar> => {
     console.log('Calling createCellar API with data:', cellarData);
-    const response = await apiClient.post('/cellars', cellarData);
+    const response = await apiClient.post('/api/v1/cellars', cellarData);
     console.log('Create cellar API response:', response.data);
     return response.data;
   },
@@ -80,47 +80,47 @@ export const cellarService = {
   // Update an existing cellar
   updateCellar: async (id: string, cellarData: Partial<Cellar>): Promise<Cellar> => {
     console.log(`Calling updateCellar API for ID: ${id} with data:`, cellarData);
-    const response = await apiClient.patch(`/cellars/${id}`, cellarData);
+    const response = await apiClient.patch(`/api/v1/cellars/${id}`, cellarData);
     return response.data.cellar;
   },
 
   // Delete a cellar
   deleteCellar: async (id: string): Promise<void> => {
     console.log(`Calling deleteCellar API for ID: ${id}`);
-    await apiClient.delete(`/cellars/${id}`);
+    await apiClient.delete(`/api/v1/cellars/${id}`);
   },
 
   // Get wines in a cellar
   getBottlesByCellarId: async (cellarId: string): Promise<CellarWinesResponse> => {
     console.log(`Calling getBottlesByCellarId API for cellarId: ${cellarId}`);
-    const response = await apiClient.get(`/cellars/${cellarId}/bottles`);
+    const response = await apiClient.get(`/api/v1/cellars/${cellarId}/bottles`);
     return response.data;
   },
 
   // Add a wine to a cellar
   addBottle: async (cellarId: string, bottleData: Partial<CellarWine>): Promise<CellarWine> => {
     console.log(`Calling addBottle API for cellarId: ${cellarId} with data:`, bottleData);
-    const response = await apiClient.post(`/cellars/${cellarId}/bottles`, bottleData);
+    const response = await apiClient.post(`/api/v1/cellars/${cellarId}/bottles`, bottleData);
     return response.data.cellarWine;
   },
 
   // Update a wine in a cellar
   updateBottle: async (cellarId: string, bottleId: string, bottleData: Partial<CellarWine>): Promise<CellarWine> => {
     console.log(`Calling updateBottle API for cellarId: ${cellarId}, bottleId: ${bottleId} with data:`, bottleData);
-    const response = await apiClient.patch(`/cellars/${cellarId}/bottles/${bottleId}`, bottleData);
+    const response = await apiClient.patch(`/api/v1/cellars/${cellarId}/bottles/${bottleId}`, bottleData);
     return response.data.cellarWine;
   },
 
   // Remove a wine from a cellar
   removeBottle: async (cellarId: string, bottleId: string): Promise<void> => {
     console.log(`Calling removeBottle API for cellarId: ${cellarId}, bottleId: ${bottleId}`);
-    await apiClient.delete(`/cellars/${cellarId}/bottles/${bottleId}`);
+    await apiClient.delete(`/api/v1/cellars/${cellarId}/bottles/${bottleId}`);
   },
 
   // Get cellar statistics
   getCellarStatistics: async (cellarId: string): Promise<CellarStatistics> => {
     console.log(`Calling getCellarStatistics API for cellarId: ${cellarId}`);
-    const response = await apiClient.get(`/cellars/${cellarId}/statistics`);
+    const response = await apiClient.get(`/api/v1/cellars/${cellarId}/statistics`);
     return response.data.statistics;
   }
 };

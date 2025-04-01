@@ -12,7 +12,8 @@ console.log('[API Client] Environment setup:', {
   platform: Platform.OS,
   isWeb,
   nodeEnv: process.env.NODE_ENV,
-  expoReleaseChannel: Constants.expoConfig?.releaseChannel,
+  // Use optional chaining to avoid errors if releaseChannel doesn't exist
+  expoConfig: Constants.expoConfig ? 'defined' : 'undefined'
 });
 
 // Configure baseURL based on environment
@@ -21,15 +22,15 @@ let baseURL = 'https://api.wineapp.com';
 if (isDevelopment) {
   if (isWeb) {
     // For web in development - use localhost
-    baseURL = 'http://localhost:8000/api/v1';
+    baseURL = 'http://localhost:8000';
     console.log('[API Client] Using web development URL:', baseURL);
   } else if (Platform.OS === 'android') {
     // For Android emulator
-    baseURL = 'http://10.0.2.2:8000/api/v1';
+    baseURL = 'http://10.0.2.2:8000';
     console.log('[API Client] Using Android emulator URL:', baseURL);
   } else {
     // For iOS simulator or other platforms
-    baseURL = 'http://localhost:8000/api/v1';
+    baseURL = 'http://localhost:8000';
     console.log('[API Client] Using iOS/other development URL:', baseURL);
   }
 } else {

@@ -24,7 +24,7 @@ const runTests = async () => {
     try {
       const cellarsResponse = await cellarService.getCellars();
       console.log('getCellars response:', cellarsResponse);
-      console.log(`Found ${cellarsResponse.items?.length || 0} cellars`);
+      console.log(`Found ${cellarsResponse.cellars?.length || 0} cellars`);
     } catch (error) {
       console.error('getCellars failed:', error.message);
       if (error.response) {
