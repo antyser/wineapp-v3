@@ -29,7 +29,7 @@ const TestCellarAddScreen = () => {
       Alert.alert('Testing Connection', `Connecting to: ${apiClient.defaults.baseURL}`);
 
       // Try a direct API call to the health endpoint
-      const response = await apiClient.get('/health/');
+      const response = await apiClient.get('/health');
       console.log('[TestConnection] Health check response:', response.data);
 
       // Show response in UI and alert

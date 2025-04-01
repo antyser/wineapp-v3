@@ -13,7 +13,7 @@ const runTests = async () => {
     // 2. Test /health endpoint
     console.log('\n2. TESTING HEALTH ENDPOINT');
     try {
-      const healthResponse = await apiClient.get('/health/');
+      const healthResponse = await apiClient.get('/health');
       console.log('Health check response:', healthResponse.data);
     } catch (error) {
       console.error('Health check failed:', error.message);
