@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS public.wines (
   description      text,
   wine_searcher_id text,     -- if set, references external data (Wine Searcher, etc.)
   created_at       timestamptz  NOT NULL DEFAULT now(),
-  updated_at       timestamptz  NOT NULL DEFAULT now()
+  updated_at       timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT unique_wine_searcher_id UNIQUE NULLS NOT DISTINCT (wine_searcher_id)
 );
 
 -- Create cellars table

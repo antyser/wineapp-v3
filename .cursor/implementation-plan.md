@@ -64,7 +64,10 @@
 
 ### Search Implementation
 - [x] Build text search functionality
-- [x] Implement Firecrawl API for Wine-Searcher data scraping
+- [x] Implement Firecrawl API for Wine-Searcher
+- [ ] Implement wine searcher extraction and parsing
+- [ ] Implement the search database logic proerply
+- [ ] Handle the database update when new winesearcher information comes
 - [x] Implement wine data extraction and parsing
 - [ ] Implement LLM fallback for when Wine Searcher is unavailable
 - [x] Create search history and suggestions

@@ -1,0 +1,140 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+## Parser Implementation Plan
+
+You should only write file under the parser directory and the corrsponding tests/ directory.
+
+---
+
+### 1. Define the Output Schema Using Pydantic & Create the Parser Functions
+
+1. **Create a Pydantic Model** for the parsed data:
+
+   ```python
+   from pydantic import BaseModel, Field
+   from typing import Optional
+
+   class ParsedData(BaseModel):
+       title: Optional[str] = Field(default=None)
+       price: Optional[float] = Field(default=None)
+       description: Optional[str] = Field(default=None)
+       availability: Optional[bool] = Field(default=None)
+   ```
+
+2. **Create Parser Functions** using BeautifulSoup to parse each field.
+
+   - Initially, return `None` so the tests don’t break.
+   - Example:
+
+   ```python
+   from bs4 import BeautifulSoup
+
+   def parse_title(soup: BeautifulSoup) -> str:
+       return None  # TODO: implement
+
+   def parse_price(soup: BeautifulSoup) -> float:
+       return None  # TODO: implement
+
+   def parse_description(soup: BeautifulSoup) -> str:
+       return None  # TODO: implement
+
+   def parse_availability(soup: BeautifulSoup) -> bool:
+       return None  # TODO: implement
+
+   def parse_html(html_content: str) -> ParsedData:
+       soup = BeautifulSoup(html_content, "html.parser")
+       return ParsedData(
+           title=parse_title(soup),
+           price=parse_price(soup),
+           description=parse_description(soup),
+           availability=parse_availability(soup)
+       )
+   ```
+
+---
+
+### 2. Create a Task List for Parsing Fields
+
+Use a table or checklist to track progress for each field:
+i.e.
+[] create the functions
+[] create test directory
+...
+---
+
+### 3. Set Up the Test Cases
+
+1. **Directory Structure**:
+
+   - `tests/<parser_test_name>/inputs` for the input files (HTML snippets).
+   - `tests/<parser_test_name>/outputs` for the corresponding output files (JSON/Pydantic output).
+
+2. **Inputs**:
+
+   - Each HTML file is a test input.
+   - If the expected output isn’t available, the AI agent can propose one from the HTML or screenshot.
+   - Wait for user confirmation to ensure accuracy.
+
+3. **Outputs**:
+
+   - Store the expected parsed data (JSON or a Pydantic-serialized form) in `outputs`.
+
+---
+
+### 4. Implement & Test Fields Iteratively
+
+1. **Write or Update a Field Parser** (e.g., `parse_title`) so it produces the correct data.
+2. **Run Tests** to confirm whether the parser works:
+   - If the test fails, fix the parser logic.
+   - If it succeeds, mark the field as done in the to-do list.
+3. **Repeat** for each field until all tests pass.
+
+Below is an example `pytest` configuration that automatically pairs each input file with the corresponding output:
+
+```python
+import os
+import pytest
+import json
+from parser_module import parse_html
+
+TEST_DATA_FOLDER = "tests/myparser"
+
+def get_test_cases():
+    input_dir = os.path.join(TEST_DATA_FOLDER, "inputs")
+    output_dir = os.path.join(TEST_DATA_FOLDER, "outputs")
+    test_cases = []
+    for input_filename in os.listdir(input_dir):
+        if input_filename.endswith(".html"):
+            base_name = input_filename[:-5]  # remove .html
+            output_filename = base_name + "_output.json"
+            input_path = os.path.join(input_dir, input_filename)
+            output_path = os.path.join(output_dir, output_filename)
+            if os.path.exists(output_path):
+                test_cases.append((input_path, output_path))
+    return test_cases
+
+@pytest.mark.parametrize("input_file, expected_file", get_test_cases())
+def test_parser(input_file, expected_file):
+    with open(input_file, "r") as f:
+        html_content = f.read()
+    result = parse_html(html_content)
+    with open(expected_file, "r") as f:
+        expected_data = json.load(f)
+    # Compare the parsed data dict with the expected JSON
+    assert result.dict() == expected_data
+```
+
+---
+
+## Summary
+
+1. **Define the schema & create parser functions** in one step, returning `None` placeholders initially.
+2. **List all fields** you need in a to-do table.
+3. **Set up directories** for test inputs (HTML) and outputs (JSON).
+4. **Iteratively implement & test** each field, updating the parser and verifying with pytest.
+
+This process provides a clear path for building and verifying each parsing component.
+
