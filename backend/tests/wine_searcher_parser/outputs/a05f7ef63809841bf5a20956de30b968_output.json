@@ -1,0 +1,128 @@
+{
+  "id": "717944_2014",
+  "wine_searcher_id": 717944,
+  "vintage": 2014,
+  "name": "2014 Vilmart & Cie Grand Cellier 'Emotion' Brut Rose Vintage",
+  "url": "https://www.wine-searcher.com/find/vilmart+cie+grand+cellier+emotion+brut+rose+vintage+champagne+france/2014/usa",
+  "description": "Formerly labelled as Grand Cellier Rubis Vineyard notes: \"Blending composed of 90% Pinot Noir (including 15% red wine) and 10% Chardonnay classified Premier Cru and from vines in Rilly-la-Montagne. In agreement with its certifications of Viticulture Durable (Sustainable Viticulture) and Haute Valeur Environnementale (High Environmental Value), Vilmart House cultivates its vineyards in the greatest respect of its terroir.\"",
+  "region": "Champagne Rose",
+  "origin": "Champagne Rose, France",
+  "grape_variety": "Chardonnay - Pinot Noir",
+  "image": "https://www.wine-searcher.com/images/labels/20/43/vilmart-cie-grand-cellier-emotion-brut-rose-vintage-champagne-france-11672043.jpg",
+  "producer": "Vilmart & Cie",
+  "average_price": 176.0,
+  "min_price": 159.0,
+  "wine_type": "Sparkling",
+  "wine_style": "Sparkling - Berries and Cream",
+  "profile": {
+    "winery": "Vilmart & Cie",
+    "region_or_appellation": "Champagne",
+    "grape_variety": "Chardonnay - Pinot Noir",
+    "style": "Sparkling - Berries and Cream",
+    "food_pairing": "Meaty and Oily Fish",
+    "drinking_window": null,
+    "abv": null,
+    "ownership": null
+  },
+  "vintages": {
+    "current_vintage": null,
+    "vintage_quality": null,
+    "current_condition": null,
+    "vintage_description": null,
+    "vintage_list": [
+      {
+        "year": "All",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2023",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2022",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2020",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2017",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2016",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2015",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2014",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2013",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2012",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2011",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2010",
+        "critics_score": null,
+        "avg_price": null
+      }
+    ]
+  },
+  "offers": [
+    {
+      "price": 159.0,
+      "unit_price": 159.0,
+      "description": "Vilmart & Cie Emotion Grand Cellier Brut Rose, Champagne 2014 750ML",
+      "seller_name": "Flickinger Wines",
+      "url": "https://t.wine-searcher.net/?R=G&c=USD&h=7950386375907124639&m=669&w=717944&v=2014&Xf=1&Xb=USA&Xs=NY&Xd=10543&Xp=159.00&Xq=1&Xj=o",
+      "seller_address_region": "NY",
+      "seller_address_country": "USA",
+      "name": null
+    },
+    {
+      "price": 199.99,
+      "unit_price": 199.99,
+      "description": "Vilmart Emotion Grand Cellier Brut Rose 2014",
+      "seller_name": "Wine.com",
+      "url": "https://t.wine-searcher.net/?R=G&c=USD&h=7950386375907124639&m=7155&w=717944&v=2014&Xf=1&Xb=USA&Xs=CA&Xd=94107&Xp=199.99&Xq=1&Xj=o",
+      "seller_address_region": "CA",
+      "seller_address_country": "USA",
+      "name": null
+    },
+    {
+      "price": 169.99,
+      "unit_price": 169.99,
+      "description": "Vilmart & Cie 'Emotion' Grand Cellier Brut Rose 2014 (750ml)",
+      "seller_name": "Zachys Bottle Shop",
+      "url": "https://t.wine-searcher.net/?R=G&c=USD&h=7950386375907124639&m=14347&w=717944&v=2014&Xf=1&Xb=USA&Xs=NY&Xd=10583&Xp=169.99&Xq=1&Xj=o",
+      "seller_address_region": "NY",
+      "seller_address_country": "USA",
+      "name": null
+    }
+  ],
+  "offers_count": 3
+} 

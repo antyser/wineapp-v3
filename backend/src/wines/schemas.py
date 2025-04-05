@@ -18,6 +18,9 @@ class WineBase(BaseModel):
     price: Optional[float] = None
     rating: Optional[int] = None
     notes: Optional[str] = None
+    wine_searcher_id: Optional[str] = None
+    average_price: Optional[float] = None
+    description: Optional[str] = None
 
 
 class WineCreate(WineBase):
@@ -40,6 +43,9 @@ class WineUpdate(BaseModel):
     rating: Optional[int] = None
     notes: Optional[str] = None
     image_url: Optional[HttpUrl] = None
+    wine_searcher_id: Optional[str] = None
+    average_price: Optional[float] = None
+    description: Optional[str] = None
 
 
 class Wine(WineBase):

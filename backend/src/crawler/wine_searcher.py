@@ -210,9 +210,9 @@ async def fetch_html(
         if use_crawler:
             # Use Firecrawl crawler
             logger.info(f"Fetching URL with Firecrawl: {url}")
-            response = await firecrawl_fetch(url, formats=["html"])
-            if response and "html" in response:
-                html_content = response.get("html", "")
+            response = await firecrawl_fetch(url, formats=["rawHtml"])
+            if response and "rawHtml" in response:
+                html_content = response.get("rawHtml", "")
                 # Debug the response structure
                 logger.debug(f"Firecrawl response type: {type(html_content)}")
                 if isinstance(html_content, dict) and "content" in html_content:
@@ -467,10 +467,15 @@ def parse_wine_searcher_html(html: str) -> Optional[WineSearcherWine]:
         name_elements = root.xpath("//h1/text()")
         name = name_elements[0].strip() if name_elements else None
 
+        # Extract description (potentially split across multiple p tags)
         description_elements = root.xpath(
-            '//li[contains(@class, "product-details__description")]/p/text()'
+            "//li[contains(@class, 'prod-profile__review')]//li[contains(@class, 'smaller')]//p/text()"
         )
-        description = description_elements[0].strip() if description_elements else None
+        description = (
+            " ".join([el.strip() for el in description_elements if el.strip()])
+            if description_elements
+            else None
+        )
 
         og_url_elements = root.xpath('//meta[@property="og:url"]/@content')
         og_url = og_url_elements[0] if og_url_elements else None
@@ -505,7 +510,7 @@ def parse_wine_searcher_html(html: str) -> Optional[WineSearcherWine]:
         wine_type = None
         wine_style = None
         style_text_elements = root.xpath(
-            '//li[contains(@class, "product-details__styles")]/span/text()'
+            "//span[contains(@class, 'prod-profile__style')]//span[contains(@class, 'font-light-bold')]/text()"
         )
         style_text = style_text_elements[0] if style_text_elements else None
         if style_text and " - " in style_text:
@@ -811,38 +816,6 @@ async def save_wines_batch(wines: List[WineSearcherWine]) -> None:
             )
 
 
-def wine_searcher_to_csv(wines: List[Tuple[str, Optional[WineSearcherWine]]]) -> str:
-    """
-    Convert a list of wines to CSV format.
-
-    Args:
-        wines: List of (query, wine) tuples
-
-    Returns:
-        CSV string
-    """
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # Get field names from WineSearcherWine model
-    header = ["query"] + list(WineSearcherWine.model_fields.keys())
-    writer.writerow(header)
-
-    # Write data
-    for query, wine in wines:
-        if wine is None:
-            # Handle the case where wine is None
-            row = [query] + ["N/A"] * len(WineSearcherWine.model_fields)
-        else:
-            row = [query] + [
-                getattr(wine, field, "N/A")
-                for field in WineSearcherWine.model_fields.keys()
-            ]
-        writer.writerow(row)
-
-    return output.getvalue()
-
-
 async def main():
     """
     Main function for command-line execution.
@@ -961,27 +934,6 @@ async def main():
             print(f"No wine found for: {args.wine_name}")
 
 
-def clear_cache() -> int:
-    """
-    Clear all cached HTML files
-
-    Returns:
-        Number of files removed
-    """
-    if not CACHE_DIR.exists():
-        return 0
-
-    count = 0
-    for cache_file in CACHE_DIR.glob("*.html"):
-        try:
-            cache_file.unlink()
-            count += 1
-        except Exception as e:
-            logger.error(f"Error removing cache file {cache_file}: {str(e)}")
-
-    return count
-
-
 def test_parse_from_file(file_path: str) -> Optional[WineSearcherWine]:
     """
     Test parsing from a local HTML file
@@ -996,7 +948,8 @@ def test_parse_from_file(file_path: str) -> Optional[WineSearcherWine]:
         with open(file_path, "r", encoding="utf-8") as f:
             html = f.read()
 
-        return parse_wine_searcher_html(html)
+        wine = parse_wine_searcher_html(html)
+        print(wine.model_dump_json(indent=2))
     except Exception as e:
         logger.error(f"Error parsing file {file_path}: {str(e)}")
         return None
@@ -1004,4 +957,4 @@ def test_parse_from_file(file_path: str) -> Optional[WineSearcherWine]:
 
 if __name__ == "__main__":
     """Run main function when executed directly"""
-    asyncio.run(main())
+    test_parse_from_file("/Users/junliu/Downloads/result_raw_html.html")

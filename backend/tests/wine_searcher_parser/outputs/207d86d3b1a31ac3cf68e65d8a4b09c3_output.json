@@ -1,0 +1,147 @@
+{
+  "id": "15363_2007",
+  "wine_searcher_id": 15363,
+  "vintage": 2007,
+  "name": "Pierre Morey 'Morey-Blanc' Corton-Charlemagne Grand Cru",
+  "url": "https://www.wine-searcher.com/find/pierre+morey+moreyblanc+grand+cru+corton+charlemagne+aloxe+cote+de+beaune+burgundy+france/2007/usa",
+  "description": "Morey-Blanc is the negoce brand of Domaine Pierre Morey Critic tasting note: (2007 vintage) \"A firm, tight wine, still young, still not showing all the roundness and weight that is potentially there. This is a wine that needs decanting, offering some good aging potential.\" - 94/100, Wine Enthusiast",
+  "region": "Corton-Charlemagne",
+  "origin": "Corton-Charlemagne, France",
+  "grape_variety": "Chardonnay",
+  "image": "https://www.wine-searcher.com/images/labels/09/58/morey-blanc-corton-charlemagne-grand-cru-cote-de-beaune-10590958.jpg",
+  "producer": "Pierre Morey",
+  "average_price": 199.0,
+  "min_price": null,
+  "wine_type": "White",
+  "wine_style": "Buttery and Complex",
+  "profile": {
+    "winery": "Pierre Morey",
+    "region_or_appellation": "Corton-Charlemagne",
+    "grape_variety": "Chardonnay",
+    "style": "Buttery and Complex",
+    "food_pairing": "Chicken and Turkey",
+    "drinking_window": "2009-2014",
+    "abv": "13.5%",
+    "ownership": "Anne Morey"
+  },
+  "vintages": {
+    "current_vintage": "2007 Vintage: Burgundy",
+    "vintage_quality": "Good",
+    "current_condition": "Ready to drink",
+    "vintage_description": "For Burgundy, the 2007 vintage had some highlights.\n\nThe growing season got off to a fine start with a spectacularly warm April, but then conditions abruptly changed. Cool, damp weather set in for the duration of the summer and the endless dank days allowed both mildew an...",
+    "vintage_list": [
+      {
+        "year": "All",
+        "critics_score": "92 / 100",
+        "avg_price": 290.0
+      },
+      {
+        "year": "2018",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2017",
+        "critics_score": null,
+        "avg_price": 329.0
+      },
+      {
+        "year": "2015",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2013",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "2012",
+        "critics_score": "94 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2011",
+        "critics_score": "94 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2010",
+        "critics_score": "94 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2009",
+        "critics_score": "93 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2008",
+        "critics_score": "91 / 100",
+        "avg_price": 250.0
+      },
+      {
+        "year": "2007",
+        "critics_score": "92 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2006",
+        "critics_score": "91 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2005",
+        "critics_score": "92 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2004",
+        "critics_score": "91 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2003",
+        "critics_score": "90 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2002",
+        "critics_score": "91 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2001",
+        "critics_score": "91 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "2000",
+        "critics_score": "91 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "1999",
+        "critics_score": "92 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "1998",
+        "critics_score": "88 / 100",
+        "avg_price": null
+      },
+      {
+        "year": "1982",
+        "critics_score": null,
+        "avg_price": null
+      },
+      {
+        "year": "1978",
+        "critics_score": null,
+        "avg_price": null
+      }
+    ]
+  },
+  "offers": [],
+  "offers_count": 0
+} 

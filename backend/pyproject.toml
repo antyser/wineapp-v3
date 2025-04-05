@@ -31,6 +31,12 @@ dependencies = [
     "types-requests>=2.31.0.20240218",
     "fake-useragent>=1.4.0", # For generating random user agents
     "lxml>=5.1.0", # For HTML parsing
+    "google-genai>=1.9.0",
+    "openai-agents>=0.0.7",
+    "logfire>=3.12.0",
+    "ipython>=9.0.2",
+    "instructor>=1.7.8",
+    "pydantic-ai>=0.0.49",
 ]
 
 [tool.hatch.build.targets.wheel]

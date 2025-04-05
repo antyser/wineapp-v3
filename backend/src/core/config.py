@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings
 
@@ -9,10 +9,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Wine App API"
 
     # Supabase
-    SUPABASE_URL: str = ""
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "http://127.0.0.1:54321")
     SUPABASE_ANON_KEY: str = ""  # Public/anon key
     SUPABASE_SERVICE_KEY: str = ""  # Service role key (for admin operations)
     SUPABASE_DB_NAME: str = ""  # Database name (for test environment)
+    SUPABASE_KEY: Optional[str] = None  # For backwards compatibility
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
@@ -24,6 +25,12 @@ class Settings(BaseSettings):
 
     # Environment - supporting 'development', 'test' and 'production'
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+
+    # API keys for external services
+    FIRECRAWL_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    OPENROUTER_API_KEY: Optional[str] = None
+    LOGFIRE_API_KEY: Optional[str] = None
 
     @property
     def is_development(self) -> bool:
@@ -48,6 +55,7 @@ class Settings(BaseSettings):
             else ".env"
         )
         case_sensitive = True
+        extra = "allow"  # Allow extra fields in settings
 
 
 settings = Settings()

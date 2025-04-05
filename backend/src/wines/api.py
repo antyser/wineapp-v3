@@ -2,7 +2,6 @@ from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, HTTPException, Path, Query, status
-
 from src.wines import service
 from src.wines.schemas import (
     Wine,

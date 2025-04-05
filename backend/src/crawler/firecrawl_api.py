@@ -25,14 +25,14 @@ else:
 
 
 async def fetch_url(
-    url: str, formats: List[str] = None, timeout: int = 60
+    url: str, formats: List[str] = ["rawHtml", "screenshot"], timeout: int = 60
 ) -> Optional[Dict]:
     """
     Fetch content from a URL using Firecrawl API.
 
     Args:
         url: URL to fetch
-        formats: List of formats to return (e.g., ["html", "markdown"])
+        formats: List of formats to return (e.g., ["rawHtml", "screenshot"])
         timeout: Timeout in seconds
 
     Returns:
@@ -44,10 +44,6 @@ async def fetch_url(
         error_msg = "FIRECRAWL_API_KEY environment variable is not set"
         logger.error(error_msg)
         raise ValueError(error_msg)
-
-    # Default formats if none provided
-    if formats is None:
-        formats = ["html"]
 
     # Set up payload
     payload = {"url": url, "formats": formats}
@@ -125,112 +121,10 @@ async def batch_fetch_urls(
     return processed_results
 
 
-async def crawl_url(
-    url: str,
-    limit: int = 100,
-    formats: List[str] = None,
-    timeout: int = 300,
-    poll_interval: int = 10,
-) -> Optional[List[Dict]]:
-    """
-    Crawl a URL and its subpages using Firecrawl API.
 
-    Args:
-        url: URL to crawl
-        limit: Maximum number of pages to crawl
-        formats: List of formats to return (e.g., ["html", "markdown"])
-        timeout: Timeout in seconds for the entire crawl
-        poll_interval: Interval in seconds to poll for crawl status
-
-    Returns:
-        List of crawled pages data
-    """
-    # Get API key
-    api_key = FIRECRAWL_API_KEY
-    if not api_key:
-        error_msg = "FIRECRAWL_API_KEY environment variable is not set"
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-
-    # Default formats if none provided
-    if formats is None:
-        formats = ["html"]
-
-    # Set up payload
-    payload = {"url": url, "limit": limit, "scrapeOptions": {"formats": formats}}
-
-    # Set up headers
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-
-    # Start the crawl
-    logger.info(f"Starting crawl with Firecrawl: {url}")
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            # Start the crawl
-            start_response = await client.post(
-                "https://api.firecrawl.dev/v1/crawl",
-                json=payload,
-                headers=headers,
-            )
-            start_response.raise_for_status()
-
-            data = start_response.json()
-            if not data.get("success", False):
-                logger.error(
-                    f"Firecrawl API error: {data.get('error', 'Unknown error')}"
-                )
-                return None
-
-            crawl_id = data.get("id")
-            if not crawl_id:
-                logger.error("Failed to get crawl ID from Firecrawl API")
-                return None
-
-            logger.info(f"Crawl started with ID: {crawl_id}")
-
-            # Poll for crawl status
-            start_time = asyncio.get_event_loop().time()
-            next_url = f"https://api.firecrawl.dev/v1/crawl/{crawl_id}"
-            all_results = []
-
-            while asyncio.get_event_loop().time() - start_time < timeout:
-                status_response = await client.get(
-                    next_url,
-                    headers=headers,
-                )
-                status_response.raise_for_status()
-                status_data = status_response.json()
-
-                # Add the data to our results
-                if "data" in status_data and status_data["data"]:
-                    all_results.extend(status_data["data"])
-
-                # Check if there's more data to fetch with a 'next' URL
-                if "next" in status_data and status_data["next"]:
-                    next_url = status_data["next"]
-                    logger.info("Fetching next page of crawl results")
-                    continue
-
-                # Check if the crawl is complete
-                if status_data.get("status") == "completed":
-                    logger.info(
-                        f"Crawl completed: {len(all_results)} pages crawled for {url}"
-                    )
-                    return all_results
-
-                logger.info(
-                    f"Crawl in progress: {status_data.get('completed', 0)}/{status_data.get('total', 'unknown')} pages crawled"
-                )
-                await asyncio.sleep(poll_interval)
-
-            logger.error(f"Crawl timed out for {url}")
-            return all_results if all_results else None
-
-    except httpx.HTTPStatusError as e:
-        logger.error(
-            f"HTTP error during crawl of {url}: {e.response.status_code} - {e.response.text}"
+if __name__ == "__main__":
+    asyncio.run(
+        fetch_url(
+            "https://www.wine-searcher.com/", formats=["rawHtml", "screenshot"]
         )
-        return None
-    except Exception as e:
-        logger.error(f"Error during crawl of {url}: {str(e)}")
-        return None
+    )

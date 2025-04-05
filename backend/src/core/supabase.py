@@ -1,6 +1,7 @@
 import logging
 
 from src.core.config import settings
+
 from supabase import Client, create_client
 
 # Configure logging
