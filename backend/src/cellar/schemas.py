@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
 
 
 class CellarBase(BaseModel):
@@ -35,8 +35,15 @@ class Cellar(CellarBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("id", "user_id")
+    def serialize_uuid(self, uuid_value: UUID) -> str:
+        return str(uuid_value)
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return dt.isoformat()
 
 
 class CellarWineBase(BaseModel):
@@ -78,14 +85,40 @@ class CellarWine(CellarWineBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("id", "cellar_id", "wine_id")
+    def serialize_uuid(self, uuid_value: UUID) -> str:
+        return str(uuid_value)
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return dt.isoformat()
+
+    @field_serializer("purchase_date")
+    def serialize_date(self, dt: Optional[date]) -> Optional[str]:
+        if dt is None:
+            return None
+        return dt.isoformat()
 
 
 class CellarWineResponse(CellarWine):
     """Cellar wine with embedded wine details"""
 
     wine: dict  # Will contain wine details
+
+    @field_serializer("wine")
+    def serialize_wine(self, wine_dict: dict) -> dict:
+        # Process any UUID or datetime values in the wine dictionary
+        result = {}
+        for key, value in wine_dict.items():
+            if isinstance(value, UUID):
+                result[key] = str(value)
+            elif hasattr(value, "isoformat"):
+                result[key] = value.isoformat()
+            else:
+                result[key] = value
+        return result
 
 
 class CellarListParams(BaseModel):

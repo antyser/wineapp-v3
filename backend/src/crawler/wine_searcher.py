@@ -22,11 +22,7 @@ from lxml import etree
 from lxml.html import fromstring
 from pydantic import BaseModel, Field
 
-from src.crawler.firecrawl_api import batch_fetch_urls as firecrawl_batch_fetch
-from src.crawler.firecrawl_api import fetch_url as firecrawl_fetch
-
-# Cache directory for storing HTML responses
-CACHE_DIR = Path("./.cache/wine_searcher")
+from src.crawler.firecrawl_api import batch_fetch_urls, fetch_url
 
 
 class WineSearcherOffer(BaseModel):
@@ -63,82 +59,6 @@ class WineSearcherWine(BaseModel):
     wine_style: Optional[str] = None
     offers: List[WineSearcherOffer] = Field(default_factory=list)
     offers_count: int = 0
-
-
-def get_cache_key(url: str) -> str:
-    """
-    Generate a cache key from a URL
-
-    Args:
-        url: The URL to generate a cache key for
-
-    Returns:
-        A cache key (filename) for the URL
-    """
-    # Use MD5 hash of the URL as the filename to avoid illegal characters
-    hash_obj = hashlib.md5(url.encode())
-    return hash_obj.hexdigest() + ".html"
-
-
-def save_to_cache(url: str, html: str) -> bool:
-    """
-    Save HTML content to cache
-
-    Args:
-        url: The URL that was fetched
-        html: The HTML content to cache
-
-    Returns:
-        True if saved successfully, False otherwise
-    """
-    try:
-        # Create cache directory if it doesn't exist
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-        cache_key = get_cache_key(url)
-        cache_file = CACHE_DIR / cache_key
-
-        # Save the HTML content
-        with open(cache_file, "w", encoding="utf-8") as f:
-            # Store the URL as a comment at the beginning of the file
-            f.write(f"<!-- URL: {url} -->\n")
-            f.write(html)
-
-        logger.info(f"Saved HTML to cache: {cache_file}")
-        return True
-    except Exception as e:
-        logger.error(f"Error saving to cache: {str(e)}")
-        return False
-
-
-def load_from_cache(url: str) -> Optional[str]:
-    """
-    Load HTML content from cache
-
-    Args:
-        url: The URL to load from cache
-
-    Returns:
-        The cached HTML content or None if not found
-    """
-    try:
-        cache_key = get_cache_key(url)
-        cache_file = CACHE_DIR / cache_key
-
-        if not cache_file.exists():
-            return None
-
-        with open(cache_file, "r", encoding="utf-8") as f:
-            content = f.read()
-            # Skip the URL comment line
-            if content.startswith("<!-- URL:"):
-                content = "\n".join(content.split("\n")[1:])
-
-        logger.info(f"Loaded HTML from cache: {cache_file}")
-        return content
-    except Exception as e:
-        logger.error(f"Error loading from cache: {str(e)}")
-        return None
 
 
 def compose_search_url(
@@ -183,159 +103,10 @@ def compose_search_url(
     return url
 
 
-async def fetch_html(
-    url: str, use_crawler: bool = True, use_cache: bool = True
-) -> Optional[str]:
-    """
-    Fetch HTML from a URL, either directly, using a crawler, or from cache.
-
-    Args:
-        url: URL to fetch
-        use_crawler: Whether to use the Firecrawl crawler (if False, uses httpx directly)
-        use_cache: Whether to use caching (check cache first, save to cache if not found)
-
-    Returns:
-        HTML content as string, or None if fetch failed
-    """
-    # Try to load from cache first if caching is enabled
-    if use_cache:
-        cached_html = load_from_cache(url)
-        if cached_html:
-            logger.info(f"Using cached HTML for URL: {url}")
-            return cached_html
-
-    try:
-        html_content = None
-
-        if use_crawler:
-            # Use Firecrawl crawler
-            logger.info(f"Fetching URL with Firecrawl: {url}")
-            response = await firecrawl_fetch(url, formats=["rawHtml"])
-            if response and "rawHtml" in response:
-                html_content = response.get("rawHtml", "")
-                # Debug the response structure
-                logger.debug(f"Firecrawl response type: {type(html_content)}")
-                if isinstance(html_content, dict) and "content" in html_content:
-                    # If HTML is wrapped in a content field (Firecrawl v1 format)
-                    html_content = html_content.get("content", "")
-            else:
-                logger.warning(f"No HTML content in Firecrawl response for {url}")
-        else:
-            # Use direct httpx request with HTTP/2
-            logger.info(f"Fetching URL directly with HTTP/2: {url}")
-            async with httpx.AsyncClient(
-                timeout=30,
-                follow_redirects=True,
-                http2=True,  # Enable HTTP/2
-            ) as client:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                    "Accept-Language": "en-US,en;q=0.5",
-                }
-                response = await client.get(url, headers=headers)
-                response.raise_for_status()
-                html_content = response.text
-
-        # Save to cache if we got content and caching is enabled
-        if html_content and use_cache:
-            save_to_cache(url, html_content)
-
-        return html_content
-    except Exception as e:
-        logger.error(f"Error fetching URL {url}: {str(e)}")
-        return None
-
-
-async def batch_fetch_html(
-    urls: List[str], use_crawler: bool = True, use_cache: bool = True
-) -> List[Optional[str]]:
-    """
-    Fetch HTML from multiple URLs in parallel.
-
-    Args:
-        urls: List of URLs to fetch
-        use_crawler: Whether to use the Firecrawl crawler
-        use_cache: Whether to use caching
-
-    Returns:
-        List of HTML content as strings, None for failed fetches
-    """
-    results = []
-    urls_to_fetch = []
-    cached_indices = []
-
-    # First, try to load from cache for each URL
-    if use_cache:
-        for i, url in enumerate(urls):
-            cached_html = load_from_cache(url)
-            if cached_html:
-                results.append(cached_html)
-                cached_indices.append(i)
-            else:
-                results.append(None)  # Placeholder, will be updated after fetching
-                urls_to_fetch.append((i, url))
-    else:
-        # No caching, fetch all URLs
-        results = [None] * len(urls)
-        urls_to_fetch = list(enumerate(urls))
-
-    # If we have URLs to fetch
-    if urls_to_fetch:
-        try:
-            if use_crawler:
-                # Use Firecrawl crawler for batch fetching
-                fetch_urls = [url for _, url in urls_to_fetch]
-                logger.info(f"Batch fetching {len(fetch_urls)} URLs with Firecrawl")
-                responses = await firecrawl_batch_fetch(fetch_urls, formats=["html"])
-
-                # Process responses
-                for i, ((idx, url), response) in enumerate(
-                    zip(urls_to_fetch, responses)
-                ):
-                    if response and "html" in response:
-                        html_content = response.get("html", "")
-                        if isinstance(html_content, dict) and "content" in html_content:
-                            html_content = html_content.get("content", "")
-
-                        # Save to cache if enabled
-                        if use_cache and html_content:
-                            save_to_cache(url, html_content)
-
-                        results[idx] = html_content
-            else:
-                # Use direct httpx requests with concurrency and HTTP/2
-                logger.info(
-                    f"Batch fetching {len(urls_to_fetch)} URLs directly with HTTP/2"
-                )
-                concurrency = min(10, len(urls_to_fetch))  # Limit concurrency
-                semaphore = asyncio.Semaphore(concurrency)
-
-                async def fetch_with_semaphore(idx, url):
-                    async with semaphore:
-                        html = await fetch_html(url, use_crawler=False, use_cache=False)
-                        if html and use_cache:
-                            save_to_cache(url, html)
-                        return idx, html
-
-                tasks = [fetch_with_semaphore(idx, url) for idx, url in urls_to_fetch]
-                completed_tasks = await asyncio.gather(*tasks)
-
-                # Update results with fetched content
-                for idx, html in completed_tasks:
-                    results[idx] = html
-        except Exception as e:
-            logger.error(f"Error in batch fetch: {str(e)}")
-
-    return results
-
-
 async def fetch_wine(
     wine_name: str,
     vintage: Optional[str | int] = None,
     country: str = "usa",
-    use_crawler: bool = True,
-    use_cache: bool = True,
 ) -> Optional[WineSearcherWine]:
     """
     Fetch a single wine from Wine-Searcher.com.
@@ -344,7 +115,6 @@ async def fetch_wine(
         wine_name: Name of the wine to search for
         vintage: Optional vintage to filter by
         country: Country to filter by (default: usa)
-        use_crawler: Whether to use a third-party crawler
         use_cache: Whether to use caching
 
     Returns:
@@ -355,7 +125,7 @@ async def fetch_wine(
     logger.info(f"Searching for wine: {wine_name}, URL: {url}")
 
     # Fetch HTML
-    html = await fetch_html(url, use_crawler, use_cache)
+    html = await fetch_url(url)
     if not html:
         logger.warning(f"Failed to fetch wine: {wine_name}")
         return None
@@ -374,8 +144,6 @@ async def batch_fetch_wines(
     wine_names: List[str],
     vintage: Optional[str | int] = None,
     country: str = "usa",
-    use_crawler: bool = True,
-    use_cache: bool = True,
     save_to_db: bool = False,
 ) -> Dict[str, Optional[WineSearcherWine]]:
     """
@@ -385,8 +153,6 @@ async def batch_fetch_wines(
         wine_names: List of wine names to search for
         vintage: Optional vintage to filter by (applied to all wines)
         country: Country to filter by (default: usa)
-        use_crawler: Whether to use a third-party crawler
-        use_cache: Whether to use caching
         save_to_db: Whether to save found wines to the database
 
     Returns:
@@ -401,7 +167,7 @@ async def batch_fetch_wines(
         logger.debug(f"URL: {url}")
 
     # Fetch HTML for all URLs
-    html_contents = await batch_fetch_html(urls, use_crawler, use_cache)
+    html_contents = await batch_fetch_urls(urls)
 
     # Parse each HTML into WineSearcherWine objects
     result = {}
@@ -535,7 +301,9 @@ def parse_wine_searcher_html(html: str) -> Optional[WineSearcherWine]:
         min_price = min(
             [o.unit_price for o in offers if o.unit_price is not None], default=None
         )
-
+        if not name or not wine_searcher_id:
+            logger.warning(f"No name or wine_searcher_id found for wine")
+            return None
         # Create WineSearcherWine object
         return WineSearcherWine(
             id=str(f"{wine_searcher_id}_{vintage}"),
@@ -821,7 +589,7 @@ async def main():
     Main function for command-line execution.
 
     Usage:
-        python -m src.crawler.wine_searcher [wine_name] [--vintage VINTAGE] [--country COUNTRY] [--no-crawler] [--no-cache] [--save]
+        python -m src.crawler.wine_searcher [wine_name] [--vintage VINTAGE] [--country COUNTRY] [--no-cache] [--save]
     """
     import argparse
 
@@ -833,9 +601,6 @@ async def main():
     parser.add_argument("--vintage", type=str, help="Vintage to search for")
     parser.add_argument(
         "--country", type=str, default="usa", help="Country to filter by (default: usa)"
-    )
-    parser.add_argument(
-        "--no-crawler", action="store_true", help="Don't use Firecrawl, fetch directly"
     )
     parser.add_argument("--no-cache", action="store_true", help="Don't use cached data")
     parser.add_argument("--save", action="store_true", help="Save results to database")
@@ -852,6 +617,9 @@ async def main():
     logger.add(sys.stderr, level="INFO")
 
     if args.test_parse:
+        # Import cache functions directly for test-parse mode only
+        from src.crawler.firecrawl_api import CACHE_DIR, get_cache_key, load_from_cache
+
         # Create cache directory structure if needed
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -909,7 +677,6 @@ async def main():
             args.wine_name,
             vintage=args.vintage,
             country=args.country,
-            use_crawler=not args.no_crawler,
             use_cache=not args.no_cache,
         )
 

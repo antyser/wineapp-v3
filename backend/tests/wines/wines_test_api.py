@@ -141,7 +141,7 @@ def test_update_wine(client: TestClient):
     # Update the wine
     update_data = {
         "name": "API Updated Test Wine",
-        "notes": "API Updated notes",
+        "tasting_notes": "API Updated notes",
         "price": 24.99,
     }
     response = client.patch(f"/api/v1/wines/{created_wine['id']}", json=update_data)
@@ -150,7 +150,7 @@ def test_update_wine(client: TestClient):
 
     assert updated_wine["id"] == created_wine["id"]
     assert updated_wine["name"] == update_data["name"]
-    assert updated_wine["notes"] == update_data["notes"]
+    assert updated_wine["tasting_notes"] == update_data["tasting_notes"]
     assert updated_wine["price"] == update_data["price"]
     assert updated_wine["vintage"] == created_wine["vintage"]  # Unchanged
 
@@ -159,7 +159,7 @@ def test_update_wine(client: TestClient):
     assert response.status_code == 200
     retrieved_wine = response.json()
     assert retrieved_wine["name"] == update_data["name"]
-    assert retrieved_wine["notes"] == update_data["notes"]
+    assert retrieved_wine["tasting_notes"] == update_data["tasting_notes"]
 
 
 def test_update_wine_not_found(client: TestClient):

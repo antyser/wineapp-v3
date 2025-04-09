@@ -28,7 +28,6 @@ class WineInformation(BaseModel):
     grape_variety: Optional[str] = None
     wine_type: Optional[str] = None
 
-
 class WineResult(BaseModel):
     """Schema for extract result"""
 
@@ -47,8 +46,7 @@ def normalize_wine_name(ai_wine: WineInformation) -> str:
     return normalized_name
 
 
-def get_extract_wine_system_prompt() -> str:
-    return """
+INFER_PROMPT = """
 You are a wine expert agent specialized in identifying wines and providing structured information from images or text.
 
 ### Task:
@@ -95,6 +93,10 @@ For every wine you identified, it is very CRITICAL for you to infer the other re
 - Include only fields that are explicitly present in the input or can be reasonably inferred.
 - If certain details cannot be clearly determined or inferred, explicitly set them as none.
 """
+
+
+def get_extract_wine_system_prompt() -> str:
+    return INFER_PROMPT
 
 
 async def extract_wines(

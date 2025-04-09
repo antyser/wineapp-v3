@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class WineBase(BaseModel):
@@ -17,10 +17,17 @@ class WineBase(BaseModel):
     type: Optional[str] = None  # red, white, sparkling, etc.
     price: Optional[float] = None
     rating: Optional[int] = None
-    notes: Optional[str] = None
-    wine_searcher_id: Optional[str] = None
+    tasting_notes: Optional[str] = None
+    wine_searcher_url: Optional[str] = None
     average_price: Optional[float] = None
     description: Optional[str] = None
+    drinking_window: Optional[str] = None
+
+    food_pairings: Optional[str] = None
+    abv: Optional[str] = None
+    name_alias: Optional[List[str]] = None
+    image_url: Optional[str] = None
+    wine_searcher_id: Optional[str] = None
 
 
 class WineCreate(WineBase):
@@ -41,23 +48,34 @@ class WineUpdate(BaseModel):
     type: Optional[str] = None
     price: Optional[float] = None
     rating: Optional[int] = None
-    notes: Optional[str] = None
-    image_url: Optional[HttpUrl] = None
+    tasting_notes: Optional[str] = None
+    image_url: Optional[str] = None
     wine_searcher_id: Optional[str] = None
+    wine_searcher_url: Optional[str] = None
     average_price: Optional[float] = None
     description: Optional[str] = None
+    drinking_window: Optional[str] = None
+    food_pairings: Optional[str] = None
+    abv: Optional[str] = None
+    name_alias: Optional[List[str]] = None
 
 
 class Wine(WineBase):
     """Full wine model with all fields"""
 
     id: UUID
-    image_url: Optional[HttpUrl] = None
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("id")
+    def serialize_id(self, id: UUID) -> str:
+        return str(id)
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, dt: datetime) -> str:
+        return dt.isoformat()
 
 
 class WineSearchParams(BaseModel):

@@ -5,6 +5,7 @@ Tests for the wines service module
 from uuid import UUID
 
 import pytest
+
 from src.wines.schemas import WineCreate, WineSearchParams, WineUpdate
 from src.wines.service import (
     create_wine,
@@ -98,7 +99,15 @@ async def test_create_wine(supabase):
         type="Red",
         price=25.99,
         rating=90,
-        notes="Test notes",
+        tasting_notes="Test tasting notes",
+        wine_searcher_url="http://example.com/test-wine",
+        average_price=24.50,
+        description="A test wine description.",
+        drinking_window="2024-2028",
+        food_pairings="Cheese, Pasta",
+        abv="13.5%",
+        wine_searcher_id="test-123",
+        name_alias=["Alias 1", "Alias B"],
     )
 
     created_wine = await create_wine(new_wine, client=supabase)
@@ -107,12 +116,24 @@ async def test_create_wine(supabase):
     assert created_wine.winery == new_wine.winery
     assert created_wine.vintage == new_wine.vintage
     assert created_wine.id is not None
+    assert created_wine.tasting_notes == new_wine.tasting_notes
+    assert created_wine.wine_searcher_url == new_wine.wine_searcher_url
+    assert created_wine.average_price == new_wine.average_price
+    assert created_wine.description == new_wine.description
+    assert created_wine.drinking_window == new_wine.drinking_window
+    assert created_wine.food_pairings == new_wine.food_pairings
+    assert created_wine.abv == new_wine.abv
+    assert created_wine.wine_searcher_id == new_wine.wine_searcher_id
+    assert created_wine.name_alias == new_wine.name_alias
 
     # Verify it was actually saved
     retrieved_wine = await get_wine(created_wine.id, client=supabase)
     assert retrieved_wine is not None
     assert retrieved_wine.id == created_wine.id
     assert retrieved_wine.name == new_wine.name
+    assert retrieved_wine.tasting_notes == new_wine.tasting_notes
+    assert retrieved_wine.abv == new_wine.abv
+    assert retrieved_wine.name_alias == new_wine.name_alias
 
 
 @pytest.mark.asyncio
@@ -131,30 +152,49 @@ async def test_update_wine(supabase):
         type="White",
         price=19.99,
         rating=88,
-        notes="Original notes",
+        tasting_notes="Original tasting notes",
+        wine_searcher_url="http://example.com/update-test",
+        average_price=18.50,
+        description="Original description.",
+        drinking_window="2023-2025",
+        food_pairings="Fish, Salad",
+        abv="12.5%",
+        wine_searcher_id="update-test-456",
+        name_alias=["Original Alias"],
     )
     created_wine = await create_wine(new_wine, client=supabase)
 
     # Update the wine
     update_data = WineUpdate(
         name="Updated Test Wine",
-        notes="Updated notes",
+        tasting_notes="Updated tasting notes",
         price=22.99,
+        drinking_window="2024-2026",
+        abv="13.0%",
+        name_alias=["Updated Alias 1", "Updated Alias 2"],
     )
     updated_wine = await update_wine(created_wine.id, update_data, client=supabase)
 
     assert updated_wine is not None
     assert updated_wine.id == created_wine.id
     assert updated_wine.name == update_data.name
-    assert updated_wine.notes == update_data.notes
+    assert updated_wine.tasting_notes == update_data.tasting_notes
     assert updated_wine.price == update_data.price
-    assert updated_wine.vintage == created_wine.vintage  # Unchanged
+    assert updated_wine.drinking_window == update_data.drinking_window
+    assert updated_wine.abv == update_data.abv
+    assert updated_wine.vintage == created_wine.vintage
+    assert updated_wine.winery == created_wine.winery
+    assert updated_wine.average_price == created_wine.average_price
+    assert updated_wine.food_pairings == created_wine.food_pairings
+    assert updated_wine.name_alias == update_data.name_alias
 
     # Verify it was actually saved
     retrieved_wine = await get_wine(created_wine.id, client=supabase)
     assert retrieved_wine is not None
     assert retrieved_wine.name == update_data.name
-    assert retrieved_wine.notes == update_data.notes
+    assert retrieved_wine.tasting_notes == update_data.tasting_notes
+    assert retrieved_wine.drinking_window == update_data.drinking_window
+    assert retrieved_wine.name_alias == update_data.name_alias
 
 
 @pytest.mark.asyncio
@@ -177,6 +217,12 @@ async def test_delete_wine(supabase):
     new_wine = WineCreate(
         name="Delete Test Wine",
         winery="Test Winery",
+        vintage=2020,
+        region="Delete Region",
+        country="Delete Country",
+        varietal="Delete Varietal",
+        type="Rose",
+        name_alias=["Del Alias"],
     )
     created_wine = await create_wine(new_wine, client=supabase)
 
@@ -216,6 +262,9 @@ async def test_search_wine_from_db(supabase):
         country="Test Country",
         varietal="Cabernet Sauvignon",
         type="Red",
+        tasting_notes="Search test tasting notes 1",
+        abv="14.0%",
+        name_alias=["Search Alias 1"],
     )
 
     # Create another wine with a more complex name for testing text search
@@ -230,6 +279,9 @@ async def test_search_wine_from_db(supabase):
         country="France",
         varietal="Bordeaux Blend",
         type="Red",
+        tasting_notes="Search test tasting notes 2",
+        abv="13.8%",
+        name_alias=["Complex Alias", "Laf Alias"],
     )
 
     # Add the wines to the database

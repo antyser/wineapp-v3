@@ -21,21 +21,6 @@ from src.core import get_supabase_client
 from supabase import Client
 
 
-def _serialize_uuid(obj):
-    """Helper function to convert UUID objects to strings and dates to ISO format"""
-    if isinstance(obj, dict):
-        return {k: _serialize_uuid(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_serialize_uuid(i) for i in obj]
-    elif isinstance(obj, UUID):
-        return str(obj)
-    elif hasattr(obj, "isoformat"):
-        # Handle date and datetime objects
-        return obj.isoformat()
-    else:
-        return obj
-
-
 async def get_cellars(
     params: Optional[CellarListParams] = None,
     client: Optional[Client] = None,
@@ -140,8 +125,8 @@ async def create_cellar(
     if client is None:
         client = get_supabase_client()
 
-    # Convert to dict and handle serialization of UUID objects
-    cellar_data = _serialize_uuid(cellar.model_dump())
+    # Convert to dict
+    cellar_data = cellar.model_dump()
 
     # Convert sections to JSONB
     if cellar_data.get("sections"):
@@ -393,36 +378,28 @@ async def add_wine_to_cellar(
     Add a wine to a cellar
 
     Args:
-        cellar_wine: Cellar wine data to create
+        cellar_wine: Details about the wine to add
         client: Supabase client (optional, will use default if not provided)
 
     Returns:
-        Created cellar wine with wine details
+        CellarWineResponse if added successfully, None otherwise
     """
     if client is None:
         client = get_supabase_client()
 
-    # Verify cellar exists
-    cellar_response = (
-        client.table("cellars")
-        .select("id")
-        .eq("id", str(cellar_wine.cellar_id))
-        .execute()
-    )
+    # First check if cellar exists
+    cellar = await get_cellar(cellar_wine.cellar_id, client)
+    if not cellar:
+        return None
 
-    if not cellar_response.data:
-        raise ValueError(f"Cellar with ID {cellar_wine.cellar_id} not found")
+    # Then check if wine exists
+    wine_service = importlib.import_module("src.wines.service")
+    wine = await wine_service.get_wine(cellar_wine.wine_id, client)
+    if not wine:
+        return None
 
-    # Verify wine exists
-    wine_response = (
-        client.table("wines").select("id").eq("id", str(cellar_wine.wine_id)).execute()
-    )
-
-    if not wine_response.data:
-        raise ValueError(f"Wine with ID {cellar_wine.wine_id} not found")
-
-    # Create cellar wine
-    cellar_wine_data = _serialize_uuid(cellar_wine.model_dump())
+    # Add wine to cellar
+    cellar_wine_data = cellar_wine.model_dump()
 
     # Add generated fields
     now = datetime.now().isoformat()
@@ -434,14 +411,28 @@ async def add_wine_to_cellar(
         }
     )
 
+    # Convert UUID fields to strings for Supabase
+    for field in ["cellar_id", "wine_id"]:
+        if isinstance(cellar_wine_data.get(field), UUID):
+            cellar_wine_data[field] = str(cellar_wine_data[field])
+
+    # Convert purchase_date to ISO format string if it exists
+    if cellar_wine_data.get("purchase_date") and hasattr(
+        cellar_wine_data["purchase_date"], "isoformat"
+    ):
+        cellar_wine_data["purchase_date"] = cellar_wine_data[
+            "purchase_date"
+        ].isoformat()
+
+    # Insert the cellar wine
     response = client.table("cellar_wines").insert(cellar_wine_data).execute()
 
     if not response.data:
         return None
 
     # Get the created cellar wine with wine details
-    created_id = response.data[0]["id"]
-    return await get_cellar_wine(UUID(created_id), client)
+    cellar_wine_id = response.data[0]["id"]
+    return await get_cellar_wine(UUID(cellar_wine_id), client)
 
 
 async def update_cellar_wine(

@@ -10,24 +10,9 @@ from loguru import logger
 
 from src.ai.extract_wine_agent import extract_wines
 from src.core import get_supabase_client
-from src.crawler.wine_searcher import fetch_wine
+from src.crawler.wine_searcher import WineSearcherOffer, WineSearcherWine, fetch_wine
 from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
 from supabase import Client
-
-
-def _serialize_uuid(obj):
-    """Helper function to convert UUID objects to strings and dates to ISO format"""
-    if isinstance(obj, dict):
-        return {k: _serialize_uuid(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [_serialize_uuid(i) for i in obj]
-    elif isinstance(obj, UUID):
-        return str(obj)
-    elif hasattr(obj, "isoformat"):
-        # Handle date and datetime objects
-        return obj.isoformat()
-    else:
-        return obj
 
 
 async def get_wines(
@@ -62,7 +47,7 @@ async def get_wines(
             f"winery.ilike.%{params.query}%,"
             f"region.ilike.%{params.query}%,"
             f"varietal.ilike.%{params.query}%,"
-            f"notes.ilike.%{params.query}%"
+            f"tasting_notes.ilike.%{params.query}%"
         )
 
     if params.region:
@@ -148,7 +133,7 @@ async def create_wine(wine: WineCreate, client: Optional[Client] = None) -> Wine
     if client is None:
         client = get_supabase_client()
 
-    wine_data = _serialize_uuid(wine.model_dump())
+    wine_data = wine.model_dump()
 
     # Check if wine_searcher_id exists and is not None
     if wine_data.get("wine_searcher_id"):
@@ -219,7 +204,7 @@ async def update_wine(
         return None
 
     # Update wine
-    wine_data = _serialize_uuid(wine.model_dump(exclude_unset=True))
+    wine_data = wine.model_dump(exclude_unset=True)
     wine_data["updated_at"] = datetime.now().isoformat()
 
     response = client.table("wines").update(wine_data).eq("id", str(wine_id)).execute()
@@ -265,7 +250,7 @@ async def delete_wine(wine_id: UUID, client: Optional[Client] = None) -> bool:
 
 
 async def fetch_wine_from_wine_searcher(
-    search_term: str, vintage: Optional[int] = None, use_crawler: bool = True
+    search_term: str, vintage: Optional[int] = None
 ) -> Optional[Wine]:
     """
     Fetch wine information from Wine-Searcher.com.
@@ -273,7 +258,6 @@ async def fetch_wine_from_wine_searcher(
     Args:
         search_term: Wine name to search for
         vintage: Optional vintage to filter results
-        use_crawler: Whether to use a third-party crawler (default: True)
 
     Returns:
         Wine object if found, None otherwise
@@ -286,13 +270,16 @@ async def fetch_wine_from_wine_searcher(
             wine_name=search_term,
             vintage=vintage,
             country="usa",
-            use_crawler=use_crawler,
         )
 
         # Return None if wine not found
         if not wine_searcher:
             logger.warning(f"Wine not found on Wine-Searcher: {search_term}")
             return None
+
+        # Save the WineSearcherWine to the database
+        await save_wine_searcher(wine_searcher)
+        logger.info(f"Saved wine to wine_searcher_wines table: {wine_searcher.name}")
 
         # Convert WineSearcherWine to Wine
         wine = convert_wine_searcher_to_wine(wine_searcher)
@@ -331,7 +318,7 @@ def convert_wine_searcher_to_wine(wine_searcher: "WineSearcherWine") -> Wine:
         country = wine_searcher.origin.split(",")[-1].strip()
     elif wine_searcher.origin:
         country = wine_searcher.origin.strip()
-
+    logger.info(f"image_url: {wine_searcher.image}")
     return Wine(
         id=uuid.uuid4(),
         name=name,
@@ -345,8 +332,9 @@ def convert_wine_searcher_to_wine(wine_searcher: "WineSearcherWine") -> Wine:
         average_price=wine_searcher.average_price,
         description=wine_searcher.description,
         wine_searcher_id=wine_searcher.id,
-        created_at=now,  # Add the required created_at field
-        updated_at=now,  # Add the required updated_at field
+        wine_searcher_url=wine_searcher.url,
+        created_at=now,
+        updated_at=now,
     )
 
 
@@ -354,7 +342,12 @@ async def search_wine_from_db(
     wine_name: str, vintage: Optional[int] = None, client: Optional[Client] = None
 ) -> Optional[Wine]:
     """
-    Search for wines in the database using PostgreSQL text search.
+    Search for wines in the database by name or name alias with multiple matching strategies.
+
+    Checks:
+    1. Exact name match
+    2. Name alias array contains the search term
+    3. Name contains the search term as a substring
 
     Args:
         wine_name: The name to search for
@@ -367,46 +360,169 @@ async def search_wine_from_db(
     if client is None:
         client = get_supabase_client()
 
-    # First, try to find an exact match (most efficient)
-    query = client.table("wines").select("*").eq("name", wine_name)
+    # Start building the query
+    query = client.table("wines").select("*")
 
     # Add vintage filter if provided
     if vintage is not None:
         query = query.eq("vintage", str(vintage))
 
-    # Execute the query for exact match
+    # Combined query approach:
+    # - Direct name match (exact equality)
+    # - name_alias array contains the search term
+    # - Partial name match (name contains search term)
+
+    # Construct the OR query for all matching strategies
+    query = query.or_(
+        f"name.eq.{wine_name},"
+        + f"name.ilike.%{wine_name}%,"
+        + f"name_alias.cs.{{{wine_name}}}"  # Check if name_alias array contains this value
+    )
+
+    # Execute the query
     response = query.execute()
 
-    # If exact match found, return it
-    if response.data and len(response.data) > 0:
-        return Wine.model_validate(response.data[0])
-
-    cleaned_text = wine_name.replace("&", " ")
-    words = [word for word in cleaned_text.split() if word.strip()]
-    search_terms = " & ".join(words)
-
-    # Prepare parameters
-    params = {"search_terms": search_terms}
-    if vintage is not None:
-        params["vintage"] = str(vintage)
-
-    # Execute the raw SQL query
-    response = client.rpc(
-        "wine_search_ranked",
-        {
-            "search_terms_param": search_terms,
-            "vintage_param": str(vintage) if vintage is not None else None,
-            "use_vintage": vintage is not None,
-        },
-    ).execute()
     logger.info(
-        f"Search wine from db, search_terms: {search_terms}, vintage: {vintage}, response: {response}"
+        f"Wine search query for '{wine_name}', results: {len(response.data or [])}"
     )
-    # If we have results and they contain data, process them
-    if response and response.data and len(response.data) > 0:
-        wines = [Wine.model_validate(wine) for wine in response.data]
-        return wines[0] if wines else None
+
+    if response.data and len(response.data) > 0:
+        # Prioritize exact name matches first, then alias matches, then partial matches
+        # Sort results to prefer exact matches
+        sorted_results = sorted(
+            response.data,
+            key=lambda x: (
+                0
+                if x.get("name") == wine_name  # Exact match gets highest priority
+                else (
+                    1
+                    if x.get("name_alias")
+                    and wine_name in (x.get("name_alias") or [])  # Alias match is next
+                    else 2
+                )
+            ),  # Partial match gets lowest priority
+        )
+
+        return Wine.model_validate(sorted_results[0])
+
     return None
+
+
+async def search_wine(
+    wine_name: str, vintage: Optional[int] = None, client: Optional[Client] = None
+) -> Optional[Wine]:
+    """
+    Search for a wine by name and vintage using the following strategy:
+    1. Look for matching wine in wines table (including name_alias field)
+    2. Look for matching wine in wine_searcher_wines table
+    3. Fetch from Wine-Searcher if not found in either table
+
+    Args:
+        wine_name: Name of the wine to search for
+        vintage: Optional vintage to filter by
+        client: Supabase client (optional)
+
+    Returns:
+        Wine object if found, None otherwise
+    """
+    if client is None:
+        client = get_supabase_client()
+
+    # First check if we already have this wine in our regular wines table
+    db_wine = await search_wine_from_db(
+        wine_name=wine_name, vintage=vintage, client=client
+    )
+
+    if db_wine:
+        return db_wine
+
+    # Then check if we have it in wine_searcher_wines table
+    wine_searcher_db = await get_wine_searcher_by_name(wine_name)
+
+    if wine_searcher_db and (vintage is None or wine_searcher_db.vintage == vintage):
+        # We found it in wine_searcher_wines table, now create/update in wines table
+        wine_model = convert_wine_searcher_to_wine(wine_searcher_db)
+
+        # Check if a wine with the same wine_searcher_id exists in our database
+        existing_wine = None
+        if wine_searcher_db.id:
+            existing_query = (
+                client.table("wines")
+                .select("*")
+                .eq("wine_searcher_id", wine_searcher_db.id)
+            )
+            existing_response = existing_query.execute()
+            if existing_response.data and len(existing_response.data) > 0:
+                existing_wine = Wine.model_validate(existing_response.data[0])
+
+                # If the wine exists but has a different name, add the current name to name_alias
+                if existing_wine.name != wine_name:
+                    name_alias = existing_wine.name_alias or []
+                    if wine_name not in name_alias:
+                        name_alias.append(wine_name)
+                        # Update the existing wine with the new alias
+                        await update_wine(
+                            existing_wine.id, WineUpdate(name_alias=name_alias), client
+                        )
+                return existing_wine
+
+        # If wine doesn't exist yet, create it
+        wine_db = await create_wine(
+            WineCreate.model_validate(wine_model.model_dump()),
+            client,
+        )
+        return wine_db
+
+    # If not found in either table, fetch from Wine-Searcher
+    wine_searcher_wine = await fetch_wine(wine_name=wine_name, vintage=vintage)
+
+    if wine_searcher_wine:
+        # Save to wine_searcher_wines table
+        await save_wine_searcher(wine_searcher_wine)
+
+        # Then check if we already have a wine with this wine_searcher_id
+        existing_query = (
+            client.table("wines")
+            .select("*")
+            .eq("wine_searcher_id", wine_searcher_wine.id)
+        )
+        existing_response = existing_query.execute()
+
+        if existing_response.data and len(existing_response.data) > 0:
+            existing_wine = Wine.model_validate(existing_response.data[0])
+
+            # If the existing wine has a different name than the search term,
+            # add the search term to the name_alias
+            if existing_wine.name != wine_name:
+                name_alias = existing_wine.name_alias or []
+                if wine_name not in name_alias:
+                    name_alias.append(wine_name)
+                    # Update the wine with the new alias
+                    await update_wine(
+                        existing_wine.id, WineUpdate(name_alias=name_alias), client
+                    )
+            return existing_wine
+
+        # Otherwise create a new wine
+        wine_model = convert_wine_searcher_to_wine(wine_searcher_wine)
+
+        # If the wine_searcher name differs from our search term, add the search term as an alias
+        if wine_model.name != wine_name:
+            wine_model.name_alias = [wine_name]
+
+        logger.info(f"Wine model: {wine_model.model_dump()}")
+        wine_db = await create_wine(
+            WineCreate.model_validate(wine_model.model_dump()), client
+        )
+        return wine_db
+
+    # Create a placeholder wine if nothing was found
+    wine_create = WineCreate(
+        name=wine_name,
+        vintage=vintage,
+    )
+    new_wine = await create_wine(wine_create, client)
+    return new_wine
 
 
 async def ai_search_wines(
@@ -414,53 +530,153 @@ async def ai_search_wines(
     image_content: Optional[bytes] = None,
 ) -> List[Wine]:
     """
-    ask LLM to extract wine information from text or image
+    Ask LLM to extract wine information from text or image
     look up each wine name in our database via supabase search
     if found, return the wine objects
     if not found, search the wine name on wine-searcher.com and update our database with the new wine
     return the wine objects
     If the wine is not found on wine-searcher.com, but LLM generates wines, create new wines in wine table.
+
     Args:
-        text_input (Optional[str], optional): _description_. Defaults to None.
-        image_content (Optional[bytes], optional): _description_. Defaults to None.
+        text_input (Optional[str]): Text input to extract wine information from
+        image_content (Optional[bytes]): Image content to extract wine information from
 
     Returns:
-        List[Wine]: _description_
+        List[Wine]: List of wine objects found or created
     """
     wine_result = await extract_wines(text_input, image_content)
     ai_wines = wine_result.wines
 
-    found_wines = []
     client = get_supabase_client()
 
-    for ai_wine in ai_wines:
-        db_wine = await search_wine_from_db(
-            wine_name=ai_wine.name, vintage=ai_wine.vintage, client=client
-        )
+    # Use gather to perform searches in parallel for better performance
+    search_tasks = [
+        search_wine(ai_wine.name, ai_wine.vintage, client) for ai_wine in ai_wines
+    ]
 
-        if db_wine:
-            found_wines.append(db_wine)
-            continue
+    found_wines = await asyncio.gather(*search_tasks)
 
-        wine_searcher_wine = await fetch_wine_from_wine_searcher(
-            search_term=ai_wine.name, vintage=ai_wine.vintage
-        )
+    # Filter out any None values (shouldn't happen due to fallback to placeholder creation)
+    return [wine for wine in found_wines if wine is not None]
 
-        if wine_searcher_wine:
-            # Create or update the wine in the database
-            wine_db = await create_wine(
-                WineCreate.model_validate(wine_searcher_wine.model_dump()), client
-            )
-            found_wines.append(wine_db)
-        else:
-            # Only create new placeholder wine if no wine_searcher match was found
-            wine_create = WineCreate(
-                name=ai_wine.name,
-                vintage=ai_wine.vintage,
-            )
-            new_wine = await create_wine(wine_create, client)
-            found_wines.append(new_wine)
-    return found_wines
+
+# New functions for handling WineSearcherWine objects
+
+
+async def save_wine_searcher(wine: WineSearcherWine):
+    """
+    Save a WineSearcherWine to the wine_searcher_wines table with its offers.
+
+    Args:
+        wine: WineSearcherWine object to save
+
+    Returns:
+        The saved wine data
+    """
+    client = get_supabase_client()
+    wine_data = wine.model_dump(exclude={"offers"})
+    offers = wine.offers or []
+
+    # Save the wine
+    wine_result = client.table("wine_searcher_wines").upsert(wine_data).execute()
+
+    # Prepare offers with wine_id
+    offer_data = []
+    for offer in offers:
+        offer_dict = offer.model_dump()
+        offer_dict["wine_id"] = wine.id
+        offer_data.append(offer_dict)
+
+    if offer_data:
+        client.table("offers").upsert(offer_data).execute()
+
+    return wine_result
+
+
+async def get_wine_searcher(id: str):
+    """
+    Get a WineSearcherWine by ID
+
+    Args:
+        id: ID of the wine
+
+    Returns:
+        Wine data
+    """
+    client = get_supabase_client()
+    data = client.table("wine_searcher_wines").select("*").eq("id", id).execute()
+
+    if not data.data:
+        return None
+
+    # Get offers for this wine
+    offers_data = client.table("offers").select("*").eq("wine_id", id).execute()
+
+    if data.data:
+        wine_data = data.data[0]
+        wine_data["offers"] = offers_data.data if offers_data.data else []
+        return WineSearcherWine.model_validate(wine_data)
+
+    return None
+
+
+async def get_wine_searcher_by_name(name: str):
+    """
+    Get a WineSearcherWine by name
+
+    Args:
+        name: Name of the wine
+
+    Returns:
+        Wine data
+    """
+    client = get_supabase_client()
+    data = client.table("wine_searcher_wines").select("*").eq("name", name).execute()
+
+    if not data.data:
+        return None
+
+    # For simplicity, just return the first match without fetching offers
+    # In a real implementation, you might want to get offers too
+    if data.data:
+        return WineSearcherWine.model_validate(data.data[0])
+
+    return None
+
+
+async def save_wine_searcher_batch(wines: List[WineSearcherWine]):
+    """
+    Save a batch of WineSearcherWine objects with their offers
+
+    Args:
+        wines: List of WineSearcherWine objects
+
+    Returns:
+        The saved wine data
+    """
+    client = get_supabase_client()
+
+    unique_wines = {}
+    for wine in wines:
+        unique_wines[wine.id] = wine
+
+    wine_data = [wine.model_dump(exclude={"offers"}) for wine in unique_wines.values()]
+    offers_data = []
+
+    for wine in unique_wines.values():
+        if wine.offers:
+            for offer in wine.offers:
+                offer_dict = offer.model_dump()
+                offer_dict["wine_id"] = wine.id
+                offers_data.append(offer_dict)
+
+    # Save wines
+    wines_result = client.table("wine_searcher_wines").upsert(wine_data).execute()
+
+    if offers_data:
+        client.table("offers").upsert(offers_data).execute()
+
+    return wines_result
 
 
 if __name__ == "__main__":
