@@ -1,128 +1,179 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../lib/supabase';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 
 // Define user type
 export interface User {
   id: string;
-  email: string;
-  // Add any other user properties here
+  email?: string;
+  isAnonymous: boolean;
 }
 
 // Auth context type
 interface AuthContextType {
   user: User | null;
-  token: string | null;
+  session: Session | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
+  signInAnonymously: () => Promise<boolean>;
+  signOut: () => Promise<void>;
   loading: boolean;
+  error: string | null;
 }
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  token: null,
+  session: null,
   isAuthenticated: false,
-  login: async () => {},
-  logout: async () => {},
+  signInAnonymously: async () => false,
+  signOut: async () => {},
   loading: true,
+  error: null,
 });
 
-// Development mode detection
-const isDevelopment = process.env.NODE_ENV === 'development';
-
-// Development user for testing
-const DEV_USER: User = {
-  id: '443ce2fe-1d5b-48af-99f3-15329714b63d',
-  email: 'dev@wineapp.com',
+// Helper to convert Supabase user to our User type
+const convertUser = (supabaseUser: SupabaseUser): User => {
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || undefined,
+    isAnonymous: supabaseUser.app_metadata?.provider === 'anonymous' || false,
+  };
 };
-
-// Development token
-const DEV_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwOi8vMTI3LjAuMC4xOjU0MzIxL2F1dGgvdjEiLCJzdWIiOiI0NDNjZTJmZS0xZDViLTQ4YWYtOTlmMy0xNTMyOTcxNGI2M2QiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzQzNDgyMDQ2LCJpYXQiOjE3NDM0Nzg0NDYsImVtYWlsIjoiZGV2QHdpbmVhcHAuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6ImRldkB3aW5lYXBwLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiI0NDNjZTJmZS0xZDViLTQ4YWYtOTlmMy0xNTMyOTcxNGI2M2QifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc0MzQ3ODQ0Nn1dLCJzZXNzaW9uX2lkIjoiZjE3OTc1NzMtMDg5MC00MGU5LTk3YjMtNmY1YTM2NDQ1YmExIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.ohUzmoGBVhAJdNZyyLpTt0dwruGFJd1Iu-6W77UFKpA';
 
 // Auth provider component
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Check for existing auth on app load
+  // Check for existing session on app load and handle auth changes
   useEffect(() => {
-    const loadAuth = async () => {
+    // Get initial session
+    const initAuth = async () => {
       try {
-        if (isDevelopment) {
-          // In development, use the predefined credentials
-          setUser(DEV_USER);
-          setToken(DEV_TOKEN);
-          // Store the dev credentials
-          await AsyncStorage.setItem('user', JSON.stringify(DEV_USER));
-          await AsyncStorage.setItem('token', DEV_TOKEN);
-        } else {
-          // In production, load from AsyncStorage
-          const storedUser = await AsyncStorage.getItem('user');
-          const storedToken = await AsyncStorage.getItem('token');
-
-          if (storedUser && storedToken) {
-            setUser(JSON.parse(storedUser));
-            setToken(storedToken);
-          }
+        setLoading(true);
+        
+        // Check if we have a session
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          throw sessionError;
         }
-      } catch (error) {
-        console.error('Error loading auth:', error);
+        
+        if (currentSession) {
+          setSession(currentSession);
+          setUser(convertUser(currentSession.user));
+        } else {
+          // Instead of anonymous login, use a demo account
+          await handleDemoLogin();
+        }
+      } catch (err) {
+        console.error('Auth initialization error:', err);
+        setError(err instanceof Error ? err.message : 'Unknown authentication error');
       } finally {
         setLoading(false);
       }
     };
 
-    loadAuth();
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session ? convertUser(session.user) : null);
+    });
+
+    initAuth();
+
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Login function
-  const login = async (email: string, password: string) => {
+  // Demo login function using email/password
+  const handleDemoLogin = async (): Promise<boolean> => {
     try {
-      // For development, always use the dev credentials
-      if (isDevelopment) {
-        setUser(DEV_USER);
-        setToken(DEV_TOKEN);
-        await AsyncStorage.setItem('user', JSON.stringify(DEV_USER));
-        await AsyncStorage.setItem('token', DEV_TOKEN);
-        return;
+      setLoading(true);
+      setError(null);
+      
+      // Use a demo account for testing
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: 'demo@wineapp.com',
+        password: 'demo123456'
+      });
+      
+      // If account doesn't exist, create it
+      if (error && error.message.includes('Invalid login credentials')) {
+        console.log('Demo account does not exist, creating it...');
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: 'demo@wineapp.com',
+          password: 'demo123456'
+        });
+        
+        if (signUpError) {
+          throw signUpError;
+        }
+        
+        if (signUpData.session) {
+          setSession(signUpData.session);
+          setUser(convertUser(signUpData.session.user));
+          return true;
+        }
+      } else if (error) {
+        throw error;
+      } else if (data.session) {
+        setSession(data.session);
+        setUser(convertUser(data.session.user));
+        return true;
       }
-
-      // For production, implement actual login
-      // TODO: Implement real authentication API call
-      // Example: const response = await apiClient.post('/auth/login', { email, password });
-      // Then set user and token based on response
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      
+      return false;
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to login with demo account');
+      return false;
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Logout function
-  const logout = async () => {
-    try {
-      // Clear auth state
-      setUser(null);
-      setToken(null);
+  // Replace the signInAnonymously function with the demo login
+  const signInAnonymously = async (): Promise<boolean> => {
+    return handleDemoLogin();
+  };
 
-      // Clear stored credentials
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('token');
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+  // Proper sign out function
+  const handleSignOut = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setSession(null);
+      setUser(null);
+    } catch (err) {
+      console.error('Sign out error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign out');
+    } finally {
+      setLoading(false);
     }
   };
 
   // Build context value
   const contextValue: AuthContextType = {
     user,
-    token,
-    isAuthenticated: !!user && !!token,
-    login,
-    logout,
+    session,
+    isAuthenticated: !!user && !!session,
+    signInAnonymously,
+    signOut: handleSignOut,
     loading,
+    error,
   };
 
   return (

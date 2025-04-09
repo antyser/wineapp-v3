@@ -10,9 +10,9 @@ import CellarStatsScreen from '../screens/CellarStatsScreen';
 import WineDetailScreen from '../screens/WineDetailScreen';
 import WineSearchScreen from '../screens/WineSearchScreen';
 import AddWineScreen from '../screens/AddWineScreen';
+import SearchResultsScreen from '../screens/SearchResultsScreen';
 
 // Placeholder for screens that will be implemented later
-const ScanLabelScreen = () => null;
 const AddTastingNoteScreen = () => null;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,10 +44,6 @@ export default function RootNavigator() {
           component={AddWineScreen}
         />
         <Stack.Screen
-          name="ScanLabel"
-          component={ScanLabelScreen}
-        />
-        <Stack.Screen
           name="AddTastingNote"
           component={AddTastingNoteScreen}
         />
@@ -72,6 +68,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="CellarStats"
           component={CellarStatsScreen}
+        />
+
+        <Stack.Screen
+          name="SearchResults"
+          component={SearchResultsScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

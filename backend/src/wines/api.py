@@ -1,7 +1,8 @@
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, HTTPException, Path, Query, status
+
 from src.wines import service
 from src.wines.schemas import (
     Wine,
@@ -10,7 +11,15 @@ from src.wines.schemas import (
     WineSearchResults,
     WineUpdate,
 )
-from src.wines.service import create_wine, delete_wine, get_wine, get_wines, update_wine
+from src.wines.service import (
+    ai_search_wines,
+    create_wine,
+    delete_wine,
+    get_image_from_storage,
+    get_wine,
+    get_wines,
+    update_wine,
+)
 
 router = APIRouter(prefix="/wines", tags=["wines"])
 
@@ -129,27 +138,36 @@ async def delete_wine_by_id(
         )
 
 
-@router.get("/search/wine-searcher", response_model=Wine)
-async def search_wine_searcher(
-    query: Annotated[str, Query(description="Wine name to search for")],
-    vintage: Annotated[
-        Optional[int], Query(description="Optional vintage to search for")
-    ] = None,
-    use_crawler: Annotated[
-        bool, Query(description="Use third-party crawler (Firecrawl)")
-    ] = True,
+@router.post("/search", response_model=list[Wine])
+async def search_by_image(
+    image_url: Annotated[
+        str, Body(description="Supabase storage URL of the image to analyze")
+    ],
 ):
     """
-    Search for wine on Wine-Searcher and return first result
+    Search for wines using AI image recognition (POST version)
 
-    This endpoint searches for wines on Wine-Searcher.com using the provided query.
-    It returns the first result found, or 404 if no wine is found.
+    This endpoint uses AI to analyze an image from a Supabase storage URL and identify wines.
+    It returns a list of wines found in the image.
 
-    The search can use a third-party crawler (Firecrawl) or fetch directly with HTTP/2.
+    The image_url should be a valid Supabase storage URL (format: storage.download?path=...).
     """
-    wine = await service.fetch_wine_from_wine_searcher(
-        query, vintage, use_crawler=use_crawler
-    )
-    if not wine:
-        raise HTTPException(status_code=404, detail="Wine not found on Wine-Searcher")
-    return wine
+    try:
+        # Get the image from Supabase storage
+        image_content = await get_image_from_storage(image_url)
+        if not image_content:
+            raise HTTPException(
+                status_code=404,
+                detail="Image not found or unable to download from storage",
+            )
+
+        # Process the image with AI search
+        wines = await ai_search_wines(image_content=image_content)
+        if not wines:
+            return []
+
+        return wines
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error processing image with AI: {str(e)}"
+        )

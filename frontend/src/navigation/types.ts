@@ -3,8 +3,8 @@ import { Cellar } from '../api/services';
 
 export type RootStackParamList = {
   Main: NavigatorScreenParams<MainDrawerParamList>;
-  WineDetails: { wineId: string };
-  WineDetail: { wineId: string };
+  WineDetails: { wineId: string; wine?: any };
+  WineDetail: { wineId: string; wine?: any };
   AddWine: undefined;
   ScanLabel: undefined;
   AddTastingNote: { wineId: string };
@@ -20,6 +20,12 @@ export type RootStackParamList = {
   CellarForm: { cellar?: Cellar };
   EditCellar: { cellar: Cellar };
   CellarStats: { cellarId: string };
+
+  SearchResults: {
+    wines: any[];
+    title?: string;
+    source?: 'scan' | 'search';
+  };
 };
 
 export type MainDrawerParamList = {

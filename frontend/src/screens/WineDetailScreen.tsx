@@ -14,22 +14,31 @@ const WineDetailScreen = () => {
   const route = useRoute<WineDetailScreenRouteProp>();
   const navigation = useNavigation<WineDetailScreenNavigationProp>();
   const theme = useTheme();
-  const { wineId } = route.params;
+  const { wineId, wine: routeWine } = route.params;
 
-  const [wine, setWine] = useState<Wine | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [wine, setWine] = useState<Wine | null>(routeWine || null);
+  const [loading, setLoading] = useState(!routeWine);
   const [error, setError] = useState('');
   const [isInWishlist, setIsInWishlist] = useState(false);
   const [showCellarDialog, setShowCellarDialog] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
+    // If we already have the wine from route params, use it directly
+    if (routeWine) {
+      console.log('Using wine data from route params:', routeWine.name);
+      setWine(routeWine);
+      setLoading(false);
+      return;
+    }
+    
+    // Otherwise, fetch from API
     const fetchWineDetails = async () => {
       try {
         setLoading(true);
         setError('');
         console.log(`Fetching wine details for ID: ${wineId}`);
-        const data = await wineService.getWine(wineId);
+        const data = await wineService.getWineById(wineId);
         console.log('Successfully retrieved wine data:', data?.name);
         setWine(data);
         // Here we would also check if the wine is in the user's wishlist
@@ -37,28 +46,14 @@ const WineDetailScreen = () => {
         setIsInWishlist(false);
       } catch (err) {
         console.error('Error fetching wine details:', err);
-        setError('Failed to load wine details. Using cached data if available.');
-        // If we already have wine data from a previous attempt, keep it
-        if (!wine) {
-          // Try to load from mock data directly as a fallback
-          try {
-            // Find the wine in the mockWines array (implementation detail handled in wineService)
-            const mockWine = await wineService.getWine(wineId);
-            if (mockWine) {
-              setWine(mockWine);
-              setError(''); // Clear error if we succeeded with mock data
-            }
-          } catch (mockErr) {
-            setError('Unable to load wine details. Please try again later.');
-          }
-        }
+        setError('Failed to load wine details.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchWineDetails();
-  }, [wineId, retryCount]);
+  }, [wineId, routeWine, retryCount]);
 
   const handleRetry = () => {
     setRetryCount(prevCount => prevCount + 1);
@@ -253,13 +248,12 @@ const WineDetailScreen = () => {
             </Button>
             <Button
               onPress={() => {
-                // Navigate to create cellar form
-                navigation.navigate('CellarForm', {});
+                // This would actually add the wine to the cellar
                 setShowCellarDialog(false);
               }}
               labelStyle={styles.buttonLabel}
             >
-              Create Cellar
+              Confirm
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -273,93 +267,81 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  scrollView: {
-    flex: 1,
-  },
   appbar: {
     backgroundColor: '#FFFFFF',
-    elevation: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+  },
+  scrollView: {
+    flex: 1,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#000000',
+  },
+  errorText: {
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#D32F2F',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  button: {
+    margin: 8,
+    borderColor: '#000000',
+  },
+  buttonLabel: {
+    color: '#000000',
+  },
+  errorBanner: {
+    backgroundColor: '#FFEBEE',
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  errorBannerText: {
+    color: '#D32F2F',
+    flex: 1,
+  },
+  errorButtonLabel: {
+    color: '#D32F2F',
   },
   section: {
     padding: 16,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    marginBottom: 16,
   },
   sectionTitle: {
+    color: '#000000',
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#000000',
   },
   divider: {
-    marginBottom: 16,
     backgroundColor: '#E0E0E0',
-    height: 1,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontStyle: 'italic',
+    color: '#9E9E9E',
+    marginBottom: 16,
   },
   insightRow: {
     marginBottom: 12,
   },
   insightLabel: {
     fontWeight: 'bold',
-    marginBottom: 4,
     color: '#000000',
+    marginBottom: 4,
   },
   insightValue: {
-    lineHeight: 20,
-    color: '#000000',
-  },
-  emptyText: {
-    fontStyle: 'italic',
-    marginBottom: 16,
-    color: '#000000',
-  },
-  button: {
-    marginTop: 8,
-    borderColor: '#000000',
-    marginHorizontal: 8,
-  },
-  buttonLabel: {
-    color: '#000000',
-  },
-  errorBanner: {
-    backgroundColor: '#F8F8F8',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  errorBannerText: {
-    color: '#000000',
-    flex: 1,
-  },
-  errorButtonLabel: {
-    color: '#000000',
-    fontWeight: 'bold',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    marginTop: 16,
-  },
-  errorText: {
-    marginBottom: 16,
-    textAlign: 'center',
-    color: '#000000',
-  },
-  loadingText: {
-    marginTop: 16,
     color: '#000000',
   },
 });

@@ -16,7 +16,18 @@ class Settings(BaseSettings):
     SUPABASE_KEY: Optional[str] = None  # For backwards compatibility
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:8083",  # Frontend development server
+        "http://localhost:3000",  # Alternative frontend port
+        "http://127.0.0.1:8083",  # Using IP instead of localhost
+        "http://127.0.0.1:3000",  # Alternative IP port
+        "https://localhost:8083",  # HTTPS variants
+        "https://localhost:3000",
+        "https://127.0.0.1:8083",
+        "https://127.0.0.1:3000",
+        "exp://localhost:8083",  # Expo development server
+        "exp://127.0.0.1:8083",
+    ]
 
     # JWT
     SECRET_KEY: str = "dev_secret_key"

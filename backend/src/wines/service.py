@@ -5,11 +5,12 @@ from datetime import datetime
 from typing import Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
+import httpx
 from dotenv import load_dotenv
 from loguru import logger
 
 from src.ai.extract_wine_agent import extract_wines
-from src.core import get_supabase_client
+from src.core import download_image, get_supabase_client
 from src.crawler.wine_searcher import WineSearcherOffer, WineSearcherWine, fetch_wine
 from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
 from supabase import Client
@@ -677,6 +678,21 @@ async def save_wine_searcher_batch(wines: List[WineSearcherWine]):
         client.table("offers").upsert(offers_data).execute()
 
     return wines_result
+
+
+async def get_image_from_storage(image_url: str) -> Optional[bytes]:
+    """
+    Fetches an image from Supabase storage URL and returns its content as bytes
+
+    This is a wrapper around the core.download_image function for backward compatibility.
+
+    Args:
+        image_url: URL of the image to fetch
+
+    Returns:
+        Bytes content of the image or None if not found/error
+    """
+    return await download_image(image_url)
 
 
 if __name__ == "__main__":
