@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { Text, Button, useTheme, Card, Searchbar, Portal, Modal, ActivityIndicator } from 'react-native-paper';
+import { Text, Button, Card, Searchbar, ActivityIndicator, Portal, Modal } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,45 +10,48 @@ import { supabase } from '../lib/supabase';
 import { Wine } from '../types/wine';
 import SearchBar from '../components/SearchBar';
 import ActionButtons from '../components/ActionButtons';
-import WineSection from '../components/WineSection';
 import ImagePickerModal from '../components/ImagePickerModal';
 import LoadingModal from '../components/LoadingModal';
-import WineRecognitionView from '../components/WineRecognitionView';
 import { useAuth } from '../auth/AuthContext';
+import { wineService } from '../api/wineService';
+import SearchHistoryList from '../components/SearchHistoryList';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const HomeScreen = () => {
-  const theme = useTheme();
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { user, isAuthenticated, signInAnonymously } = useAuth();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [showImageOptions, setShowImageOptions] = useState(false);
-  const [recognitionMode, setRecognitionMode] = useState<'inactive' | 'active'>('inactive');
-  const [selectedTab, setSelectedTab] = useState<'label' | 'list'>('label');
+  const [showSignInModal, setShowSignInModal] = useState(false);
+
+  const handleSignIn = () => {
+    setShowSignInModal(false);
+    navigation.navigate('Login');
+  };
 
   const handleImagePick = async (useCamera: boolean) => {
     try {
-      // Request permissions first
-      if (useCamera) {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Please grant camera permissions to use this feature.');
-          return;
-        }
-      } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permission needed', 'Please grant photo library permissions to use this feature.');
-          return;
-        }
+      const permissionType = useCamera ? 'Camera' : 'MediaLibrary';
+      const requestMethod = useCamera 
+        ? ImagePicker.requestCameraPermissionsAsync 
+        : ImagePicker.requestMediaLibraryPermissionsAsync;
+      const { status } = await requestMethod();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', `Please grant ${permissionType.toLowerCase()} permissions to use this feature.`);
+        return;
+      }
+
+      if (!isAuthenticated) {
+        console.log("User not authenticated for image pick, showing sign-in prompt");
+        setShowSignInModal(true);
+        return;
       }
 
       setShowImageOptions(false);
-      setRecognitionMode('active');
+      setLoading(true);
       
-      // Launch camera or image picker
       const result = await (useCamera
         ? ImagePicker.launchCameraAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -63,219 +66,184 @@ const HomeScreen = () => {
             quality: 0.8,
           }));
 
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         await handleImageSearch(result.assets[0]);
       } else {
-        setRecognitionMode('inactive');
+        setLoading(false);
       }
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image. Please try again.');
-      setRecognitionMode('inactive');
+      setLoading(false);
     }
   };
 
   const handleImageSearch = async (imageAsset: ImagePicker.ImagePickerAsset) => {
     try {
-      setLoading(true);
-      
-      // Check authentication status
-      if (!isAuthenticated) {
-        console.log('Not authenticated, attempting sign-in...');
-        const success = await signInAnonymously();
-        if (!success) {
-          Alert.alert(
-            'Authentication Error',
-            'Cannot proceed without authentication. Please try again later.',
-            [{ text: 'OK', onPress: () => setRecognitionMode('inactive') }]
-          );
-          return;
-        }
+      if (isAuthLoading) {
+        Alert.alert('Please wait', 'Authentication is still initializing.');
+        setLoading(false);
+        return;
       }
       
-      console.log('Authentication status:', isAuthenticated ? 'Authenticated' : 'Not authenticated');
-      console.log('User:', user?.id, 'Email:', user?.email);
-
-      if (!user || !user.id) {
-        throw new Error('User is not authenticated properly');
+      if (!isAuthenticated || !user || !user.id) {
+        console.log("User not authenticated for image search, showing sign-in prompt");
+        Alert.alert(
+          'Authentication Required',
+          'You need to be signed in to use this feature.',
+          [
+            { text: 'Sign In', onPress: () => { setLoading(false); navigation.navigate('Login'); } },
+            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) }
+          ]
+        );
+        return;
       }
 
-      // First, upload the image to Supabase Storage in user-specific folder
-      const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      const filePath = `${filename}.jpg`;
+      console.log(`Authenticated user (${user.id}) performing image search...`);
+      const filename = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
       const photoUri = imageAsset.uri;
 
-      console.log(`Uploading image to Supabase Storage in user folder (${user.id})...`);
-      
-      // Convert uri to blob
+      console.log(`Uploading image to Supabase Storage: ${filename}`);
       const response = await fetch(photoUri);
       const blob = await response.blob();
-
-      // Default bucket name
-      const bucketName = 'storage';
+      const bucketName = 'wines';
       
-      // Upload to Supabase Storage in user's folder
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(`${user.id}/${filePath}`, blob, {
-          contentType: 'image/jpeg',
-          upsert: true
+        .upload(filename, blob, {
+          contentType: imageAsset.mimeType || 'image/jpeg',
+          upsert: false
         });
 
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
-      }
-
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
       console.log('Image uploaded successfully, getting public URL...');
 
-      // Get the public URL
-      const { data: publicUrlData } = supabase.storage
-        .from(bucketName)
-        .getPublicUrl(`${user.id}/${filePath}`);
+      const publicUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${filename}`;
+      console.log('Constructed public URL:', publicUrl);
 
-      if (!publicUrlData?.publicUrl) {
-        throw new Error('Failed to get public URL');
-      }
-
-      console.log('Got public URL:', publicUrlData.publicUrl);
       console.log('Calling API for wine recognition...');
-
-      // Call the backend API with the image URL
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-      if (!apiUrl) {
-        throw new Error('API URL is not defined in environment variables');
-      }
-      
-      const searchEndpoint = `${apiUrl}/api/v1/wines/search`;
-      console.log('Search endpoint:', searchEndpoint);
-      
-      const searchResponse = await fetch(searchEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(publicUrlData.publicUrl),
-      });
-
-      if (!searchResponse.ok) {
-        const errorText = await searchResponse.text().catch(() => 'Unknown error');
-        console.error('API error response:', errorText);
-        throw new Error(`API call failed: ${searchResponse.status} ${searchResponse.statusText}`);
+      try {
+        const wines = await wineService.searchByImageUrl(publicUrl);
+        if (wines && wines.length > 0) {
+          console.log(`Found ${wines.length} wines from API`);
+          navigation.navigate('SearchResults', {
+            wines: wines,
+            title: 'Scan Results',
+            source: 'scan'
+          });
+        } else {
+          Alert.alert('No wines found', 'No wines could be identified in this image.');
+        }
+      } catch (apiError: any) {
+        console.error('API call error:', apiError);
+        let errorMessage = 'Failed to process image via API';
+        if (apiError.response?.data?.detail) errorMessage = apiError.response.data.detail;
+        throw new Error(errorMessage);
       }
 
-      console.log('Received API response, processing results...');
-
-      const wines = await searchResponse.json();
-      
-      // Navigate to the search results screen
-      if (wines.length > 0) {
-        console.log(`Found ${wines.length} wines`);
-        navigation.navigate('SearchResults', {
-          wines: wines,
-          title: 'Scan Results',
-          source: 'scan'
-        });
-      } else {
-        Alert.alert('No wines found', 'No wines could be identified in this image.');
-      }
-
-    } catch (error) {
-      console.error('Error in image search:', error);
-      Alert.alert(
-        'Error',
-        'Failed to process image. Please try again.',
-        [{ text: 'OK', onPress: () => setRecognitionMode('inactive') }]
-      );
+    } catch (error: any) {
+      console.error('Error in image search process:', error);
+      Alert.alert('Error', error.message || 'Failed to process image. Please try again.');
     } finally {
       setLoading(false);
-      setRecognitionMode('inactive');
     }
   };
 
-  const handleWinePress = (wineId: string) => {
-    // Look in sample data
-    const allSampleWines = [...recentlyViewedWines, ...recommendedWines];
-    const sampleWine = allSampleWines.find(wine => wine.id === wineId);
-    if (sampleWine) {
-      navigation.navigate('WineDetail', { 
-        wineId: sampleWine.id,
-        wine: sampleWine  // Pass the entire wine object
-      });
-      return;
-    }
-    
-    // Fallback to just passing the ID
-    navigation.navigate('WineDetail', { wineId });
+  const handleSearchPress = (query: string) => {
+    navigation.navigate('WineSearch', { initialQuery: query });
   };
 
-  // Sample data for recently viewed and recommended wines
-  const recentlyViewedWines = [
-    { id: '1', name: 'Château Margaux', region: 'Bordeaux', vintage: '2018', image_url: 'https://placehold.co/200x300/3498db/FFFFFF?text=Wine+1' },
-    { id: '2', name: 'Opus One', region: 'Napa Valley', vintage: '2019', image_url: 'https://placehold.co/200x300/e74c3c/FFFFFF?text=Wine+2' },
-    { id: '3', name: 'Tignanello', region: 'Tuscany', vintage: '2017', image_url: 'https://placehold.co/200x300/2ecc71/FFFFFF?text=Wine+3' },
-  ];
-
-  const recommendedWines = [
-    { id: '4', name: 'Penfolds Grange', region: 'Australia', vintage: '2016', image_url: 'https://placehold.co/200x300/9b59b6/FFFFFF?text=Wine+4' },
-    { id: '5', name: 'Screaming Eagle', region: 'Napa Valley', vintage: '2018', image_url: 'https://placehold.co/200x300/f39c12/FFFFFF?text=Wine+5' },
-    { id: '6', name: 'Dom Pérignon', region: 'Champagne', vintage: '2010', image_url: 'https://placehold.co/200x300/1abc9c/FFFFFF?text=Wine+6' },
-  ];
+  const handleSearchSubmit = async () => {
+    if (searchQuery.trim()) {
+      try {
+        setLoading(true);
+        // Option 1: Direct search with results
+        const wines = await wineService.searchWines(searchQuery);
+        
+        if (wines && wines.length > 0) {
+          // If exactly one wine is found, go directly to wine detail
+          if (wines.length === 1) {
+            navigation.navigate('WineDetail', { wineId: wines[0].id });
+          } else {
+            // Otherwise show search results
+            navigation.navigate('SearchResults', {
+              wines,
+              title: `Results for "${searchQuery}"`,
+              source: 'search'
+            });
+          }
+        } else {
+          // If no results, go to search screen to try again
+          navigation.navigate('WineSearch', { initialQuery: searchQuery });
+        }
+      } catch (error) {
+        console.error('Search error:', error);
+        // If there's an error, go to search screen
+        navigation.navigate('WineSearch', { initialQuery: searchQuery });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <View style={styles.header}>
-          <Text variant="headlineMedium" style={styles.title}>
-            Wine App
-          </Text>
-        </View>
-
-        <SearchBar
+      <View style={styles.header}>
+        <SearchBar 
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          onSearch={handleImagePick.bind(null, false)}
+          onSearch={handleSearchSubmit}
         />
+      </View>
 
+      <ScrollView style={styles.contentContainer}>
         <ActionButtons
           onScanPress={() => setShowImageOptions(true)}
         />
-
-        <WineSection
-          title="Recently Viewed"
-          wines={recentlyViewedWines}
-          onWinePress={handleWinePress}
-        />
-
-        <WineSection
-          title="Recommended for You"
-          wines={recommendedWines}
-          onWinePress={handleWinePress}
-        />
-
-        <ImagePickerModal
-          visible={showImageOptions}
-          onDismiss={() => setShowImageOptions(false)}
-          onCameraSelect={() => handleImagePick(true)}
-          onGallerySelect={() => handleImagePick(false)}
-        />
-
-        {/* Wine Recognition View */}
-        {recognitionMode === 'active' && (
-          <WineRecognitionView
-            isLoading={loading}
-            onScanMore={() => setShowImageOptions(true)}
-            onCancel={() => {
-              setRecognitionMode('inactive');
-              setLoading(false);
-            }}
-            selectedTab={selectedTab}
-            onTabChange={setSelectedTab}
+        
+        <View style={styles.historySection}>
+          <Text style={styles.sectionTitle}>Recent Searches</Text>
+          <SearchHistoryList 
+            onSearchPress={handleSearchPress}
+            maxItems={5}
           />
-        )}
-
-        <LoadingModal visible={loading && recognitionMode !== 'active'} />
+        </View>
       </ScrollView>
+
+      <ImagePickerModal
+        visible={showImageOptions}
+        onDismiss={() => setShowImageOptions(false)}
+        onCameraSelect={() => handleImagePick(true)}
+        onGallerySelect={() => handleImagePick(false)}
+      />
+
+      <Portal>
+        <Modal 
+          visible={showSignInModal} 
+          onDismiss={() => setShowSignInModal(false)}
+          contentContainerStyle={styles.signInModal}
+        >
+          <Text style={styles.modalTitle}>Authentication Required</Text>
+          <Text style={styles.modalText}>
+            You need to be signed in to use this feature.
+          </Text>
+          <Button 
+            mode="contained" 
+            onPress={handleSignIn}
+            style={styles.signInButton}
+          >
+            Sign In / Sign Up
+          </Button>
+          <Button
+            mode="text"
+            onPress={() => setShowSignInModal(false)}
+          >
+            Cancel
+          </Button>
+        </Modal>
+      </Portal>
+
+      <LoadingModal visible={loading} message="Processing..." />
     </SafeAreaView>
   );
 };
@@ -286,85 +254,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
-    padding: 16,
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  title: {
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  searchBar: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: '#F0F0F0',
-    borderRadius: 8,
-  },
-  searchInput: {
-    color: '#000000',
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  actionButton: {
+  contentContainer: {
     flex: 1,
-    marginHorizontal: 5,
-    borderColor: '#000000',
   },
-  buttonLabel: {
-    color: '#000000',
+  historySection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   sectionTitle: {
-    marginLeft: 16,
-    marginTop: 20,
-    marginBottom: 10,
-    color: '#000000',
+    fontSize: 18,
     fontWeight: 'bold',
-  },
-  cardsScroll: {
-    paddingLeft: 16,
-  },
-  card: {
-    width: 180,
-    marginRight: 16,
     marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    elevation: 2,
   },
-  cardTitle: {
-    color: '#000000',
-    fontWeight: 'bold',
-  },
-  cardSubtitle: {
-    color: '#000000',
-  },
-  modal: {
+  signInModal: {
     backgroundColor: 'white',
     padding: 20,
     margin: 20,
     borderRadius: 8,
   },
   modalTitle: {
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#000000',
-  },
-  modalButton: {
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 10,
-    borderColor: '#000000',
+    textAlign: 'center',
   },
-  loadingModal: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 40,
-    borderRadius: 8,
-    alignItems: 'center',
+  modalText: {
+    marginBottom: 20,
+    textAlign: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    color: '#000000',
+  signInButton: {
+    marginBottom: 10,
   },
 });
 

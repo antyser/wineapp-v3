@@ -74,10 +74,10 @@
 - [ ] Add integration tests for search functionality
 
 ### Image Scanning
-- [ ] Integrate camera functionality for label scanning
-- [ ] Implement image upload from gallery
-- [ ] Create image processing pipeline
-- [ ] Build scan results display
+- [x] Integrate camera functionality for label scanning
+- [x] Implement image upload from gallery
+- [x] Create image processing pipeline
+- [X] Build scan results display
 - [ ] Handle ambiguous scan results with user prompts
 - [ ] Add integration tests for image scanning
 

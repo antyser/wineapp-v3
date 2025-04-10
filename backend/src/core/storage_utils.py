@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 import httpx
 from loguru import logger
 
-from src.core.supabase import get_supabase_admin_client, get_supabase_client
+from src.core.supabase import get_supabase_client
 
 
 async def upload_image(
@@ -31,7 +31,7 @@ async def upload_image(
     """
     try:
         # Get admin client (service role) to ensure proper permissions for storage
-        client = get_supabase_admin_client()
+        client = get_supabase_client()
 
         # Generate a filename if not provided
         if file_name is None:
@@ -159,7 +159,7 @@ async def get_signed_url(
         Signed URL or None if failed
     """
     try:
-        client = get_supabase_admin_client()
+        client = get_supabase_client()
 
         # Get signed URL
         signed_url = client.storage.from_(bucket_name).create_signed_url(
@@ -187,7 +187,7 @@ async def delete_file(
         True if successful, False otherwise
     """
     try:
-        client = get_supabase_admin_client()
+        client = get_supabase_client()
 
         # Delete the file
         client.storage.from_(bucket_name).remove([path])

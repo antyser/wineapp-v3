@@ -25,8 +25,8 @@ dev-install:
 
 # Set up test schema (without running tests)
 setup-test:
-	ENV=dev SUPABASE_SCHEMA=test python -c "from src.core.supabase import get_supabase_admin_client; \
-	client = get_supabase_admin_client(); \
+	ENV=dev SUPABASE_SCHEMA=test python -c "from src.core.supabase import get_supabase_client; \
+	client = get_supabase_client(); \
 	client.rpc('execute_sql', {'query': 'CREATE SCHEMA IF NOT EXISTS test;'}).execute(); \
 	client.rpc('execute_sql', {'query': 'GRANT ALL ON SCHEMA test TO postgres, anon, authenticated, service_role;'}).execute(); \
 	print('Test schema created and configured');"

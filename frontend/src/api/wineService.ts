@@ -1,21 +1,20 @@
 import { apiClient } from './apiClient';
+import { Wine } from '../types/wine'; // Import Wine type from central location
 
-export interface Wine {
+// Remove the local Wine interface definition if it duplicates ../types/wine
+
+// Update SearchHistory interface to match backend response
+// Renaming to SearchHistoryItemResponse for clarity
+export interface SearchHistoryItemResponse {
   id: string;
-  name: string;
-  vintage: string;
-  region?: string;
-  country?: string;
-  producer?: string;
-  wine_type?: string;
-  grape_variety?: string;
-  image_url?: string;
-  average_price?: number;
-  description?: string;
-  wine_searcher_id?: string;
-  created_at?: string;
-  updated_at?: string;
+  user_id: string;
+  search_type: 'text' | 'image';
+  search_query: string | null;
+  result_wine_ids: string[] | null; // Still useful to keep?
+  created_at: string;
+  wines: Wine[] | null; // Add the wines array
 }
+
 
 interface WineResponse {
   wine: Wine;
@@ -40,70 +39,75 @@ interface SearchParams {
 export const wineService = {
   // Get all wines with optional filters
   getWines: async (params: SearchParams = {}): Promise<WinesResponse> => {
-    const response = await apiClient.get('/wines', { params });
+    const response = await apiClient.get('/api/v1/wines', { params });
     return response.data;
   },
 
   // Get wine by ID
   getWineById: async (id: string): Promise<Wine> => {
-    const response = await apiClient.get(`/wines/${id}`);
-    return response.data.wine;
+    const response = await apiClient.get(`/api/v1/wines/${id}`);
+    // Assuming backend returns { wine: Wine } structure
+    // Adjust if the backend returns just Wine directly
+    return response.data.wine || response.data; 
   },
 
-  // Search wines by text query
-  searchWines: async (query: string, params: Omit<SearchParams, 'query'> = {}): Promise<WinesResponse> => {
-    const response = await apiClient.get('/wines/search', {
-      params: { query, ...params }
-    });
-    return response.data;
-  },
-
-  // Get recently viewed wines
-  getRecentlyViewed: async (limit: number = 5): Promise<Wine[]> => {
-    const response = await apiClient.get('/wines/recently-viewed', {
-      params: { limit }
-    });
-    return response.data.wines;
-  },
-
-  // Get recommended wines
-  getRecommended: async (limit: number = 5): Promise<Wine[]> => {
-    const response = await apiClient.get('/wines/recommended', {
-      params: { limit }
-    });
-    return response.data.wines;
-  },
-
-  // Submit a wine label image for recognition
-  submitWineLabel: async (imageUri: string): Promise<{ wines: Wine[], recognized: boolean }> => {
-    // Create form data for image upload
-    const formData = new FormData();
-    formData.append('image', {
-      uri: imageUri,
-      name: 'wine_label.jpg',
-      type: 'image/jpeg',
-    } as any);
-
-    const response = await apiClient.post('/wines/recognize-label', formData, {
+  // Search wines by text query - Added function
+  searchWines: async (query: string): Promise<Wine[]> => {
+    console.log(`Searching for wines with query: ${query}`);
+    const response = await apiClient.post('/api/v1/search', {
+      text_input: query,
+      image_url: null
+    }, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': 'application/json',
       },
     });
-
     return response.data;
+  },
+
+  // Search wines using an image URL
+  searchByImageUrl: async (imageUrl: string): Promise<Wine[]> => {
+    const response = await apiClient.post('/api/v1/search', {
+      text_input: null,
+      image_url: imageUrl
+    }, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    // Assuming backend returns Wine[] directly for image search
+    return response.data; 
   },
 
   // Create a custom wine (when not found in database)
   createWine: async (wineData: Partial<Wine>): Promise<Wine> => {
-    const response = await apiClient.post('/wines', wineData);
-    return response.data.wine;
+    const response = await apiClient.post('/api/v1/wines', wineData);
+    return response.data.wine || response.data;
   },
 
   // Update wine details
   updateWine: async (id: string, wineData: Partial<Wine>): Promise<Wine> => {
-    const response = await apiClient.patch(`/wines/${id}`, wineData);
-    return response.data.wine;
+    const response = await apiClient.patch(`/api/v1/wines/${id}`, wineData);
+    return response.data.wine || response.data;
   },
+
+  // Get user's search history
+  getSearchHistory: async (limit: number = 10, offset: number = 0): Promise<SearchHistoryItemResponse[]> => {
+    try {
+      const response = await apiClient.get('/api/v1/search/history', {
+        params: { limit, offset }
+      });
+      // Assuming backend returns { items: SearchHistoryItemResponse[], ... } structure
+      return response.data.items; 
+    } catch (error) {
+      console.error('Error fetching search history:', error);
+      // Update mock data function call
+      return [];
+    }
+  }
 };
+
+
+
 
 export default wineService;

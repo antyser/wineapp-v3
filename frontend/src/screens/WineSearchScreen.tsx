@@ -5,7 +5,10 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineList from '../components/wine/WineList';
-import { Wine, wineService } from '../api/wineService';
+import { Wine } from '../types/wine';
+import { wineService } from '../api/wineService';
+import { supabase } from '../lib/supabase';
+import { apiClient } from '../api/apiClient';
 
 type WineSearchScreenRouteProp = RouteProp<RootStackParamList, 'WineSearch'>;
 type WineSearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -31,6 +34,7 @@ const WineSearchScreen = () => {
     wineType?: string;
     region?: string;
   }>({});
+  const [noResults, setNoResults] = useState(false);
 
   // Perform initial search if initialQuery is provided
   useEffect(() => {
@@ -46,29 +50,42 @@ const WineSearchScreen = () => {
         setPage(1);
       }
 
-      // Construct search params
-      const searchParams = {
-        query: searchQuery,
-        wine_type: activeFilters.wineType?.toLowerCase(),
-        region: activeFilters.region,
-        limit: 10,
-        offset: newSearch ? 0 : (page - 1) * 10,
-      };
-
-      const result = await wineService.getWines(searchParams);
-
-      if (newSearch) {
-        setSearchResults(result.items);
-      } else {
-        setSearchResults(prev => [...prev, ...result.items]);
+      // Make sure we have a search query
+      if (!searchQuery.trim()) {
+        setError('Please enter a search term');
+        setLoading(false);
+        return;
       }
 
-      setHasMore(result.items.length === 10);
-      setPage(prev => (newSearch ? 1 : prev + 1));
       setError('');
-    } catch (err) {
-      console.error('Search error:', err);
-      setError('Failed to search wines. Please try again.');
+      
+      try {
+        // Use wineService.searchWines function to search for wines
+        const wines = await wineService.searchWines(searchQuery);
+        
+        // Navigate appropriately based on results
+        if (wines && wines.length > 0) {
+          // If exactly one wine is found, go directly to wine detail
+          if (wines.length === 1) {
+            navigation.navigate('WineDetail', { wineId: wines[0].id });
+          } else {
+            // Otherwise show search results
+            navigation.navigate('SearchResults', {
+              wines,
+              title: `Results for "${searchQuery}"`,
+              source: 'search'
+            });
+          }
+        } else {
+          setNoResults(true);
+        }
+      } catch (error) {
+        console.error('Error searching wines:', error);
+        setError('Failed to search for wines. Please try again.');
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setError('Failed to search for wines. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -83,9 +100,8 @@ const WineSearchScreen = () => {
 
   // Handle load more when reaching end of list
   const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      performSearch(false);
-    }
+    // Currently not applicable with the new API 
+    // Could be implemented later if the API supports pagination
   };
 
   // Handle wine selection

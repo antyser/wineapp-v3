@@ -8,12 +8,12 @@ from uuid import UUID, uuid4
 import httpx
 from dotenv import load_dotenv
 from loguru import logger
+from supabase import Client
 
 from src.ai.extract_wine_agent import extract_wines
 from src.core import download_image, get_supabase_client
 from src.crawler.wine_searcher import WineSearcherOffer, WineSearcherWine, fetch_wine
 from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
-from supabase import Client
 
 
 async def get_wines(
@@ -414,17 +414,30 @@ async def search_wine(
 ) -> Optional[Wine]:
     """
     Search for a wine by name and vintage using the following strategy:
-    1. Look for matching wine in wines table (including name_alias field)
-    2. Look for matching wine in wine_searcher_wines table
-    3. Fetch from Wine-Searcher if not found in either table
+    1. Look for a matching wine in the `wines` table:
+       - Exact `name` match.
+       - Case-insensitive partial `name` match.
+       - Exact match within the `name_alias` array.
+       - If found (and vintage matches if provided), return the existing wine.
+    2. If not found locally, fetch from Wine-Searcher API using `wine_name` and `vintage`.
+    3. If Wine-Searcher returns a result:
+       - Save/update the result in the `wine_searcher_wines` table.
+       - Check if a wine with the same `wine_searcher_id` already exists in the `wines` table:
+         - If YES: Check if the original `wine_name` (search term) differs from the existing wine's `name`.
+           If different, add `wine_name` to the existing wine's `name_alias` list. Return the existing wine.
+         - If NO: Convert the Wine-Searcher result to a `Wine` model. Check if the converted model's `name` differs
+           from the original `wine_name`. If different, set the new wine's `name_alias` to `[wine_name]`.
+           Create and return this new wine.
+    4. If Wine-Searcher returns nothing: Create a new placeholder wine in the `wines` table
+       using the original `wine_name` and `vintage`. Return the new placeholder wine.
 
     Args:
-        wine_name: Name of the wine to search for
-        vintage: Optional vintage to filter by
-        client: Supabase client (optional)
+        wine_name: Name of the wine to search for (typically from AI extraction).
+        vintage: Optional vintage to filter by.
+        client: Supabase client (optional).
 
     Returns:
-        Wine object if found, None otherwise
+        Wine object if found or created, potentially a placeholder if external search fails.
     """
     if client is None:
         client = get_supabase_client()
@@ -437,44 +450,7 @@ async def search_wine(
     if db_wine:
         return db_wine
 
-    # Then check if we have it in wine_searcher_wines table
-    wine_searcher_db = await get_wine_searcher_by_name(wine_name)
-
-    if wine_searcher_db and (vintage is None or wine_searcher_db.vintage == vintage):
-        # We found it in wine_searcher_wines table, now create/update in wines table
-        wine_model = convert_wine_searcher_to_wine(wine_searcher_db)
-
-        # Check if a wine with the same wine_searcher_id exists in our database
-        existing_wine = None
-        if wine_searcher_db.id:
-            existing_query = (
-                client.table("wines")
-                .select("*")
-                .eq("wine_searcher_id", wine_searcher_db.id)
-            )
-            existing_response = existing_query.execute()
-            if existing_response.data and len(existing_response.data) > 0:
-                existing_wine = Wine.model_validate(existing_response.data[0])
-
-                # If the wine exists but has a different name, add the current name to name_alias
-                if existing_wine.name != wine_name:
-                    name_alias = existing_wine.name_alias or []
-                    if wine_name not in name_alias:
-                        name_alias.append(wine_name)
-                        # Update the existing wine with the new alias
-                        await update_wine(
-                            existing_wine.id, WineUpdate(name_alias=name_alias), client
-                        )
-                return existing_wine
-
-        # If wine doesn't exist yet, create it
-        wine_db = await create_wine(
-            WineCreate.model_validate(wine_model.model_dump()),
-            client,
-        )
-        return wine_db
-
-    # If not found in either table, fetch from Wine-Searcher
+    # If not found, fetch from Wine-Searcher
     wine_searcher_wine = await fetch_wine(wine_name=wine_name, vintage=vintage)
 
     if wine_searcher_wine:
@@ -680,19 +656,34 @@ async def save_wine_searcher_batch(wines: List[WineSearcherWine]):
     return wines_result
 
 
-async def get_image_from_storage(image_url: str) -> Optional[bytes]:
+async def get_wines_by_ids(
+    wine_ids: List[UUID], client: Optional[Client] = None
+) -> List[Wine]:
     """
-    Fetches an image from Supabase storage URL and returns its content as bytes
-
-    This is a wrapper around the core.download_image function for backward compatibility.
+    Get multiple wines by their IDs.
 
     Args:
-        image_url: URL of the image to fetch
+        wine_ids: A list of UUIDs of the wines to retrieve.
+        client: Supabase client (optional, will use default if not provided).
 
     Returns:
-        Bytes content of the image or None if not found/error
+        A list of Wine objects found.
     """
-    return await download_image(image_url)
+    if not wine_ids:
+        return []
+
+    if client is None:
+        client = get_supabase_client()
+
+    # Convert UUIDs to strings for the query
+    str_wine_ids = [str(wid) for wid in wine_ids]
+
+    response = client.table("wines").select("*").in_("id", str_wine_ids).execute()
+
+    if not response.data:
+        return []
+
+    return [Wine.model_validate(item) for item in response.data]
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { supabase } from '../lib/supabase';
 
 // Force development mode for testing
 const isDevelopment = true;
@@ -41,7 +42,7 @@ if (isDevelopment) {
 // Create Axios instance
 export const apiClient = axios.create({
   baseURL,
-  timeout: 10000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -50,12 +51,47 @@ export const apiClient = axios.create({
 // Log the configured axios instance
 console.log('[API Client] API client created with baseURL:', apiClient.defaults.baseURL);
 
-// Add request interceptor for logging
+// Add request interceptor for authentication and logging
 apiClient.interceptors.request.use(
-  (config) => {
+  async (config) => {
+    try {
+      // Get the current session
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      // If there's a session, add the auth token to the request
+      if (session?.access_token) {
+        // Extract and log key parts of the token (without exposing full token)
+        const tokenStart = session.access_token.substring(0, 10);
+        
+        // Decode the JWT payload (without verification)
+        const payload = session.access_token.split('.')[1];
+        if (payload) {
+          try {
+            const decodedPayload = JSON.parse(atob(payload));
+            console.log(`[API Client] Token payload:`, {
+              iss: decodedPayload.iss,
+              sub: decodedPayload.sub,
+              exp: decodedPayload.exp,
+              validUntil: decodedPayload.exp ? new Date(decodedPayload.exp * 1000).toISOString() : 'unknown',
+              currentTime: new Date().toISOString()
+            });
+          } catch (decodeError) {
+            console.error('[API Client] Error decoding JWT payload:', decodeError);
+          }
+        }
+        
+        console.log(`[API Client] Auth token found for user: ${session.user?.id}. Adding to request:`, config.url);
+        console.log(`[API Client] Token starts with: ${tokenStart}...`);
+        config.headers['Authorization'] = `Bearer ${session.access_token}`;
+      } else {
+        console.warn('[API Client] No auth token available. User not authenticated.', error || '');
+      }
+    } catch (authError) {
+      console.error('[API Client] Error getting auth token:', authError);
+    }
+    
     console.log(`[API Client] 🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
       params: config.params,
-      data: config.data,
       headers: config.headers,
       fullUrl: `${config.baseURL}${config.url}`
     });

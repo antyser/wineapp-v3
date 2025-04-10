@@ -1,72 +1,61 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
-import { Appbar, Text, useTheme } from 'react-native-paper';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import React from 'react';
+import { StyleSheet, View, FlatList } from 'react-native';
+import { Text, Appbar } from 'react-native-paper';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Wine } from '../types/wine';
-import WineSection from '../components/WineSection';
+import WineListItem from '../components/WineListItem';
 
-type SearchResultsScreenRouteProp = RouteProp<RootStackParamList, 'SearchResults'>;
-type SearchResultsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type SearchResultsRouteProp = RouteProp<RootStackParamList, 'SearchResults'>;
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const SearchResultsScreen = () => {
-  const route = useRoute<SearchResultsScreenRouteProp>();
-  const navigation = useNavigation<SearchResultsScreenNavigationProp>();
-  const theme = useTheme();
+  const route = useRoute<SearchResultsRouteProp>();
+  const navigation = useNavigation<NavigationProp>();
   const { wines, title = 'Search Results', source = 'search' } = route.params;
 
-  // Automatically navigate to wine detail if there's only one result
-  useEffect(() => {
-    if (wines && wines.length === 1) {
-      const wine = wines[0];
-      navigation.replace('WineDetail', {
-        wineId: wine.id,
-        wine: wine
-      });
-    }
-  }, [wines, navigation]);
-
   const handleWinePress = (wineId: string) => {
-    // Find the wine in the results
-    const selectedWine = wines.find(wine => wine.id === wineId);
-    if (selectedWine) {
-      navigation.navigate('WineDetail', { 
-        wineId: selectedWine.id,
-        wine: selectedWine
-      });
-    }
+    navigation.navigate('WineDetail', { wineId });
   };
+
+  const renderWineItem = ({ item }: { item: Wine }) => (
+    <WineListItem 
+      wine={item} 
+      onPress={() => handleWinePress(item.id)} 
+    />
+  );
 
   return (
     <View style={styles.container}>
-      <Appbar.Header style={styles.appbar}>
+      <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={title} />
       </Appbar.Header>
+      
+      {source === 'scan' && (
+        <Text style={styles.subtitle}>The following wines were identified from your scan:</Text>
+      )}
+      {source === 'search' && (
+        <Text style={styles.subtitle}>Showing results for your search:</Text>
+      )}
+      {source === 'history' && (
+        <Text style={styles.subtitle}>Wines found in this search history item:</Text>
+      )}
 
-      <ScrollView style={styles.content}>
-        {wines.length > 0 ? (
-          <>
-            <Text style={styles.resultsText}>
-              {source === 'scan' 
-                ? 'The following wines were identified from your scan:'
-                : `Found ${wines.length} wines matching your search:`}
-            </Text>
-            <WineSection
-              title=""
-              wines={wines}
-              onWinePress={handleWinePress}
-            />
-          </>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              No wines found. Please try again with a different {source === 'scan' ? 'image' : 'search term'}.
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+      {wines.length === 0 ? (
+        <View style={styles.centered}>
+          <Text>No wines found.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={wines}
+          renderItem={renderWineItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+        />
+      )}
     </View>
   );
 };
@@ -74,29 +63,22 @@ const SearchResultsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#fff',
   },
-  appbar: {
-    backgroundColor: '#FFFFFF',
+  subtitle: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#666',
   },
-  content: {
-    flex: 1,
+  listContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  resultsText: {
-    margin: 16,
-    fontSize: 16,
-    color: '#000000',
-  },
-  emptyContainer: {
+  centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#666666',
   },
 });
 

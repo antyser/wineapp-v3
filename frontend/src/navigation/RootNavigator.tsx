@@ -11,6 +11,7 @@ import WineDetailScreen from '../screens/WineDetailScreen';
 import WineSearchScreen from '../screens/WineSearchScreen';
 import AddWineScreen from '../screens/AddWineScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
+import LoginScreen from '../screens/LoginScreen';
 
 // Placeholder for screens that will be implemented later
 const AddTastingNoteScreen = () => null;
@@ -30,6 +31,10 @@ export default function RootNavigator() {
           name="Main"
           component={MainDrawer}
           options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
         />
         <Stack.Screen
           name="WineDetails"

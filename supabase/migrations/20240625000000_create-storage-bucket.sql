@@ -6,6 +6,11 @@ INSERT INTO storage.buckets (id, name)
 VALUES ('storage', 'storage')
 ON CONFLICT (id) DO NOTHING;
 
+
+-- Make the storage bucket public (allow anonymous access)
+UPDATE storage.buckets SET public = true WHERE id = 'storage';
+SELECT id, name, public FROM storage.buckets WHERE id = 'storage';
+
 -- Re-enable RLS on the buckets table
 ALTER TABLE storage.buckets ENABLE ROW LEVEL SECURITY;
 
@@ -56,3 +61,8 @@ CREATE POLICY storage_objects_delete ON storage.objects
     (storage.foldername(name))[1] = auth.uid()::text AND
     owner = auth.uid()
   ); 
+
+
+-- Make the storage bucket public (allow anonymous access)
+UPDATE storage.buckets SET public = true WHERE id = 'storage';
+SELECT id, name, public FROM storage.buckets WHERE id = 'storage';

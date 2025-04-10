@@ -15,10 +15,10 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAuthenticated: boolean;
-  signInAnonymously: () => Promise<boolean>;
-  signOut: () => Promise<void>;
-  loading: boolean;
+  isLoading: boolean;
   error: string | null;
+  signOut: () => Promise<void>;
+  signInWithEmailAndPassword: (email: string, password: string) => Promise<boolean>;
 }
 
 // Create context with default values
@@ -26,14 +26,15 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isAuthenticated: false,
-  signInAnonymously: async () => false,
-  signOut: async () => {},
-  loading: true,
+  isLoading: true,
   error: null,
+  signOut: async () => {},
+  signInWithEmailAndPassword: async () => false,
 });
 
 // Helper to convert Supabase user to our User type
 const convertUser = (supabaseUser: SupabaseUser): User => {
+  console.log('Converting Supabase user:', supabaseUser);
   return {
     id: supabaseUser.id,
     email: supabaseUser.email || undefined,
@@ -45,123 +46,160 @@ const convertUser = (supabaseUser: SupabaseUser): User => {
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Function to handle anonymous sign-in
+  const handleAnonymousSignIn = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Check if already authenticated
+      if (user && session) {
+        return true;
+      }
+      
+      console.log('Attempting anonymous sign-in...');
+      const { data, error: signInError } = await supabase.auth.signInAnonymously();
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (data.session) {
+        console.log('Anonymous sign-in successful.');
+        setSession(data.session);
+        setUser(convertUser(data.session.user));
+        return true;
+      } else {
+        console.warn('Anonymous sign-in did not return a session.');
+        return false;
+      }
+    } catch (err) {
+      console.error('Anonymous sign-in error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign in anonymously');
+      // Ensure state reflects failed attempt
+      setSession(null);
+      setUser(null);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to handle email/password sign-in
+  const handleEmailPasswordSignIn = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      console.log('Attempting email/password sign-in...');
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      if (data.session) {
+        console.log('Email/password sign-in successful.');
+        setSession(data.session);
+        setUser(convertUser(data.session.user));
+        return true;
+      } else {
+        console.warn('Email/password sign-in did not return a session.');
+        return false;
+      }
+    } catch (err) {
+      console.error('Email/password sign-in error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign in');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Check for existing session on app load and handle auth changes
   useEffect(() => {
     // Get initial session
     const initAuth = async () => {
       try {
-        setLoading(true);
+        setIsLoading(true);
+        console.log('Auth provider mounted. Checking session...');
         
         // Check if we have a session
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
         
         if (sessionError) {
+          console.error('Error getting session:', sessionError);
           throw sessionError;
         }
         
         if (currentSession) {
+          console.log('Found existing session:', currentSession.user.id);
           setSession(currentSession);
           setUser(convertUser(currentSession.user));
         } else {
-          // Instead of anonymous login, use a demo account
-          await handleDemoLogin();
+          console.log('No active session found. Attempting anonymous sign-in.');
+          // If no session, attempt anonymous sign-in
+          await handleAnonymousSignIn();
         }
       } catch (err) {
         console.error('Auth initialization error:', err);
         setError(err instanceof Error ? err.message : 'Unknown authentication error');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
 
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session ? convertUser(session.user) : null);
-    });
-
     initAuth();
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log('Auth state changed:', _event, newSession?.user?.id);
+      setSession(newSession);
+      setUser(newSession ? convertUser(newSession.user) : null);
+      // If user signs out, we might want to sign them back in anonymously
+      // or handle it based on app logic (e.g., navigate to login)
+      // For now, if signed out completely, re-attempt anonymous login
+      if (_event === 'SIGNED_OUT' && !newSession) {
+          console.log('User signed out. Re-attempting anonymous sign-in.');
+          handleAnonymousSignIn();
+      }
+    });
 
     // Cleanup subscription
     return () => {
+      console.log('Unsubscribing from auth changes.');
       subscription.unsubscribe();
     };
   }, []);
 
-  // Demo login function using email/password
-  const handleDemoLogin = async (): Promise<boolean> => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Use a demo account for testing
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: 'demo@wineapp.com',
-        password: 'demo123456'
-      });
-      
-      // If account doesn't exist, create it
-      if (error && error.message.includes('Invalid login credentials')) {
-        console.log('Demo account does not exist, creating it...');
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: 'demo@wineapp.com',
-          password: 'demo123456'
-        });
-        
-        if (signUpError) {
-          throw signUpError;
-        }
-        
-        if (signUpData.session) {
-          setSession(signUpData.session);
-          setUser(convertUser(signUpData.session.user));
-          return true;
-        }
-      } else if (error) {
-        throw error;
-      } else if (data.session) {
-        setSession(data.session);
-        setUser(convertUser(data.session.user));
-        return true;
-      }
-      
-      return false;
-    } catch (err) {
-      console.error('Demo login error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to login with demo account');
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Replace the signInAnonymously function with the demo login
-  const signInAnonymously = async (): Promise<boolean> => {
-    return handleDemoLogin();
-  };
-
   // Proper sign out function
   const handleSignOut = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       setError(null);
+      console.log('Signing out...');
       
-      const { error } = await supabase.auth.signOut();
+      const { error: signOutError } = await supabase.auth.signOut();
       
-      if (error) {
-        throw error;
+      if (signOutError) {
+        throw signOutError;
       }
       
-      setSession(null);
-      setUser(null);
+      // Auth state change listener will handle setting user/session to null
+      // and triggering anonymous re-login if needed.
+      console.log('Sign out successful.');
+
     } catch (err) {
       console.error('Sign out error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign out');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -170,10 +208,10 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     user,
     session,
     isAuthenticated: !!user && !!session,
-    signInAnonymously,
-    signOut: handleSignOut,
-    loading,
+    isLoading,
     error,
+    signOut: handleSignOut,
+    signInWithEmailAndPassword: handleEmailPasswordSignIn,
   };
 
   return (

@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
+from src.models import DBBaseModel
+
 
 class WineBase(BaseModel):
     """Base fields for a wine"""
@@ -60,22 +62,12 @@ class WineUpdate(BaseModel):
     name_alias: Optional[List[str]] = None
 
 
-class Wine(WineBase):
+class Wine(WineBase, DBBaseModel):
     """Full wine model with all fields"""
 
     id: UUID
     created_at: datetime
     updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-    @field_serializer("id")
-    def serialize_id(self, id: UUID) -> str:
-        return str(id)
-
-    @field_serializer("created_at", "updated_at")
-    def serialize_datetime(self, dt: datetime) -> str:
-        return dt.isoformat()
 
 
 class WineSearchParams(BaseModel):

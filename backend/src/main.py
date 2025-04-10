@@ -1,10 +1,11 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from supabase import Client
 
 from src.cellar import cellar_router
 from src.core import get_supabase_client, settings
+from src.search.api import router as search_history_router
 from src.wines import wines_router
-from supabase import Client
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -25,6 +26,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(wines_router, prefix=settings.API_V1_STR)
 app.include_router(cellar_router, prefix=settings.API_V1_STR)
+app.include_router(search_history_router, prefix=settings.API_V1_STR)
 
 # API routes will be included here as we develop each domain
 # For now, just include some basic endpoints

@@ -2,9 +2,30 @@ import React from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Button, Avatar, List, Divider, Switch } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../auth/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 
 const ProfileScreen = () => {
+  const { user, isAuthenticated, isLoading: isAuthLoading, signOut } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [darkMode, setDarkMode] = React.useState(false);
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
+  const handleLoginPress = () => {
+    navigation.navigate('Login');
+  };
+
+  // Log user object to see what data we're receiving
+  console.log('Current user:', user);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -12,14 +33,41 @@ const ProfileScreen = () => {
         <View style={styles.header}>
           <Avatar.Icon size={80} icon="account" style={styles.avatar} />
           <Text variant="headlineSmall" style={styles.name}>
-            Wine Enthusiast
+            {isAuthenticated && user 
+              ? (user.email || 'test@example.com') 
+              : 'Wine Enthusiast'}
           </Text>
           <Text variant="bodyMedium" style={styles.email}>
-            user@example.com
+            {isAuthenticated && user 
+              ? `User ID: ${user.id.substring(0, 8)}...` 
+              : 'Sign in to access all features'}
           </Text>
-          <Button mode="outlined" style={styles.editButton}>
-            Edit Profile
-          </Button>
+          
+          {isAuthenticated && user ? (
+            <Button mode="outlined" style={styles.editButton}>
+              Edit Profile
+            </Button>
+          ) : (
+            <Button 
+              mode="contained" 
+              style={styles.editButton}
+              onPress={handleLoginPress}
+            >
+              Sign In with Test User
+            </Button>
+          )}
+          
+          {/* Add debug info for authentication status */}
+          <View style={styles.authDebugContainer}>
+            <Text style={styles.debugText}>
+              Auth Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}
+            </Text>
+            {user && (
+              <Text style={styles.debugText}>
+                User ID: {user.id.substring(0, 8)}...
+              </Text>
+            )}
+          </View>
         </View>
 
         <Divider />
@@ -83,13 +131,16 @@ const ProfileScreen = () => {
           </View>
         </View>
 
-        <Button
-          mode="text"
-          textColor="crimson"
-          style={styles.logoutButton}
-        >
-          Log Out
-        </Button>
+        {isAuthenticated && (
+          <Button
+            mode="text"
+            textColor="crimson"
+            style={styles.logoutButton}
+            onPress={handleSignOut}
+          >
+            Log Out
+          </Button>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -135,6 +186,14 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     margin: 16,
+  },
+  authDebugContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  debugText: {
+    color: '#666666',
   },
 });
 
