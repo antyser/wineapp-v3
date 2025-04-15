@@ -1,0 +1,43 @@
+# Node modules
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Build and dist files
+/build/
+/dist/
+/out/
+.next/
+*.tsbuildinfo
+
+# Environment files (except .env for production builds if needed)
+.env.local
+.env.development
+.env.test
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Expo specific
+.expo/
+.expo-shared/
+web-build/
+
+# Testing files
+/coverage/
+
+# Docker
+.dockerignore
+Dockerfile
+
+# Git
+.git/
+.gitignore
+
+# OS specific
+.DS_Store
+Thumbs.db 

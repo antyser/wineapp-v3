@@ -2,18 +2,6 @@
 
 This directory contains configuration files and migration scripts for the Supabase project.
 
-## Storage Policies
-
-The file `migrations/20250409_storage_policies.sql` contains SQL statements to configure storage policies for the Wine App. These policies allow authenticated users to upload wine images and make them publicly accessible.
-
-### How to Apply Storage Policies
-
-1. Log in to your [Supabase Dashboard](https://app.supabase.io/).
-2. Select your project.
-3. Go to the SQL Editor (from the left sidebar).
-4. Copy the contents of `migrations/20250409_storage_policies.sql` into the SQL editor.
-5. Run the SQL script.
-
 ### What the Storage Policies Do
 
 The storage policies:

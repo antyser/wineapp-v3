@@ -16,6 +16,7 @@ A comprehensive mobile application for wine enthusiasts to discover, track, and 
 - `frontend/`: Expo/React Native application
 - `backend/`: FastAPI backend service
 - `supabase/`: Supabase local development configuration
+- `supabase/migrations/`: Database migrations for schema and RLS policies
 
 ## Setup and Installation
 
@@ -25,7 +26,29 @@ A comprehensive mobile application for wine enthusiasts to discover, track, and 
 - Expo CLI
 - Python 3.12+
 - uv package manager
-- Docker and Docker Compose (for local Supabase)
+- Docker and Docker Compose (for local development)
+
+### Quick Start with Docker
+
+The easiest way to get the entire application running is to use Docker Compose:
+
+```bash
+# Start all services (backend, frontend, and Supabase)
+docker compose -f docker-compose.app.yml up -d
+
+# To stop all services
+docker compose -f docker-compose.app.yml down
+```
+
+Alternatively, you can use the convenience scripts provided:
+
+```bash
+# Start everything
+./start-dev.sh
+
+# Stop everything
+./stop-dev.sh
+```
 
 ### Local Supabase Setup
 
@@ -59,27 +82,44 @@ A comprehensive mobile application for wine enthusiasts to discover, track, and 
 
 4. **Apply database migrations and seed data**:
    ```bash
-   # Apply migrations
+   # Apply all migrations (this will run all SQL files in supabase/migrations/ in order)
    supabase db push
    
-   # Seed the database (optional)
-   psql -h localhost -p 54322 -U postgres -d postgres -f supabase/seed.sql
+   # If you encounter issues with supabase db push, you can run migrations manually:
+   psql postgresql://postgres:postgres@localhost:54322/postgres -f supabase/migrations/20240401000000_create_tables.sql
+   # Repeat for each migration file in order
    ```
 
-5. **Configure storage buckets**:
-   
-   The storage service should automatically set up, but you can create additional buckets:
-   ```bash
-   # Create a bucket for wine label images
-   supabase storage create wine-labels
-   
-   # Set bucket to public
-   supabase storage update wine-labels --public
-   ```
-
-6. **Access Supabase Studio**:
-   
+5. **Access Supabase UI**:
    Open http://localhost:54323 in your browser to access the Supabase Studio interface.
+
+### Database Migration Structure
+
+All database changes are managed through migrations in the `supabase/migrations/` directory:
+
+- `20240401000000_create_tables.sql` - Initial schema setup
+- `20240401000001_update_wines_table.sql` - Wine table modifications
+- `20240626030000_storage_buckets_rls_config.sql` - Storage bucket setup and RLS policies
+
+When developing new features that require database changes:
+
+1. Create a new migration file with a timestamp prefix in `supabase/migrations/`
+2. Apply it with `supabase db push` or direct psql command
+3. Commit the migration file to version control
+
+### Storage Configuration
+
+The application uses Supabase Storage with the following structure:
+
+- **Bucket**: `wines` - For storing wine images and related files
+- **File Path Structure**: `user_id/filename.jpg` - Each user has their own directory
+- **Security**: Row-Level Security (RLS) policies ensure users can only access their own files
+
+The storage configuration is handled by the `20240626030000_storage_buckets_rls_config.sql` migration, which:
+
+1. Creates the required storage buckets
+2. Sets up RLS policies for secure access
+3. Enables public read access while restricting write operations to authenticated users
 
 ### Frontend Setup
 
@@ -140,6 +180,15 @@ A comprehensive mobile application for wine enthusiasts to discover, track, and 
    python run.py
    ```
 
+4. **Using Docker** (alternative to local setup):
+   ```bash
+   # Build and run just the backend
+   docker compose -f docker-compose.app.yml up -d backend
+   
+   # View logs
+   docker logs -f wineapp-backend-1
+   ```
+
 ## Working with Supabase
 
 ### Database
@@ -154,59 +203,102 @@ A comprehensive mobile application for wine enthusiasts to discover, track, and 
   supabase db push
   ```
 
+- **Generate SQL migration template**:
+  ```bash
+  # Create a timestamp-prefixed migration file
+  timestamp=$(date "+%Y%m%d%H%M%S")
+  touch "supabase/migrations/${timestamp}_description.sql"
+  ```
+
 - **Reset the database**:
   ```bash
   supabase db reset
+  ```
+
+- **Troubleshooting migrations**:
+  If `supabase db push` fails, you can manually apply migrations:
+  ```bash
+  for f in supabase/migrations/*.sql; do 
+    echo "Applying $f"
+    psql postgresql://postgres:postgres@localhost:54322/postgres -f "$f"
+  done
   ```
 
 ### Storage
 
 - **List buckets**:
   ```bash
-  supabase storage list buckets
+  # Using the database directly
+  psql -h localhost -p 54322 -U postgres -d postgres -c "SELECT * FROM storage.buckets;"
   ```
 
-- **Create a bucket**:
+- **Check storage policies**:
   ```bash
-  supabase storage create <bucket-name>
-  ```
-
-- **Make a bucket public**:
-  ```bash
-  supabase storage update <bucket-name> --public
+  psql -h localhost -p 54322 -U postgres -d postgres -c "SELECT * FROM pg_policies WHERE tablename = 'objects';"
   ```
 
 - **Upload a file** (using the Supabase JS client in code):
   ```javascript
+  // Important: Upload to user's own directory to comply with RLS policies
+  const filePath = `${user.id}/${filename}`;
   const { data, error } = await supabase.storage
-    .from('wine-labels')
-    .upload('filename.jpg', file);
+    .from('wines')
+    .upload(filePath, file);
   ```
 
 - **Get a public URL** (using the Supabase JS client in code):
   ```javascript
-  const url = supabase.storage
-    .from('wine-labels')
-    .getPublicUrl('filename.jpg').data.publicUrl;
+  const { data: { publicUrl } } = supabase.storage
+    .from('wines')
+    .getPublicUrl(`${user.id}/${filename}`);
   ```
 
 ### Authentication
 
-You can test authentication features using the local Supabase Auth service. Create test users through the Supabase Studio interface at http://localhost:54323.
+You can test authentication features using the local Supabase Auth service:
 
-## Development
+1. Create test users through the Supabase UI (http://localhost:54323)
+2. Use the provided demo account (demo@wineapp.com / demo123456)
+3. Test anonymous sign-in (for guest users)
 
-Both frontend and backend code have their own README files with more detailed development instructions.
+## Development Workflow
 
-- [Frontend README](frontend/README.md)
-- [Backend README](backend/README.md)
+1. **Start the development environment**:
+   ```bash
+   # Start all services
+   ./start-dev.sh
+   
+   # Or using Docker directly
+   docker compose -f docker-compose.app.yml up -d
+   ```
 
-## Stopping Supabase
+2. **Make database changes**:
+   - Create a new migration file in `supabase/migrations/`
+   - Apply with `supabase db push` or direct psql command
+   - Verify changes in Supabase UI
 
-To stop the local Supabase services:
-```bash
-supabase stop
-```
+3. **Test API endpoints**:
+   - Backend available at http://localhost:8000
+   - API documentation at http://localhost:8000/docs
+
+4. **Run frontend**:
+   - Web version at http://localhost:19006
+   - Or use Expo Go app on mobile devices
+
+5. **Stop the environment when done**:
+   ```bash
+   ./stop-dev.sh
+   
+   # Or using Docker directly
+   docker compose -f docker-compose.app.yml down
+   ```
+
+## Troubleshooting
+
+- **Database connection issues**: Ensure Supabase is running with `supabase status`
+- **Migration failures**: Try applying migrations manually with psql
+- **Storage upload errors**: Check that the user has a valid session and is uploading to their own directory
+- **Frontend environment issues**: Verify environment variables in `.env.development`
 
 ## License
 

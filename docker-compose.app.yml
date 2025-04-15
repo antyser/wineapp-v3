@@ -1,0 +1,50 @@
+name: wineapp
+
+services:
+  #---------------------------------------
+  # Backend Service (FastAPI)
+  #---------------------------------------
+  backend:
+    build: ./backend
+    env_file:
+      - backend/.env
+    environment:
+      # Use local Supabase
+      SUPABASE_URL: http://localhost:54321
+      SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+      ENV: docker_dev
+    network_mode: host
+    volumes:
+      # Mount backend code for development hot-reloading
+      - ./backend:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  #---------------------------------------
+  # Frontend Service (React Native Web / Expo Web)
+  #---------------------------------------
+  frontend:
+    build: ./frontend
+    env_file:
+      - frontend/.env
+    environment:
+      # Use local Supabase and Backend
+      SUPABASE_URL: http://localhost:54321
+      EXPO_PUBLIC_API_URL: http://localhost:8000
+      NODE_ENV: development
+      EXPO_DEV_SERVER_LISTEN_ADDRESS: localhost
+      REACT_NATIVE_PACKAGER_HOSTNAME: localhost
+    network_mode: host
+    volumes:
+      # Mount frontend code for development hot-reloading
+      - ./frontend:/app
+      # Prevent host node_modules from overwriting container's
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped 

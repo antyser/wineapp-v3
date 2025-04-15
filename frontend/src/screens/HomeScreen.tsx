@@ -107,7 +107,7 @@ const HomeScreen = () => {
       }
 
       console.log(`Authenticated user (${user.id}) performing image search...`);
-      const filename = `${user.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
+      const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
       const photoUri = imageAsset.uri;
 
       console.log(`Uploading image to Supabase Storage: ${filename}`);
@@ -115,9 +115,12 @@ const HomeScreen = () => {
       const blob = await response.blob();
       const bucketName = 'wines';
       
+      // Create file path with user ID as folder
+      const filePath = `${user.id}/${filename}`;
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
-        .upload(filename, blob, {
+        .upload(filePath, blob, {
           contentType: imageAsset.mimeType || 'image/jpeg',
           upsert: false
         });
@@ -125,7 +128,11 @@ const HomeScreen = () => {
       if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
       console.log('Image uploaded successfully, getting public URL...');
 
-      const publicUrl = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${bucketName}/${filename}`;
+      // Get the public URL directly from supabase client instead of constructing it manually
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+        
       console.log('Constructed public URL:', publicUrl);
 
       console.log('Calling API for wine recognition...');

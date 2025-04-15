@@ -1,0 +1,39 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Local development
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Docker
+.dockerignore
+Dockerfile
+
+# Git
+.git/
+.gitignore
+
+# OS specific
+.DS_Store
+Thumbs.db 

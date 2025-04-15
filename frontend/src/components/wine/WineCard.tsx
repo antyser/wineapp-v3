@@ -27,9 +27,11 @@ const WineCard: React.FC<WineCardProps> = ({
       <Card.Content>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
-            <Text variant="titleLarge" style={styles.vintage}>
-              {wine.vintage}
-            </Text>
+            {wine.vintage !== 1 && (
+              <Text variant="titleLarge" style={styles.vintage}>
+                {wine.vintage}
+              </Text>
+            )}
             <Text variant="titleLarge" style={styles.name}>
               {wine.name}
             </Text>
@@ -82,12 +84,6 @@ const WineCard: React.FC<WineCardProps> = ({
             <Text variant="bodyMedium" style={styles.price}>
               <Text style={styles.label}>Avg. Price: </Text>
               ${wine.average_price.toFixed(2)}
-            </Text>
-          )}
-
-          {wine.description && (
-            <Text variant="bodyMedium" style={styles.description}>
-              {wine.description}
             </Text>
           )}
         </View>
