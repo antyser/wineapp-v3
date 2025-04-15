@@ -5,7 +5,8 @@ import { Appbar, Divider, Text, Button, Chip, Portal, Dialog, useTheme } from 'r
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineCard from '../components/wine/WineCard';
-import { Wine, wineService } from '../api/wineService';
+import { Wine } from '../types/wine';
+import { wineService } from '../api/wineService';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -178,31 +179,74 @@ const WineDetailScreen = () => {
           </View>
         )}
 
-        {/* AI Insights Section - Placeholder for future implementation */}
+        {/* AI Insights Section */}
         <View style={styles.section}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
             AI Insights
           </Text>
           <Divider style={styles.divider} />
 
-          <View style={styles.insightRow}>
-            <Text variant="bodyMedium" style={styles.insightLabel}>
-              Food Pairing:
-            </Text>
-            <Text variant="bodyMedium" style={styles.insightValue}>
-              Pairs well with grilled meats, strong cheeses, and chocolate desserts.
-            </Text>
-          </View>
+          {wine?.food_pairings && (
+            <View style={styles.insightRow}>
+              <Text variant="bodyMedium" style={styles.insightLabel}>
+                Food Pairing:
+              </Text>
+              <Text variant="bodyMedium" style={styles.insightValue}>
+                {wine.food_pairings}
+              </Text>
+            </View>
+          )}
 
-          <View style={styles.insightRow}>
-            <Text variant="bodyMedium" style={styles.insightLabel}>
-              Drinking Window:
+          {wine?.drinking_window && (
+            <View style={styles.insightRow}>
+              <Text variant="bodyMedium" style={styles.insightLabel}>
+                Drinking Window:
+              </Text>
+              <Text variant="bodyMedium" style={styles.insightValue}>
+                {wine.drinking_window}
+              </Text>
+            </View>
+          )}
+
+          {wine?.abv && (
+            <View style={styles.insightRow}>
+              <Text variant="bodyMedium" style={styles.insightLabel}>
+                ABV:
+              </Text>
+              <Text variant="bodyMedium" style={styles.insightValue}>
+                {wine.abv}
+              </Text>
+            </View>
+          )}
+
+          {!wine?.food_pairings && !wine?.drinking_window && !wine?.abv && (
+            <Text variant="bodyMedium" style={styles.emptyText}>
+              No AI insights available for this wine.
             </Text>
-            <Text variant="bodyMedium" style={styles.insightValue}>
-              2023 - 2030
-            </Text>
-          </View>
+          )}
         </View>
+
+        {/* Winemaker Notes - New Section */}
+        {wine?.winemaker_notes && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Winemaker Notes
+            </Text>
+            <Divider style={styles.divider} />
+            <Text variant="bodyMedium">{wine.winemaker_notes}</Text>
+          </View>
+        )}
+
+        {/* Professional Reviews - New Section */}
+        {wine?.professional_reviews && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Professional Reviews
+            </Text>
+            <Divider style={styles.divider} />
+            <Text variant="bodyMedium">{wine.professional_reviews}</Text>
+          </View>
+        )}
 
         {/* Previous Tasting Notes - Placeholder for future implementation */}
         <View style={styles.section}>

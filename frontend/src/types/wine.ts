@@ -15,4 +15,12 @@ export interface Wine {
   name_alias?: string[];
   created_at?: string;
   updated_at?: string;
+  
+  // AI-generated fields
+  drinking_window?: string;
+  food_pairings?: string;
+  abv?: string;
+  tasting_notes?: string;
+  winemaker_notes?: string;
+  professional_reviews?: string;
 } 

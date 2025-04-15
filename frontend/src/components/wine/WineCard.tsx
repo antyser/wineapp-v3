@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Image } from 'react-native';
 import { Card, Text, Button, IconButton, Chip, useTheme } from 'react-native-paper';
-import { Wine } from '../../api/wineService';
+import { Wine } from '../../types/wine';
 
 interface WineCardProps {
   wine: Wine;

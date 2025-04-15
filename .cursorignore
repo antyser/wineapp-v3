@@ -1,4 +1,3 @@
-.*
 __pycache__/
 # OSX
 .DS_Store
@@ -41,7 +40,6 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
-.env
 .venv
 venv/
 ENV/

@@ -43,8 +43,8 @@ const HomeScreen = () => {
         return;
       }
 
-      if (!isAuthenticated) {
-        console.log("User not authenticated for image pick, showing sign-in prompt");
+      if (useCamera && !isAuthenticated) {
+        console.log("User not authenticated for camera, showing sign-in prompt");
         setShowSignInModal(true);
         return;
       }
@@ -67,6 +67,13 @@ const HomeScreen = () => {
           }));
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        if (!isAuthenticated) {
+          console.log("Image selected but user not authenticated, showing sign-in prompt");
+          setLoading(false);
+          setShowSignInModal(true);
+          return;
+        }
+        
         await handleImageSearch(result.assets[0]);
       } else {
         setLoading(false);

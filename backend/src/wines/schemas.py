@@ -19,17 +19,20 @@ class WineBase(BaseModel):
     type: Optional[str] = None  # red, white, sparkling, etc.
     price: Optional[float] = None
     rating: Optional[int] = None
-    tasting_notes: Optional[str] = None
     wine_searcher_url: Optional[str] = None
     average_price: Optional[float] = None
     description: Optional[str] = None
-    drinking_window: Optional[str] = None
-
-    food_pairings: Optional[str] = None
-    abv: Optional[str] = None
     name_alias: Optional[List[str]] = None
     image_url: Optional[str] = None
     wine_searcher_id: Optional[str] = None
+
+    # ==== from AI generated data ====
+    drinking_window: Optional[str] = None
+    food_pairings: Optional[str] = None
+    abv: Optional[str] = None
+    tasting_notes: Optional[str] = None
+    winemaker_notes: Optional[str] = None
+    professional_reviews: Optional[str] = None
 
 
 class WineCreate(WineBase):
@@ -60,6 +63,8 @@ class WineUpdate(BaseModel):
     food_pairings: Optional[str] = None
     abv: Optional[str] = None
     name_alias: Optional[List[str]] = None
+    winemaker_notes: Optional[str] = None
+    professional_reviews: Optional[str] = None
 
 
 class Wine(WineBase, DBBaseModel):
