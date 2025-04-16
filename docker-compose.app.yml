@@ -9,15 +9,19 @@ services:
     env_file:
       - backend/.env
     environment:
-      # Use local Supabase
-      SUPABASE_URL: http://localhost:54321
+      # Use local Supabase - update to use the container name for Supabase service
+      SUPABASE_URL: http://supabase_kong_wineapp-v3:8000
       SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
       ENV: docker_dev
-    network_mode: host
+    ports:
+      - "8000:8000"
     volumes:
       # Mount backend code for development hot-reloading
       - ./backend:/app
     restart: unless-stopped
+    networks:
+      - default
+      - supabase_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -33,13 +37,16 @@ services:
     env_file:
       - frontend/.env
     environment:
-      # Use local Supabase and Backend
-      SUPABASE_URL: http://localhost:54321
-      EXPO_PUBLIC_API_URL: http://localhost:8000
+      # Use Supabase and Backend with proper network addressing
+      SUPABASE_URL: http://supabase_kong_wineapp-v3:8000
+      EXPO_PUBLIC_API_URL: http://backend:8000
       NODE_ENV: development
-      EXPO_DEV_SERVER_LISTEN_ADDRESS: localhost
-      REACT_NATIVE_PACKAGER_HOSTNAME: localhost
-    network_mode: host
+      # Explicitly set these to use in the command
+      WEB_PORT: 19006
+    ports:
+      - "19000:19000"  # Expo dev server
+      - "19006:19006"  # Expo web
+      - "8081:8081"    # Metro bundler
     volumes:
       # Mount frontend code for development hot-reloading
       - ./frontend:/app
@@ -47,4 +54,14 @@ services:
       - /app/node_modules
     depends_on:
       - backend
-    restart: unless-stopped 
+    networks:
+      - default
+      - supabase_network
+    restart: unless-stopped
+    # Override the CMD in Dockerfile to use webpack directly
+    command: npm run web
+
+networks:
+  supabase_network:
+    external: true
+    name: supabase_network_wineapp-v3 

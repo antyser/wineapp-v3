@@ -4,7 +4,9 @@ import { Text, Button, useTheme, Chip, FAB, Divider, Portal, Modal, ActivityIndi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { CellarList } from '../components/cellar';
-import { cellarService, Cellar } from '../api/services';
+import { api } from '../api';
+import { Cellar } from '../api/generated';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 
 const MyWinesScreen = () => {
   const theme = useTheme();
@@ -22,10 +24,8 @@ const MyWinesScreen = () => {
   const [cellarToDelete, setCellarToDelete] = useState<Cellar | null>(null);
 
   useEffect(() => {
-    if (activeTab === 'cellar') {
-      fetchCellars();
-    }
-  }, [activeTab]);
+    fetchCellars();
+  }, []);
 
   const fetchCellars = async () => {
     try {
@@ -33,15 +33,17 @@ const MyWinesScreen = () => {
       setCellarError(null);
 
       // In a real app, you'd filter by the current user's ID
-      const result = await cellarService.getCellars();
-      setCellars(result.items);
+      const result = await api.listCellarsApiV1CellarsGet();
+      setCellars(result.data.items);
 
       // Fetch bottle counts for each cellar
       const counts: Record<string, number> = {};
-      for (const cellar of result.items) {
+      for (const cellar of result.data.items) {
         try {
-          const stats = await cellarService.getCellarStatistics(cellar.id);
-          counts[cellar.id] = stats.total_bottles;
+          const stats = await api.getCellarStatisticsApiV1CellarsCellarIdStatisticsGet({
+            path: { cellar_id: cellar.id }
+          });
+          counts[cellar.id] = stats.data.total_bottles;
         } catch (err) {
           console.error(`Failed to fetch statistics for cellar ${cellar.id}:`, err);
           counts[cellar.id] = 0;
@@ -74,7 +76,9 @@ const MyWinesScreen = () => {
     if (!cellarToDelete) return;
 
     try {
-      await cellarService.deleteCellar(cellarToDelete.id);
+      await api.deleteCellarApiV1CellarsCellarIdDelete({
+        path: { cellar_id: cellarToDelete.id }
+      });
       setCellars(cellars.filter(c => c.id !== cellarToDelete.id));
       setConfirmDeleteVisible(false);
       setCellarToDelete(null);

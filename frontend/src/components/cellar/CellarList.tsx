@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, FlatList, View } from 'react-native';
 import { Text, ActivityIndicator, FAB } from 'react-native-paper';
-import { Cellar } from '../../api/cellarService';
+import { Cellar } from '../../api/generated';
 import CellarCard from './CellarCard';
 
 interface CellarListProps {
@@ -9,7 +9,7 @@ interface CellarListProps {
   cellarBottleCounts?: Record<string, number>;
   loading?: boolean;
   error?: string;
-  onCellarPress: (cellar: Cellar) => void;
+  onCellarPress?: (cellar: Cellar) => void;
   onEditCellar?: (cellar: Cellar) => void;
   onDeleteCellar?: (cellar: Cellar) => void;
   onAddCellar?: () => void;
@@ -51,9 +51,9 @@ const CellarList: React.FC<CellarListProps> = ({
           <CellarCard
             cellar={item}
             bottleCount={cellarBottleCounts[item.id] || 0}
-            onPress={onCellarPress}
-            onEdit={onEditCellar}
-            onDelete={onDeleteCellar}
+            onPress={() => onCellarPress?.(item)}
+            onEdit={() => onEditCellar?.(item)}
+            onDelete={() => onDeleteCellar?.(item)}
           />
         )}
         contentContainerStyle={styles.list}

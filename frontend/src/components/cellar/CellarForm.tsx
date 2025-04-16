@@ -1,143 +1,107 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { TextInput, Button, Text, Chip, IconButton } from 'react-native-paper';
-import { Cellar } from '../../api/cellarService';
+import { Button, TextInput, Chip, Text } from 'react-native-paper';
+import { Cellar } from '../../api/generated';
 
 interface CellarFormProps {
-  initialValues?: Partial<Cellar>;
+  initialValues?: Cellar;
   onSubmit: (values: { name: string; sections: string[] }) => void;
-  onCancel?: () => void;
-  loading?: boolean;
-  title?: string;
 }
 
 const CellarForm: React.FC<CellarFormProps> = ({
   initialValues,
   onSubmit,
-  onCancel,
-  loading = false,
-  title = 'Add Cellar',
 }) => {
   const [name, setName] = useState(initialValues?.name || '');
-  const [nameError, setNameError] = useState('');
+  const [section, setSection] = useState('');
   const [sections, setSections] = useState<string[]>(initialValues?.sections || []);
-  const [newSection, setNewSection] = useState('');
+  const [nameError, setNameError] = useState('');
 
-  useEffect(() => {
-    // Update form when initialValues change
-    if (initialValues) {
-      setName(initialValues.name || '');
-      setSections(initialValues.sections || []);
-    }
-  }, [initialValues]);
+  const handleAddSection = () => {
+    if (section.trim() === '') return;
+    if (sections.includes(section.trim())) return;
+    
+    setSections([...sections, section.trim()]);
+    setSection('');
+  };
 
-  const validate = (): boolean => {
-    console.log('Validating form', { name });
-    let isValid = true;
-
-    if (!name.trim()) {
-      console.log('Name validation failed: empty name');
-      setNameError('Cellar name is required');
-      isValid = false;
-    } else {
-      setNameError('');
-    }
-
-    console.log('Validation result:', isValid);
-    return isValid;
+  const handleRemoveSection = (sectionToRemove: string) => {
+    setSections(sections.filter(s => s !== sectionToRemove));
   };
 
   const handleSubmit = () => {
-    console.log('CellarForm: Submit button clicked');
-    if (validate()) {
-      console.log('CellarForm: Validation passed, calling onSubmit with', { name: name.trim(), sections });
-      onSubmit({ name: name.trim(), sections });
-    } else {
-      console.log('CellarForm: Validation failed');
+    if (name.trim() === '') {
+      setNameError('Name is required');
+      return;
     }
-  };
 
-  const addSection = () => {
-    if (newSection.trim()) {
-      setSections([...sections, newSection.trim()]);
-      setNewSection('');
-    }
-  };
-
-  const removeSection = (index: number) => {
-    const updatedSections = [...sections];
-    updatedSections.splice(index, 1);
-    setSections(updatedSections);
+    onSubmit({
+      name: name.trim(),
+      sections,
+    });
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text variant="headlineSmall" style={styles.title}>{title}</Text>
-
+    <ScrollView contentContainerStyle={styles.container}>
       <TextInput
         label="Cellar Name"
         value={name}
-        onChangeText={setName}
+        onChangeText={(text) => {
+          setName(text);
+          if (text.trim() !== '') {
+            setNameError('');
+          }
+        }}
         style={styles.input}
         error={!!nameError}
       />
       {nameError ? <Text style={styles.errorText}>{nameError}</Text> : null}
 
-      <Text variant="titleMedium" style={styles.sectionTitle}>Sections</Text>
-      <Text variant="bodySmall" style={styles.helperText}>
-        Add sections to organize your wines (e.g., "Rack A", "Refrigerator", "Basement")
-      </Text>
-
-      <View style={styles.sectionsContainer}>
-        {sections.map((section, index) => (
-          <Chip
-            key={index}
-            style={styles.sectionChip}
-            onClose={() => removeSection(index)}
-          >
-            {section}
-          </Chip>
-        ))}
-      </View>
-
-      <View style={styles.addSectionRow}>
+      <View style={styles.sectionInput}>
         <TextInput
-          label="New Section"
-          value={newSection}
-          onChangeText={setNewSection}
-          style={styles.sectionInput}
+          label="Add Section (optional)"
+          value={section}
+          onChangeText={setSection}
+          style={styles.sectionField}
         />
-        <IconButton
-          icon="plus"
-          onPress={addSection}
-          disabled={!newSection.trim()}
-        />
-      </View>
-
-      <View style={styles.buttonsContainer}>
-        {onCancel && (
-          <Button
-            mode="outlined"
-            onPress={onCancel}
-            style={styles.button}
-          >
-            Cancel
-          </Button>
-        )}
-        <Button
-          mode="contained"
-          onPress={() => {
-            console.log('Create Cellar button clicked');
-            handleSubmit();
-          }}
-          loading={loading}
-          disabled={loading}
-          style={styles.button}
-          testID="create-cellar-button"
+        <Button 
+          mode="contained" 
+          onPress={handleAddSection}
+          disabled={!section.trim()}
+          style={styles.addButton}
         >
-          {initialValues?.id ? 'Update' : 'Create'} Cellar
+          Add
         </Button>
       </View>
+
+      <View style={styles.sectionsContainer}>
+        {sections.length > 0 ? (
+          <Text style={styles.sectionLabel}>Sections:</Text>
+        ) : (
+          <Text style={styles.helperText}>
+            Sections help you organize your wines (e.g., "Rack 1", "Fridge")
+          </Text>
+        )}
+        <View style={styles.chipContainer}>
+          {sections.map((sectionItem) => (
+            <Chip
+              key={sectionItem}
+              style={styles.chip}
+              onClose={() => handleRemoveSection(sectionItem)}
+            >
+              {sectionItem}
+            </Chip>
+          ))}
+        </View>
+      </View>
+
+      <Button 
+        mode="contained" 
+        onPress={handleSubmit} 
+        style={styles.submitButton}
+      >
+        {initialValues ? 'Update Cellar' : 'Create Cellar'}
+      </Button>
     </ScrollView>
   );
 };
@@ -146,9 +110,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
   },
-  title: {
-    marginBottom: 16,
-  },
   input: {
     marginBottom: 8,
   },
@@ -156,38 +117,43 @@ const styles = StyleSheet.create({
     color: 'red',
     marginBottom: 16,
   },
-  sectionTitle: {
+  sectionInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 16,
     marginBottom: 8,
   },
-  helperText: {
-    marginBottom: 16,
-    fontStyle: 'italic',
+  sectionField: {
+    flex: 1,
+    marginRight: 8,
+  },
+  addButton: {
+    marginLeft: 8,
   },
   sectionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
-  sectionChip: {
-    margin: 4,
-  },
-  addSectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginTop: 16,
     marginBottom: 24,
   },
-  sectionInput: {
-    flex: 1,
+  sectionLabel: {
+    marginBottom: 8,
+    fontWeight: 'bold',
   },
-  buttonsContainer: {
+  helperText: {
+    marginBottom: 8,
+    fontStyle: 'italic',
+    opacity: 0.6,
+  },
+  chipContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+  },
+  chip: {
+    margin: 4,
+  },
+  submitButton: {
     marginTop: 16,
-  },
-  button: {
-    minWidth: 120,
-  },
+  }
 });
 
 export default CellarForm;
+

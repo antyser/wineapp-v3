@@ -1,28 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
-import { Text, Appbar, Portal, Dialog, Button } from 'react-native-paper';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { CellarWineList } from '../components/cellar';
-import cellarService from '../api/cellarService';
-import { CellarWine, Cellar } from '../api/cellarService';
+import { View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Appbar, Button, Dialog, Portal, Text } from 'react-native-paper';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { api } from '../api';
+import { CellarWineResponse, Cellar } from '../api/generated';
+import { RootStackParamList } from '../navigation/types';
+import CellarWineList from '../components/cellar/CellarWineList';
 
 // Define valid status types
 type WineStatus = 'in_stock' | 'consumed' | 'gifted' | 'sold';
 
-const CellarDetailScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation<any>(); // Use any for simplicity
-  const { cellarId } = route.params as { cellarId: string };
-
+const CellarDetailScreen = ({ route, navigation }: NativeStackScreenProps<RootStackParamList, 'CellarDetail'>) => {
+  const { cellarId } = route.params;
   const [cellar, setCellar] = useState<Cellar | null>(null);
-  const [wines, setWines] = useState<CellarWine[]>([]);
+  const [wines, setWines] = useState<CellarWineResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState({
+  const [confirmDialog, setConfirmDialog] = useState<{
+    visible: boolean;
+    wineId: string;
+    action: string;
+    newStatus: WineStatus;
+  }>({
     visible: false,
     wineId: '',
     action: '',
-    newStatus: '' as WineStatus, // Type as WineStatus
+    newStatus: 'in_stock'
   });
 
   useEffect(() => {
@@ -34,16 +37,18 @@ const CellarDetailScreen = () => {
       setLoading(true);
       console.log(`Fetching cellar details for cellarId: ${cellarId}`);
 
-      const cellarData = await cellarService.getCellarById(cellarId);
-      setCellar(cellarData);
-      console.log('Cellar data loaded:', cellarData);
+      const cellarResponse = await api.getCellarApiV1CellarsCellarIdGet({
+        path: { cellar_id: cellarId }
+      });
+      setCellar(cellarResponse.data);
+      console.log('Cellar data loaded:', cellarResponse.data);
 
-      // Call the corrected endpoint (/wines)
-      const winesResult = await cellarService.getBottlesByCellarId(cellarId);
-      console.log('Wines data loaded:', winesResult);
+      const winesResponse = await api.listCellarWinesApiV1CellarsCellarIdWinesGet({
+        path: { cellar_id: cellarId }
+      });
+      console.log('Wines data loaded:', winesResponse.data);
 
-      // Update this to match the actual response structure
-      setWines(winesResult.cellarWines || []);
+      setWines(winesResponse.data?.items || []);
       setError(null);
     } catch (err) {
       console.error('Failed to fetch cellar details:', err);
@@ -53,10 +58,12 @@ const CellarDetailScreen = () => {
     }
   };
 
-  const handleUpdateQuantity = async (wine: CellarWine, quantity: number) => {
+  const handleUpdateQuantity = async (wine: CellarWineResponse, quantity: number) => {
     try {
-      // Ensure we use the correct method `updateBottle`
-      await cellarService.updateBottle(wine.cellar_id, wine.id, { quantity });
+      await api.updateCellarWineApiV1CellarsWinesCellarWineIdPatch({
+        path: { cellar_wine_id: wine.id },
+        body: { quantity }
+      });
 
       // Update local state to reflect change
       setWines(wines.map(w => w.id === wine.id ? { ...w, quantity } : w));
@@ -67,7 +74,7 @@ const CellarDetailScreen = () => {
   };
 
   // Accept string status to match component props, then validate inside
-  const handleStatusChange = (wine: CellarWine, status: string) => {
+  const handleStatusChange = (wine: CellarWineResponse, status: string) => {
     // Validate that status is a valid WineStatus
     if (status !== 'in_stock' && status !== 'consumed' && status !== 'gifted' && status !== 'sold') {
       console.error(`Invalid status: ${status}`);
@@ -88,14 +95,11 @@ const CellarDetailScreen = () => {
   const confirmStatusChange = async () => {
     try {
       const { wineId, newStatus } = confirmDialog;
-      // Find the wine to get its cellar_id
-      const wine = wines.find(w => w.id === wineId);
-      if (!wine) {
-        throw new Error('Wine not found');
-      }
-
-      // Ensure we use the correct method `updateBottle`
-      await cellarService.updateBottle(wine.cellar_id, wineId, { status: newStatus });
+      
+      await api.updateCellarWineApiV1CellarsWinesCellarWineIdPatch({
+        path: { cellar_wine_id: wineId },
+        body: { status: newStatus }
+      });
 
       // Update local state
       setWines(wines.map(w => w.id === wineId ? { ...w, status: newStatus } : w));
@@ -114,7 +118,7 @@ const CellarDetailScreen = () => {
     });
   };
 
-  const handleWinePress = (wine: CellarWine) => {
+  const handleWinePress = (wine: CellarWineResponse) => {
     // Navigate to wine detail screen
     navigation.navigate('WineDetail', { wineId: wine.wine_id });
   };

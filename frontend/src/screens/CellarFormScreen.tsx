@@ -1,51 +1,47 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Appbar, Snackbar } from 'react-native-paper';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { CellarForm } from '../components/cellar';
-import { cellarService, Cellar } from '../api/services';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Appbar } from 'react-native-paper';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { api } from '../api';
+import { Cellar } from '../api/generated';
+import { RootStackParamList } from '../navigation/types';
+import CellarForm from '../components/cellar/CellarForm';
 
-const CellarFormScreen = () => {
-  const route = useRoute();
-  const navigation = useNavigation();
-  const { cellar } = (route.params as { cellar?: Cellar }) || {};
+type Props = NativeStackScreenProps<RootStackParamList, 'CellarForm'>;
+
+const CellarFormScreen = ({ route, navigation }: Props) => {
+  const cellar = route.params?.cellar;
   const isEditing = !!cellar;
 
-  const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
-
-  const handleSubmit = async (values: { name: string; sections: string[] }) => {
+  const handleSubmit = async (formData: { name: string; sections: string[] }) => {
     try {
-      setLoading(true);
-
-      if (isEditing) {
+      if (isEditing && cellar) {
         // Update existing cellar
-        await cellarService.updateCellar(cellar.id, {
-          name: values.name,
-          sections: values.sections,
+        await api.updateCellarApiV1CellarsCellarIdPatch({
+          path: { cellar_id: cellar.id },
+          body: {
+            name: formData.name,
+            sections: formData.sections
+          }
         });
-        setSnackbar({ visible: true, message: 'Cellar updated successfully!' });
+        
+        // Navigate back to previous screen
+        navigation.goBack();
       } else {
         // Create new cellar
-        // Note: In a real app, you'd get the current user's ID
-        const userIdMock = '123e4567-e89b-12d3-a456-426614174000'; // This should come from auth
-        await cellarService.createCellar({
-          name: values.name,
-          sections: values.sections,
-          user_id: userIdMock,
+        await api.createCellarApiV1CellarsPost({
+          body: {
+            name: formData.name,
+            sections: formData.sections
+          }
         });
-        setSnackbar({ visible: true, message: 'Cellar created successfully!' });
+        
+        // Navigate to MyWines screen
+        navigation.navigate('MyWines');
       }
-
-      // Return to previous screen after a short delay to show the snackbar
-      setTimeout(() => {
-        navigation.goBack();
-      }, 1500);
-    } catch (err) {
-      console.error('Failed to save cellar:', err);
-      setSnackbar({ visible: true, message: 'Failed to save cellar. Please try again.' });
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Failed to save cellar:', error);
+      // Could show an error message here
     }
   };
 
@@ -53,24 +49,13 @@ const CellarFormScreen = () => {
     <View style={styles.container}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={isEditing ? 'Edit Cellar' : 'Add Cellar'} />
+        <Appbar.Content title={isEditing ? 'Edit Cellar' : 'Create Cellar'} />
       </Appbar.Header>
 
       <CellarForm
-        initialValues={cellar}
+        initialValues={cellar || undefined}
         onSubmit={handleSubmit}
-        onCancel={() => navigation.goBack()}
-        loading={loading}
-        title={isEditing ? 'Edit Cellar' : 'Add Cellar'}
       />
-
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
-        duration={3000}
-      >
-        {snackbar.message}
-      </Snackbar>
     </View>
   );
 };

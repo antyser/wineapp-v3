@@ -78,17 +78,17 @@
 - [x] Implement image upload from gallery
 - [x] Create image processing pipeline
 - [X] Build scan results display
-- [ ] Handle ambiguous scan results with user prompts
-- [ ] Add integration tests for image scanning
+- [X] Handle ambiguous scan results with user prompts
+- [x] Add integration tests for image scanning
 
 ## Phase 4: Feature Implementation - User Features
 
 ### Auth Domain Implementation
-- [ ] Set up authentication with Supabase Auth
-- [ ] Create auth service and middleware
+- [X] Set up authentication with Supabase Auth
+- [X] Create auth service and middleware
 - [ ] Implement user profile management
-- [ ] Add auth routes and endpoints
-- [ ] Create login and signup screens
+- [X] Add auth routes and endpoints
+- [X] Create login and signup screens
 - [ ] Add integration tests for auth domain
 
 ### Notes Domain Implementation

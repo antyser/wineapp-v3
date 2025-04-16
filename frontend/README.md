@@ -42,6 +42,48 @@ The frontend mobile application for Wine App, built with Expo/React Native.
   - `hooks/`: Custom React hooks
   - `types/`: TypeScript types and interfaces
 
+### API Client
+
+The app uses a generated TypeScript client based on the backend's OpenAPI specification. This provides type-safe API calls and ensures the frontend stays in sync with the backend API.
+
+#### Updating the API Client
+
+To update the API client with the latest OpenAPI specification:
+
+```bash
+npm run generate-api
+```
+
+This will download the latest OpenAPI spec from the backend server and generate TypeScript types and client code.
+
+#### Using the API Client
+
+```typescript
+// Import the API client
+import { api } from '../api';
+
+// Example: Search for wines
+const response = await api.searchWines({
+  text_input: 'cabernet',
+  image_url: null
+});
+const wines = response.data;
+
+// Or use the helper functions for simpler access
+import { searchWines } from '../api';
+const wines = await searchWines('cabernet');
+```
+
+#### Migration from Legacy Services
+
+The codebase is transitioning from manually written API services to the generated client:
+
+- New components should use the generated client via `api`
+- Legacy services (`wineService`, `cellarService`) are still available for backward compatibility
+- Eventually, legacy services will be removed
+
+For more details, see the [API Client documentation](src/api/README.md).
+
 ### State Management
 
 The app uses Zustand for state management. The store is defined in `src/store/useWineStore.ts`.

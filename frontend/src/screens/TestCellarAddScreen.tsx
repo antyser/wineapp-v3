@@ -1,225 +1,190 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Alert } from 'react-native';
-import { Appbar, Text, Button, Snackbar } from 'react-native-paper';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Card, TextInput, Title, Text, ActivityIndicator } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
-import { CellarForm } from '../components/cellar';
-import { cellarService } from '../api/cellarService';
-import { apiClient } from '../api/apiClient';
-
-// Log the environment on component load
-console.log('[TestCellarAddScreen] Component loaded');
-console.log('[TestCellarAddScreen] cellarService:', cellarService);
-console.log('[TestCellarAddScreen] apiClient baseURL:', apiClient.defaults.baseURL);
+import { api } from '../api';
 
 const TestCellarAddScreen = () => {
   const navigation = useNavigation();
+  const [cellarName, setCellarName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<any>(null);
+  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [snackbar, setSnackbar] = useState({ visible: false, message: '' });
 
-  // Add test function to check connection
-  const testConnection = async () => {
+  const testGetCellars = async () => {
+    setLoading(true);
+    setResult(null);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
-
-      // First, log what we're about to do
-      console.log('[TestConnection] Testing connection to:', apiClient.defaults.baseURL);
-      Alert.alert('Testing Connection', `Connecting to: ${apiClient.defaults.baseURL}`);
-
-      // Try a direct API call to the health endpoint
-      const response = await apiClient.get('/health');
-      console.log('[TestConnection] Health check response:', response.data);
-
-      // Show response in UI and alert
-      setResponse(response.data);
-      setSnackbar({ visible: true, message: 'Connection successful! Server is healthy.' });
-      Alert.alert('Connection Success', `Server responded: ${JSON.stringify(response.data)}`);
-    } catch (err: any) {
-      console.error('[TestConnection] Connection failed:', err);
-      console.error('[TestConnection] Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
+      console.log('[TestCellarAddScreen] Testing listCellarsApiV1CellarsGet()');
+      
+      const response = await api.listCellarsApiV1CellarsGet();
+      console.log('[TestCellarAddScreen] API response:', response);
+      
+      if (response.error) {
+        throw new Error(`API error: ${JSON.stringify(response.error)}`);
+      }
+      
+      setResult({
+        success: true, 
+        data: response.data
       });
-
-      // Show error in UI and alert
-      setError(err.message || 'Connection failed');
-      setSnackbar({ visible: true, message: `Connection failed: ${err.message}` });
-      Alert.alert('Connection Failed', err.message || 'Unknown error');
+    } catch (err) {
+      console.error('[TestCellarAddScreen] Error testing Get Cellars API:', err);
+      setError(`Failed to get cellars: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    // Test cellarService on component mount
-    console.log('[TestCellarAddScreen] Component mounted');
-    console.log('[TestCellarAddScreen] Testing cellarService.getCellars()');
+  const testCreateCellar = async () => {
+    if (!cellarName.trim()) {
+      setError('Please enter a cellar name');
+      return;
+    }
 
-    const testCellarService = async () => {
-      try {
-        const result = await cellarService.getCellars();
-        console.log('[TestCellarAddScreen] getCellars result:', result);
-        Alert.alert('getCellars Success', `Found ${result.cellars?.length || 0} cellars`);
-      } catch (err) {
-        console.error('[TestCellarAddScreen] getCellars error:', err);
-        Alert.alert('getCellars Error', err.message || 'Unknown error');
-      }
-    };
+    setLoading(true);
+    setResult(null);
+    setError(null);
 
-    testCellarService();
-  }, []);
-
-  const handleSubmit = async (values: { name: string; sections: string[] }) => {
-    console.log('[TestCellarAddScreen] Submit button clicked', values);
     try {
-      setLoading(true);
-      setError(null);
-
-      // Create a new cellar
-      // This is a test user ID - in a real app, you'd get this from authentication
-      const testUserId = '443ce2fe-1d5b-48af-99f3-15329714b63d';
-
-      console.log('[TestCellarAddScreen] Sending request to createCellar with data:', {
-        name: values.name,
-        sections: values.sections,
-        user_id: testUserId,
+      console.log(`[TestCellarAddScreen] Creating cellar with name: ${cellarName}`);
+      
+      const response = await api.createCellarApiV1CellarsPost({
+        body: {
+          name: cellarName,
+          sections: ['Section A', 'Section B']
+        }
       });
-
-      Alert.alert('Creating Cellar', `Creating cellar: ${values.name}`);
-
-      const result = await cellarService.createCellar({
-        name: values.name,
-        sections: values.sections,
-        user_id: testUserId,
+      
+      console.log('[TestCellarAddScreen] API response:', response);
+      
+      if (response.error) {
+        throw new Error(`API error: ${JSON.stringify(response.error)}`);
+      }
+      
+      setResult({
+        success: true, 
+        data: response.data
       });
-
-      console.log('[TestCellarAddScreen] Cellar created successfully:', result);
-      setResponse(result);
-      setSnackbar({ visible: true, message: 'Cellar created successfully!' });
-      Alert.alert('Success', `Cellar created with ID: ${result.id}`);
-    } catch (err: any) {
-      console.error('[TestCellarAddScreen] Failed to create cellar:', err);
-      console.error('[TestCellarAddScreen] Error details:', {
-        message: err.message,
-        stack: err.stack,
-        response: err.response?.data
-      });
-      setError(err.message || 'An error occurred');
-      setSnackbar({ visible: true, message: `Failed to create cellar: ${err.message}` });
-      Alert.alert('Error', `Failed to create cellar: ${err.message}`);
+      setCellarName(''); // Clear input after successful creation
+    } catch (err) {
+      console.error('[TestCellarAddScreen] Error testing Create Cellar API:', err);
+      setError(`Failed to create cellar: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Test Cellar Add" />
-      </Appbar.Header>
+    <ScrollView style={styles.container}>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title>Test Cellars API</Title>
+          <Text style={styles.description}>
+            This screen is for testing the Cellars API endpoints.
+          </Text>
 
-      <ScrollView style={styles.content}>
-        <Text variant="headlineMedium" style={styles.title}>
-          Add Cellar to Dev Database
-        </Text>
-
-        <Button
-          mode="contained"
-          onPress={() => Alert.alert('Test', 'Button Click Test')}
-          style={styles.testButton}
-        >
-          Test Alert
-        </Button>
-
-        <Button
-          mode="contained"
-          onPress={testConnection}
-          loading={loading}
-          style={styles.connectionButton}
-        >
-          Test API Connection
-        </Button>
-
-        <CellarForm
-          onSubmit={handleSubmit}
-          loading={loading}
-          title="New Test Cellar"
-        />
-
-        {response && (
-          <View style={styles.responseContainer}>
-            <Text variant="titleMedium" style={styles.responseTitle}>Successfully Created:</Text>
-            <Text>ID: {response.id}</Text>
-            <Text>Name: {response.name}</Text>
-            <Text>Sections: {response.sections?.join(', ') || 'None'}</Text>
-            <Text>Created at: {new Date(response.created_at).toLocaleString()}</Text>
+          <View style={styles.testSection}>
+            <Button 
+              mode="contained" 
+              onPress={testGetCellars}
+              loading={loading}
+              disabled={loading}
+            >
+              Test Get Cellars
+            </Button>
           </View>
-        )}
 
-        {error && (
-          <View style={styles.errorContainer}>
-            <Text variant="titleMedium" style={styles.errorTitle}>Error:</Text>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={styles.testSection}>
+            <TextInput
+              label="Cellar Name"
+              value={cellarName}
+              onChangeText={setCellarName}
+              style={styles.input}
+              disabled={loading}
+            />
+            <Button 
+              mode="contained" 
+              onPress={testCreateCellar}
+              loading={loading}
+              disabled={loading}
+              style={styles.button}
+            >
+              Test Create Cellar
+            </Button>
           </View>
-        )}
-      </ScrollView>
 
-      <Snackbar
-        visible={snackbar.visible}
-        onDismiss={() => setSnackbar({ ...snackbar, visible: false })}
-        duration={3000}
-      >
-        {snackbar.message}
-      </Snackbar>
-    </View>
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" />
+              <Text style={styles.loadingText}>Processing request...</Text>
+            </View>
+          )}
+
+          {error && (
+            <Card style={[styles.resultCard, styles.errorCard]}>
+              <Card.Content>
+                <Title>Error</Title>
+                <Text>{error}</Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {result && (
+            <Card style={styles.resultCard}>
+              <Card.Content>
+                <Title>API Response</Title>
+                <ScrollView style={styles.jsonContainer}>
+                  <Text>
+                    {JSON.stringify(result, null, 2)}
+                  </Text>
+                </ScrollView>
+              </Card.Content>
+            </Card>
+          )}
+        </Card.Content>
+      </Card>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
     padding: 16,
   },
-  title: {
-    marginBottom: 24,
-  },
-  testButton: {
+  card: {
     marginBottom: 16,
   },
-  connectionButton: {
-    marginBottom: 24,
-    backgroundColor: '#4CAF50', // Green color for connection test
+  description: {
+    marginBottom: 16,
   },
-  responseContainer: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+  testSection: {
+    marginVertical: 12,
   },
-  responseTitle: {
-    marginBottom: 8,
-    color: 'green',
+  input: {
+    marginBottom: 12,
   },
-  errorContainer: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#fee',
-    borderRadius: 8,
+  button: {
+    marginTop: 8,
   },
-  errorTitle: {
-    marginBottom: 8,
-    color: 'red',
+  loadingContainer: {
+    alignItems: 'center',
+    marginVertical: 16,
   },
-  errorText: {
-    color: 'red',
+  loadingText: {
+    marginTop: 8,
+  },
+  resultCard: {
+    marginTop: 16,
+  },
+  errorCard: {
+    backgroundColor: '#ffebee',
+  },
+  jsonContainer: {
+    maxHeight: 300,
   },
 });
 

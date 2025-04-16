@@ -1,7 +1,7 @@
 ---
-description: This rule attached to every chat and command+k request
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 # Instructions
 
@@ -12,6 +12,4 @@ You should read the [project-plan.md](mdc:.cursor/project-plan.md) for high leve
 Especially when you finished a milestone, it will help to improve your depth of task accomplishment to use the scratchpad to reflect and plan.
 The goal is to help you maintain a big picture as well as the progress of the task. Always refer to the Scratchpad when you plan the next step.
 
-# Tools
-
-Note all the tools are in python. So in the case you need to do batch processing, you can always consult the python files and write your own script. You should put your scripts in ./cursor_scripts.
+always read the [README.md](mdc:README.md) first, if you need to modify a directory and there's README, read them first before making and changes.

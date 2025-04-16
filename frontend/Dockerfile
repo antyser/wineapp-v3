@@ -24,5 +24,9 @@ EXPOSE 19000
 EXPOSE 19001
 EXPOSE 19002
 
-# Start Expo web
-CMD ["npx", "expo", "start", "--web", "--host", "localhost"] 
+# Use environment variables to configure Expo
+ENV EXPO_DEV_SERVER_LISTEN_ADDRESS="0.0.0.0"
+ENV REACT_NATIVE_PACKAGER_HOSTNAME="localhost"
+
+# Start Expo web 
+CMD ["npx", "expo", "start", "--web"] 

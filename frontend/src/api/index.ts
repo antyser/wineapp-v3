@@ -98,4 +98,82 @@ apiClient.interceptors.response.use(
   }
 );
 
-export default apiClient;
+// === GENERATED API CLIENT (PREFERRED) ===
+// Export the generated API client and its configuration
+export { 
+  default as api,
+  client 
+} from './generatedClient';
+
+// Export helper functions for the generated client
+export * from './testGeneratedClient';
+
+// Export all types from the generated client
+export * from './generated';
+
+// === LEGACY API SERVICES (DEPRECATED) ===
+// These will be removed in a future update
+import { wineService } from './wineService';
+
+// Re-export legacy services for backward compatibility
+export { wineService };
+
+// Re-export the legacy API client for backward compatibility
+export { default as apiClient } from './apiClient';
+
+// Re-export interfaces for compatibility (DEPRECATED)
+// Prefer using types from './generated' instead
+export type {
+  Wine,
+  WineSearchParams,
+  WineListResult,
+} from './wineService';
+
+/**
+ * API Access Guide:
+ * 
+ * Preferred approach (using generated client):
+ * ```
+ * import { api } from 'src/api';
+ * 
+ * // Example: Search for wines
+ * const response = await api.searchWinesEndpointApiV1SearchPost({
+ *   body: {
+ *     text_input: 'cabernet',
+ *     image_url: null
+ *   }
+ * });
+ * const wines = response.data;
+ * ```
+ * 
+ * Helper functions (easier to use):
+ * ```
+ * import { searchWines, getWineById } from 'src/api';
+ * 
+ * // Example: Search for wines
+ * const wines = await searchWines('cabernet');
+ * ```
+ * 
+ * Legacy approach (DEPRECATED):
+ * ```
+ * import { wineService } from 'src/api';
+ * 
+ * // Example: Search for wines
+ * const wines = await wineService.searchWines('cabernet');
+ * ```
+ * 
+ * Cellar operations (using generated API directly):
+ * ```
+ * import { api } from 'src/api';
+ * 
+ * // Example: Get all cellars
+ * const response = await api.listCellarsApiV1CellarsGet();
+ * const cellars = response.data.items;
+ * 
+ * // Example: Get cellar by ID
+ * const response = await api.getCellarApiV1CellarsCellarIdGet({
+ *   path: { cellar_id: 'your-cellar-id' }
+ * });
+ * const cellar = response.data;
+ * ```
+ */

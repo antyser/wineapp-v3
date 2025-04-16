@@ -27,7 +27,7 @@ const WineCard: React.FC<WineCardProps> = ({
       <Card.Content>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
-            {wine.vintage !== 1 && (
+            {wine.vintage && wine.vintage !== 1 && (
               <Text variant="titleLarge" style={styles.vintage}>
                 {wine.vintage}
               </Text>
@@ -46,9 +46,9 @@ const WineCard: React.FC<WineCardProps> = ({
         </View>
 
         <View style={styles.infoContainer}>
-          {wine.producer && (
+          {wine.winery && (
             <Text variant="bodyMedium" style={styles.producer}>
-              {wine.producer}
+              {wine.winery}
             </Text>
           )}
 
@@ -62,21 +62,21 @@ const WineCard: React.FC<WineCardProps> = ({
                 {wine.region}
               </Chip>
             )}
-            {wine.wine_type && (
+            {wine.type && (
               <Chip
                 icon="glass-wine"
                 style={styles.chip}
                 textStyle={styles.chipText}
               >
-                {wine.wine_type}
+                {wine.type}
               </Chip>
             )}
           </View>
 
-          {wine.grape_variety && (
+          {wine.varietal && (
             <Text variant="bodyMedium" style={styles.grapesRow}>
               <Text style={styles.label}>Grapes: </Text>
-              {wine.grape_variety}
+              {wine.varietal}
             </Text>
           )}
 
