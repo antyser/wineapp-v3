@@ -5,12 +5,26 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 from loguru import logger
 
-from src.auth import get_optional_user
+from src.auth import get_current_user, get_optional_user
+from src.auth.models import User
 from src.search.schemas import SearchHistoryCreate, SearchType
 from src.search.service import ai_search_wines
 from src.wines import service
-from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
-from src.wines.service import create_wine, delete_wine, get_wine, get_wines, update_wine
+from src.wines.schemas import (
+    UserWineResponse,
+    Wine,
+    WineCreate,
+    WineSearchParams,
+    WineUpdate,
+)
+from src.wines.service import (
+    create_wine,
+    delete_wine,
+    get_user_wine,
+    get_wine,
+    get_wines,
+    update_wine,
+)
 
 router = APIRouter(prefix="/wines", tags=["wines"])
 
@@ -48,3 +62,22 @@ async def delete_existing_wine(wine_id: UUID):
     if not deleted:
         raise HTTPException(status_code=404, detail="Wine not found")
     return None
+
+
+@router.get("/user/{wine_id}", response_model=UserWineResponse)
+async def get_wine_for_user(
+    wine_id: UUID = Path(...), current_user: User = Depends(get_current_user)
+):
+    """
+    Get comprehensive wine information for the current user, including:
+    1. Basic wine information
+    2. User's interaction with the wine (likes, wishlist, rating, etc.)
+    3. User's notes about the wine
+    4. User's cellar information for this wine (bottles in their cellars)
+
+    The wine's image will be replaced with the user's scan image if available.
+    """
+    result = await service.get_user_wine(wine_id, current_user.id)
+    if not result["wine"]:
+        raise HTTPException(status_code=404, detail="Wine not found")
+    return result

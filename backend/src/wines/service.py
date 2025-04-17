@@ -12,7 +12,8 @@ from supabase import Client
 
 from src.ai.extract_wine_agent import extract_wines
 from src.ai.wine_detail_agent import get_wine_details
-from src.core import download_image, get_supabase_client
+from src.core.storage_utils import download_image
+from src.core.supabase import get_supabase_client
 from src.crawler.wine_searcher import WineSearcherOffer, WineSearcherWine, fetch_wine
 from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
 
@@ -795,6 +796,79 @@ async def get_wines_by_ids(
         return []
 
     return [Wine.model_validate(item) for item in response.data]
+
+
+async def get_user_wine(wine_id: UUID, user_id: UUID, client: Optional[Client] = None):
+    """
+    Get comprehensive wine information for a specific user, including:
+    1. Basic wine information
+    2. User's interaction with the wine (likes, wishlist, rating, etc.)
+    3. User's notes about the wine
+    4. User's cellar information for this wine
+
+    The function also uses the user's scan image from search history (if available)
+    as the primary image for the wine.
+
+    Args:
+        wine_id: UUID of the wine
+        user_id: UUID of the user
+        client: Supabase client (optional, will use default if not provided)
+
+    Returns:
+        Dictionary with wine information, interaction, notes, and cellar wines
+        (follows UserWineResponse schema)
+    """
+    from src.cellar.service import get_cellar_wines_by_user_wine
+    from src.interactions.service import get_interaction_by_user_wine
+    from src.notes.service import get_notes_by_user_wine
+    from src.search.history.service import get_user_scan_image_for_wine
+
+    if client is None:
+        client = get_supabase_client()
+
+    # 1. Get wine information
+    wine_future = asyncio.create_task(get_wine(wine_id, client))
+
+    # 2. Get user's interaction with the wine
+    interaction_future = asyncio.create_task(
+        get_interaction_by_user_wine(user_id, wine_id, client)
+    )
+
+    # 3. Get user's notes about the wine
+    notes_future = asyncio.create_task(get_notes_by_user_wine(user_id, wine_id, client))
+
+    # 4. Get user scan image for the wine
+    user_scan_image_future = asyncio.create_task(
+        get_user_scan_image_for_wine(user_id, wine_id, client)
+    )
+
+    # 5. Get user's cellar wines for this wine
+    cellar_wines_future = asyncio.create_task(
+        get_cellar_wines_by_user_wine(user_id, wine_id, client)
+    )
+
+    # Wait for all async tasks to complete
+    wine, interaction, notes, user_scan_image, cellar_wines = await asyncio.gather(
+        wine_future,
+        interaction_future,
+        notes_future,
+        user_scan_image_future,
+        cellar_wines_future,
+    )
+
+    # Initialize the result dictionary
+    result = {
+        "wine": wine.model_dump() if wine else None,
+        "interaction": interaction,
+        "notes": notes or [],
+        "cellar_wines": cellar_wines or [],
+    }
+
+    # If a user scan image was found, and we have wine information, update the image URL
+    if user_scan_image and result["wine"]:
+        result["wine"]["image_url"] = user_scan_image
+
+    return result
 
 
 if __name__ == "__main__":

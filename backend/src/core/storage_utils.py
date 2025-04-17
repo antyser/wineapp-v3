@@ -1,3 +1,5 @@
+"""Storage utility functions for managing files in Supabase storage"""
+
 import os
 import uuid
 from io import BytesIO
@@ -7,6 +9,26 @@ import httpx
 from loguru import logger
 
 from src.core.supabase import get_supabase_client
+
+
+async def upload_image(file_path: str, bucket_name: str = "images") -> Optional[str]:
+    """Placeholder function for uploading images to storage"""
+    return None
+
+
+async def download_image(url: str, dest_path: Optional[str] = None) -> Optional[str]:
+    """Placeholder function for downloading images"""
+    return None
+
+
+async def get_signed_url(path: str, bucket_name: str = "images") -> Optional[str]:
+    """Placeholder function for getting signed URLs"""
+    return None
+
+
+async def delete_file(path: str, bucket_name: str = "images") -> bool:
+    """Placeholder function for deleting files"""
+    return True
 
 
 async def upload_image(

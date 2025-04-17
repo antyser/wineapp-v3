@@ -1,19 +1,33 @@
 import os
+from enum import Enum
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+load_dotenv()
+
+
+class Environment(str, Enum):
+    DEVELOPMENT = "development"
+    TESTING = "testing"
+    PRODUCTION = "production"
 
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Wine App API"
 
+    # Environment settings
+    ENVIRONMENT: Environment = Environment.DEVELOPMENT
+    DEBUG: bool = True
+
     # Supabase
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "http://127.0.0.1:54321")
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
     SUPABASE_ANON_KEY: str = ""  # Public/anon key
-    SUPABASE_SERVICE_KEY: str = ""  # Service role key (for admin operations)
+    SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
     SUPABASE_DB_NAME: str = ""  # Database name (for test environment)
-    SUPABASE_KEY: Optional[str] = None  # For backwards compatibility
+    SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
 
     # CORS
     BACKEND_CORS_ORIGINS: List[str] = [
@@ -34,9 +48,6 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # Environment - supporting 'development', 'test' and 'production'
-    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-
     # API keys for external services
     FIRECRAWL_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
@@ -46,17 +57,17 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         """Check if current environment is development."""
-        return self.ENVIRONMENT == "development"
+        return self.ENVIRONMENT == Environment.DEVELOPMENT
 
     @property
     def is_test(self) -> bool:
         """Check if current environment is test."""
-        return self.ENVIRONMENT == "test"
+        return self.ENVIRONMENT == Environment.TESTING
 
     @property
     def is_production(self) -> bool:
         """Check if current environment is production."""
-        return self.ENVIRONMENT == "production"
+        return self.ENVIRONMENT == Environment.PRODUCTION
 
     class Config:
         # Choose the right .env file based on environment
@@ -69,4 +80,5 @@ class Settings(BaseSettings):
         extra = "allow"  # Allow extra fields in settings
 
 
+# Create a singleton settings instance
 settings = Settings()

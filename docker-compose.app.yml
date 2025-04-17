@@ -5,7 +5,9 @@ services:
   # Backend Service (FastAPI)
   #---------------------------------------
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
     env_file:
       - backend/.env
     environment:

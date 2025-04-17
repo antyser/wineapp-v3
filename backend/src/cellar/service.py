@@ -1,7 +1,10 @@
 import json
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID, uuid4
+
+from postgrest import APIError
+from supabase import Client
 
 from src.cellar.schemas import (
     Cellar,
@@ -18,7 +21,6 @@ from src.cellar.schemas import (
     CellarWineUpdate,
 )
 from src.core import get_supabase_client
-from supabase import Client
 
 
 async def get_cellars(
@@ -576,3 +578,37 @@ async def get_cellar_statistics(
         bottles_by_region=bottles_by_region,
         bottles_by_vintage=bottles_by_vintage,
     )
+
+
+async def get_cellar_wines_by_user_wine(
+    user_id: UUID, wine_id: UUID, client: Optional[Client] = None
+) -> List[dict]:
+    """
+    Get all cellar wines for a specific user and wine.
+
+    Args:
+        user_id: UUID of the user
+        wine_id: UUID of the wine
+        client: Optional Supabase client (will use default if not provided)
+
+    Returns:
+        List of cellar wines (with cellar info) if found, empty list otherwise
+    """
+    if client is None:
+        client = get_supabase_client()
+
+    try:
+        # Use a single query with a join to get cellar wines for this user and wine
+        cellar_wines_response = (
+            client.table("cellar_wines")
+            .select("*, cellars(id, name, sections)")
+            .eq("wine_id", str(wine_id))
+            .filter("cellars.user_id", "eq", str(user_id))
+            .execute()
+        )
+
+        return cellar_wines_response.data if cellar_wines_response.data else []
+
+    except APIError as e:
+        # Log the error here if needed
+        return []

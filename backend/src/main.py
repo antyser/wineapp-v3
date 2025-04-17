@@ -4,6 +4,8 @@ from supabase import Client
 
 from src.cellar import cellar_router
 from src.core import get_supabase_client, settings
+from src.interactions import interaction_router
+from src.notes import notes_router
 from src.search.api import router as search_history_router
 from src.wines import wines_router
 
@@ -27,6 +29,8 @@ app.add_middleware(
 app.include_router(wines_router, prefix=settings.API_V1_STR)
 app.include_router(cellar_router, prefix=settings.API_V1_STR)
 app.include_router(search_history_router, prefix=settings.API_V1_STR)
+app.include_router(notes_router, prefix=settings.API_V1_STR)
+app.include_router(interaction_router, prefix=settings.API_V1_STR)
 
 # API routes will be included here as we develop each domain
 # For now, just include some basic endpoints

@@ -1,0 +1,13 @@
+-- This migration doesn't actually do anything but serves as documentation
+-- The following individual RLS policy migrations have been consolidated into 20240629000000_consolidated_rls_policies.sql:
+-- - 20240628000001_create_interactions_rls.sql
+-- - 20240628000004_create_notes_rls.sql
+-- - 20240628000005_create_cellars_rls.sql
+-- - 20240628000006_create_cellar_wines_rls.sql
+-- - 20240628000007_create_chat_sessions_rls.sql
+-- - 20240628000008_create_chat_messages_rls.sql
+--
+-- If running migrations for the first time, both files will be applied, but the earlier policies
+-- will be replaced by the consolidated policies (no error, as CREATE POLICY IF NOT EXISTS is idempotent).
+--
+-- If you're maintaining this project and need to modify these policies, please do so in the consolidated file. 

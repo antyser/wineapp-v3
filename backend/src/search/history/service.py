@@ -186,3 +186,87 @@ async def get_search_history_for_user(
         logger.error(f"Error getting search history for user {user_id}: {str(e)}")
         # Return an empty response on error
         return SearchHistoryResponse(items=[], total=0, limit=limit, offset=offset)
+
+
+async def get_user_scan_image_for_wine(
+    user_id: UUID, wine_id: UUID, client: Optional[Client] = None
+) -> Optional[str]:
+    """
+    Find a user's scan image that features only the specified wine.
+
+    Args:
+        user_id: UUID of the user
+        wine_id: UUID of the wine
+        client: Optional Supabase client (will use default if not provided)
+
+    Returns:
+        URL of the scan image if found, None otherwise
+    """
+    if client is None:
+        client = get_supabase_client()
+
+    try:
+        # Query for image search history that includes this wine
+        response = (
+            client.table("search_history")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .contains("result_wine_ids", [str(wine_id)])
+            .eq("search_type", "image")  # Only get image searches
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        # Look for an image that features only this wine
+        if response.data and len(response.data) > 0:
+            for history in response.data:
+                # Check if this search result contains only the current wine
+                if (
+                    history.get("result_wine_ids")
+                    and len(history.get("result_wine_ids")) == 1
+                    and str(wine_id) in history.get("result_wine_ids")
+                ):
+                    # This is a search that featured only this wine - return the image URL
+                    if history.get("file_url"):
+                        return history.get("file_url")
+
+        return None
+
+    except Exception as e:
+        logger.error(f"Error getting user scan image for wine: {str(e)}")
+        return None
+
+
+async def get_search_history_for_user_wine(
+    user_id: UUID, wine_id: UUID, client: Optional[Client] = None
+) -> List[dict]:
+    """
+    Get search history entries that include the specified wine for a user.
+
+    Args:
+        user_id: UUID of the user
+        wine_id: UUID of the wine
+        client: Optional Supabase client (will use default if not provided)
+
+    Returns:
+        List of search history entries
+    """
+    if client is None:
+        client = get_supabase_client()
+
+    try:
+        # Query for search history that includes this wine
+        response = (
+            client.table("search_history")
+            .select("*")
+            .eq("user_id", str(user_id))
+            .contains("result_wine_ids", [str(wine_id)])
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        return response.data if response.data else []
+
+    except Exception as e:
+        logger.error(f"Error getting search history for user wine: {str(e)}")
+        return []
