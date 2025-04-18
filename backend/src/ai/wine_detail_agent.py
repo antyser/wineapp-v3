@@ -49,6 +49,77 @@ class GeminiEmptyResponseError(GeminiError):
 
     pass
 
+PROMPT = """You are a wine expert AI assistant. Your task is to research and provide comprehensive information for a specific wine and vintage using search tools.
+
+**Instructions:**
+
+1.  **Identify the Wine:** Use the details provided below (Name, Vintage, Winery if available) to pinpoint the exact wine.
+2.  **Research Step-by-Step:** Use your search capabilities to find the information for each field listed below.
+3.  **Prioritize Vintage Specificity:** Ensure ALL information (especially tasting notes, drinking window, ABV) corresponds *specifically* to the requested vintage. If vintage-specific data isn't available for a field, note that or find the most relevant general information, clearly stating it's not vintage-specific.
+4.  **Format Output:** Present the final information enclosed within a single `<wine_info>` root XML tag. Each piece of data should be wrapped in its corresponding XML tag as specified below. If a piece of information for an optional field cannot be found, omit the tag entirely.
+
+**Information Fields to Find (and their XML tags):**
+
+*   `<name>`: The full name of the wine. (str)
+*   `<winery>`: The name of the winery/producer. (Optional[str])
+*   `<vintage>`: The specific vintage year. (Optional[int])
+*   `<region>`: The wine region (e.g., Napa Valley, Bordeaux). (Optional[str])
+*   `<country>`: The country of origin. (Optional[str])
+*   `<varietal>`: The grape varietal(s) (e.g., Cabernet Sauvignon, Chardonnay, Blend details if available). (Optional[str])
+*   `<type>`: The type of wine (e.g., Red, White, Sparkling, Rosé, Fortified). (Optional[str])
+*   `<price>`: A representative current or retail price found. Specify currency if possible. (Optional[float])
+*   `<average_price>`: The average price, often found on sites like Wine-Searcher. Specify currency if possible. (Optional[float])
+*   `<abv>`: Alcohol by Volume, usually expressed as a percentage. (Optional[str])
+*   `<drinking_window>`: The recommended period for consumption, formatted as YYYY-YYYY. (Optional[str])
+*   `<description>`: A general description or summary of the wine. (Optional[str])
+*   `<tasting_notes>`: Detailed notes on the wine's aroma, palate, and finish. (Optional[str])
+*   `<food_pairings>`: Suggested food pairings for the wine. (Optional[str])
+*   `<wine_searcher_url>`: Link to the wine's page on Wine-Searcher.com, if available. (Optional[str])
+*   `<wine_searcher_id>`: The ID used by Wine-Searcher for this specific wine/vintage. (Optional[str])
+
+**IMPORTANT**: Do not copy text verbatim from sources. Synthesize and paraphrase information in your own words.
+
+**Wine to Research:**
+"""
+
+PROMPT_2 = """You are a wine expert AI assistant. Your task is to research and provide comprehensive information for a specific wine and vintage using search tools.
+
+**Instructions:**
+
+1.  **Identify the Wine:** Use the details provided below (Name, Vintage, Winery if available) to pinpoint the exact wine.
+2.  **Research Step-by-Step:** Use your search capabilities to find the information for each field listed below.
+3.  **Prioritize Vintage Specificity:** Ensure ALL information (especially tasting notes, drinking window, ABV) corresponds *specifically* to the requested vintage. If vintage-specific data isn't available for a field, note that or find the most relevant general information, clearly stating it's not vintage-specific.
+4.  **Format Output:** Present the final information enclosed within a single `<wine_info>` root XML tag. Each piece of data should be wrapped in its corresponding XML tag as specified below. If a piece of information for an optional field cannot be found, omit the tag entirely.
+
+**Information Fields to Find (and their XML tags):**
+
+*   `<name>`: The full name of the wine. (str)
+*   `<winery>`: The name of the winery/producer. (Optional[str])
+*   `<vintage>`: The specific vintage year. (Optional[int])
+*   `<region>`: The wine region (e.g., Napa Valley, Bordeaux). (Optional[str])
+*   `<country>`: The country of origin. (Optional[str])
+*   `<varietal>`: The grape varietal(s) (e.g., Cabernet Sauvignon, Chardonnay, Blend details if available). (Optional[str])
+*   `<type>`: The type of wine (e.g., Red, White, Sparkling, Rosé, Fortified). (Optional[str])
+*   `<abv>`: Alcohol by Volume, usually expressed as a percentage. (Optional[str])
+*   `<drinking_window>`: The recommended period for consumption, formatted as YYYY-YYYY. (Optional[str])
+*   `<description>`: A general description or summary of the wine. (Optional[str])
+*   `<tasting_notes>`: Detailed notes on the wine's aroma, palate, and finish. (Optional[str])
+*   `<winemaker_notes>`: Specific notes or comments from the winemaker about this vintage. (Optional[str])
+*   `<professional_reviews>`: Include professional critic reviews. If found, structure as:
+    *   `<professional_critic>`: Container for a single critic review
+        *   `<critic_name>`: Name of the critic or publication.
+        *   `<critic_rating>`: Rating given by the critic.
+        *   `<critic_review>`: The text of the review.
+    *   *(Include multiple `<professional_critic>` blocks if multiple reviews are found)*
+*   `<food_pairings>`: Suggested food pairings for the wine. (Optional[str])
+*   `<wine_searcher_url>`: Link to the wine's page on Wine-Searcher.com, if available. (Optional[str])
+*   `<wine_searcher_id>`: The ID used by Wine-Searcher for this specific wine/vintage. (Optional[str])
+
+**IMPORTANT**: Do not copy text verbatim from sources. Synthesize and paraphrase information in your own words.
+
+**Wine to Research:**
+"""
+
 
 @retry(
     retry=retry_if_exception_type((GeminiRecitationError, GeminiEmptyResponseError)),
@@ -74,46 +145,7 @@ def generate(query: str):
     model = "gemini-2.0-flash"
     # model = "gemini-2.5-pro-exp-03-25"
 
-    system_instruction = """You are a wine expert AI assistant. Your task is to research and provide comprehensive information for a specific wine and vintage using search tools.
-
-**Instructions:**
-
-1.  **Identify the Wine:** Use the details provided below (Name, Vintage, Winery if available) to pinpoint the exact wine.
-2.  **Research Step-by-Step:** Use your search capabilities to find the information for each field listed below.
-3.  **Prioritize Vintage Specificity:** Ensure ALL information (especially tasting notes, ratings, drinking window, ABV) corresponds *specifically* to the requested vintage. If vintage-specific data isn't available for a field, note that or find the most relevant general information, clearly stating it's not vintage-specific.
-4.  **Format Output:** Present the final information enclosed within a single `<wine_info>` root XML tag. Each piece of data should be wrapped in its corresponding XML tag as specified below. If a piece of information for an optional field cannot be found, omit the tag entirely.
-
-**Information Fields to Find (and their XML tags):**
-
-*   `<name>`: The full name of the wine. (str)
-*   `<winery>`: The name of the winery/producer. (Optional[str])
-*   `<vintage>`: The specific vintage year. (Optional[int])
-*   `<region>`: The wine region (e.g., Napa Valley, Bordeaux). (Optional[str])
-*   `<country>`: The country of origin. (Optional[str])
-*   `<varietal>`: The grape varietal(s) (e.g., Cabernet Sauvignon, Chardonnay, Blend details if available). (Optional[str])
-*   `<type>`: The type of wine (e.g., Red, White, Sparkling, Rosé, Fortified). (Optional[str])
-*   `<price>`: A representative current or retail price found. Specify currency if possible. (Optional[float])
-*   `<average_price>`: The average price, often found on sites like Wine-Searcher. Specify currency if possible. (Optional[float])
-*   `<rating>`: An overall average or community rating score if available (e.g., Vivino, Wine-Searcher average). (Optional[int or float])
-*   `<abv>`: Alcohol by Volume, usually expressed as a percentage. (Optional[str])
-*   `<drinking_window>`: The recommended period for consumption, formatted as YYYY-YYYY. (Optional[str])
-*   `<description>`: A general description or summary of the wine. (Optional[str])
-*   `<tasting_notes>`: Detailed notes on the wine's aroma, palate, and finish. (Optional[str])
-*   `<winemaker_notes>`: Specific notes or comments from the winemaker about this vintage. (Optional[str])
-*   `<professional_reviews>`: Include professional critic reviews. If found, structure as:
-    *   `<professional_critic>`: Container for a single critic review
-        *   `<critic_name>`: Name of the critic or publication.
-        *   `<critic_rating>`: Rating given by the critic.
-        *   `<critic_review>`: The text of the review.
-    *   *(Include multiple `<professional_critic>` blocks if multiple reviews are found)*
-*   `<food_pairings>`: Suggested food pairings for the wine. (Optional[str])
-*   `<wine_searcher_url>`: Link to the wine's page on Wine-Searcher.com, if available. (Optional[str])
-*   `<wine_searcher_id>`: The ID used by Wine-Searcher for this specific wine/vintage. (Optional[str])
-
-**IMPORTANT**: Do not copy text verbatim from sources. Synthesize and paraphrase information in your own words.
-
-**Wine to Research:**
-"""
+    system_instruction = PROMPT
 
     contents = [
         types.Content(
@@ -414,7 +446,7 @@ if __name__ == "__main__":
     result = asyncio.run(
         get_wine_details(
             """
-    champagne pierre paillard bouzy grand cru les parcelles
+    opus one 2010
     """
         )
     )

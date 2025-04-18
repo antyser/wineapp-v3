@@ -19,7 +19,7 @@ async def create_interaction(
 ):
     """Create a new interaction"""
     # Ensure the user ID matches the authenticated user
-    if interaction.user_id != current_user.id:
+    if interaction.user_id != current_user:
         raise HTTPException(status_code=403, detail="User ID mismatch")
 
     result = await service.create_interaction(interaction)
@@ -34,7 +34,7 @@ async def get_interaction(interaction_id: UUID, current_user=Depends(get_current
         raise HTTPException(status_code=404, detail="Interaction not found")
 
     # Ensure the user has access to this interaction
-    if interaction["user_id"] != str(current_user.id):
+    if interaction["user_id"] != str(current_user):
         raise HTTPException(
             status_code=403, detail="Not authorized to access this interaction"
         )
@@ -48,7 +48,7 @@ async def get_interactions_by_user(
 ):
     """Get all interactions for a user"""
     # Ensure the user ID matches the authenticated user
-    if user_id != current_user.id:
+    if user_id != current_user:
         raise HTTPException(
             status_code=403, detail="Not authorized to access these interactions"
         )
@@ -62,7 +62,7 @@ async def get_interaction_by_wine(
     wine_id: UUID, current_user=Depends(get_current_user)
 ):
     """Get a user's interaction with a specific wine"""
-    interaction = await service.get_interaction_by_user_wine(current_user.id, wine_id)
+    interaction = await service.get_interaction_by_user_wine(current_user, wine_id)
     if not interaction:
         raise HTTPException(status_code=404, detail="Interaction not found")
 
@@ -81,7 +81,7 @@ async def update_interaction(
         raise HTTPException(status_code=404, detail="Interaction not found")
 
     # Ensure the user has access to this interaction
-    if existing["user_id"] != str(current_user.id):
+    if existing["user_id"] != str(current_user):
         raise HTTPException(
             status_code=403, detail="Not authorized to update this interaction"
         )
@@ -100,7 +100,7 @@ async def delete_interaction(
         raise HTTPException(status_code=404, detail="Interaction not found")
 
     # Ensure the user has access to this interaction
-    if existing["user_id"] != str(current_user.id):
+    if existing["user_id"] != str(current_user):
         raise HTTPException(
             status_code=403, detail="Not authorized to delete this interaction"
         )
@@ -131,7 +131,7 @@ async def toggle_interaction(
         )
 
     # Get existing interaction or initialize a new one
-    existing = await service.get_interaction_by_user_wine(current_user.id, wine_id)
+    existing = await service.get_interaction_by_user_wine(current_user, wine_id)
 
     if existing:
         # Toggle the specified property
@@ -140,7 +140,7 @@ async def toggle_interaction(
     else:
         # Create a new interaction with the specified property set to True
         create_data = InteractionCreate(
-            user_id=current_user.id, wine_id=wine_id, **{action: True}
+            user_id=current_user, wine_id=wine_id, **{action: True}
         )
         result = await service.create_interaction(create_data)
 
@@ -166,7 +166,7 @@ async def rate_wine(
         raise HTTPException(status_code=400, detail="Rating must be between 0 and 5")
 
     # Get existing interaction or initialize a new one
-    existing = await service.get_interaction_by_user_wine(current_user.id, wine_id)
+    existing = await service.get_interaction_by_user_wine(current_user, wine_id)
 
     if existing:
         # Update the rating
@@ -175,7 +175,7 @@ async def rate_wine(
     else:
         # Create a new interaction with the rating
         create_data = InteractionCreate(
-            user_id=current_user.id, wine_id=wine_id, rating=rating
+            user_id=current_user, wine_id=wine_id, rating=rating
         )
         result = await service.create_interaction(create_data)
 

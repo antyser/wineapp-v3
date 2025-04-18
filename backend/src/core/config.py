@@ -1,3 +1,4 @@
+import json
 import os
 from enum import Enum
 from typing import List, Optional
@@ -30,16 +31,25 @@ class Settings(BaseSettings):
     SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
 
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
+    # Parse BACKEND_CORS_ORIGINS from environment variable if available
+    BACKEND_CORS_ORIGINS: List[str] = json.loads(
+        os.getenv("BACKEND_CORS_ORIGINS", "[]")
+    ) or [
+        "http://localhost:8081",  # Frontend development server (current)
         "http://localhost:8083",  # Frontend development server
         "http://localhost:3000",  # Alternative frontend port
+        "http://127.0.0.1:8081",  # Using IP instead of localhost (current)
         "http://127.0.0.1:8083",  # Using IP instead of localhost
         "http://127.0.0.1:3000",  # Alternative IP port
+        "https://localhost:8081",  # HTTPS variants (current)
         "https://localhost:8083",  # HTTPS variants
         "https://localhost:3000",
+        "https://127.0.0.1:8081",  # HTTPS IP variants (current)
         "https://127.0.0.1:8083",
         "https://127.0.0.1:3000",
+        "exp://localhost:8081",  # Expo development server (current)
         "exp://localhost:8083",  # Expo development server
+        "exp://127.0.0.1:8081",  # Expo IP (current)
         "exp://127.0.0.1:8083",
     ]
 

@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Use [start-dev.sh](mdc:start-dev.sh) [stop-dev.sh](mdc:stop-dev.sh) to run the server. You should assume the docker is always up. And you can read the latest log from `docker logs wineapp-frontend-1` and `docker logs wineapp-backend-1`

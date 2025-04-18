@@ -1,7 +1,7 @@
 ---
-description: when writes python
-globs:
-alwaysApply: false
+description: 
+globs: 
+alwaysApply: true
 ---
 - Use pydantic v2
 - Use `BaseModel` for data validation and serialization
@@ -9,3 +9,4 @@ alwaysApply: false
 - Use `Field` to add metadata and constraints to model fields
 - Leverage `pydantic_settings` for configuration management
 - Use `root_validator` for cross-field validation
+- When defining a function, use pydantic object instead of dict

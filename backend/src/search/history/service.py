@@ -226,9 +226,8 @@ async def get_user_scan_image_for_wine(
                     and len(history.get("result_wine_ids")) == 1
                     and str(wine_id) in history.get("result_wine_ids")
                 ):
-                    # This is a search that featured only this wine - return the image URL
-                    if history.get("file_url"):
-                        return history.get("file_url")
+                    if history.get("search_query"):
+                        return history.get("search_query")
 
         return None
 
@@ -239,7 +238,7 @@ async def get_user_scan_image_for_wine(
 
 async def get_search_history_for_user_wine(
     user_id: UUID, wine_id: UUID, client: Optional[Client] = None
-) -> List[dict]:
+) -> List[SearchHistory]:
     """
     Get search history entries that include the specified wine for a user.
 

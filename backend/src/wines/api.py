@@ -66,7 +66,7 @@ async def delete_existing_wine(wine_id: UUID):
 
 @router.get("/user/{wine_id}", response_model=UserWineResponse)
 async def get_wine_for_user(
-    wine_id: UUID = Path(...), current_user: User = Depends(get_current_user)
+    wine_id: UUID = Path(...), current_user: UUID = Depends(get_current_user)
 ):
     """
     Get comprehensive wine information for the current user, including:
@@ -77,7 +77,7 @@ async def get_wine_for_user(
 
     The wine's image will be replaced with the user's scan image if available.
     """
-    result = await service.get_user_wine(wine_id, current_user.id)
-    if not result["wine"]:
+    result = await service.get_user_wine(wine_id, current_user)
+    if not result.wine:
         raise HTTPException(status_code=404, detail="Wine not found")
     return result

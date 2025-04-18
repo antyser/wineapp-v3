@@ -19,7 +19,7 @@ class NoteBase(BaseModel):
 class NoteCreate(NoteBase):
     """Fields required to create a new note"""
 
-    pass
+    user_id: Optional[UUID] = None
 
 
 class NoteUpdate(BaseModel):
@@ -27,6 +27,14 @@ class NoteUpdate(BaseModel):
 
     tasting_date: Optional[date] = None
     note_text: Optional[str] = None
+
+
+class NoteUpsertPayload(BaseModel):
+    """Payload for upserting a note (create if not exists, update if exists)"""
+
+    wine_id: UUID
+    tasting_date: Optional[date] = None
+    note_text: str
 
 
 class Note(NoteBase, DBBaseModel):

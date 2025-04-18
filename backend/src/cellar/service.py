@@ -582,7 +582,7 @@ async def get_cellar_statistics(
 
 async def get_cellar_wines_by_user_wine(
     user_id: UUID, wine_id: UUID, client: Optional[Client] = None
-) -> List[dict]:
+) -> List[CellarWine]:
     """
     Get all cellar wines for a specific user and wine.
 
@@ -607,7 +607,7 @@ async def get_cellar_wines_by_user_wine(
             .execute()
         )
 
-        return cellar_wines_response.data if cellar_wines_response.data else []
+        return [CellarWine.model_validate(item) for item in cellar_wines_response.data]
 
     except APIError as e:
         # Log the error here if needed

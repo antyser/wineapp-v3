@@ -4,7 +4,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
+from src.cellar.schemas import CellarWine
+from src.interactions.schemas import Interaction
 from src.models import DBBaseModel
+from src.notes.schemas import Note
 
 
 class WineBase(BaseModel):
@@ -99,44 +102,10 @@ class WineSearchResults(BaseModel):
     total: int
 
 
-class Interaction(BaseModel):
-    id: Optional[UUID] = None
-    user_id: UUID
-    wine_id: UUID
-    liked: Optional[bool] = None
-    wishlist: Optional[bool] = None
-    rating: Optional[float] = None
-    tasted: Optional[bool] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-
-class Note(BaseModel):
-    id: UUID
-    user_id: UUID
-    wine_id: UUID
-    cellar_wine_id: Optional[UUID] = None
-    tasting_date: Optional[datetime] = None
-    note_text: str
-    rating_5: Optional[float] = None
-    created_at: datetime
-    updated_at: datetime
-
-
-class SearchHistory(BaseModel):
-    id: UUID
-    user_id: UUID
-    search_type: str
-    query: Optional[str] = None
-    file_url: Optional[str] = None
-    result_wine_ids: Optional[List[str]] = None
-    created_at: datetime
-
-
 class UserWineResponse(BaseModel):
     """Response model for the user's comprehensive wine information"""
 
     wine: Optional[Wine] = None
     interaction: Optional[Interaction] = None
     notes: List[Note] = Field(default_factory=list)
-    cellar_wines: List[dict] = Field(default_factory=list)
+    cellar_wines: List[CellarWine] = Field(default_factory=list)

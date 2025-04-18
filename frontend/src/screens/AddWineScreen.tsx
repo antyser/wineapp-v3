@@ -4,7 +4,7 @@ import { Appbar, TextInput, Button, HelperText, Text, Chip } from 'react-native-
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { wineService } from '../api/wineService';
+import { createNewWineApiV1WinesPost } from '../api';
 
 type AddWineScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 

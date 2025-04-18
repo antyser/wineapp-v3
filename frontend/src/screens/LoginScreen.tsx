@@ -4,6 +4,7 @@ import { Text, TextInput, Button, HelperText, Portal, Dialog } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { NavigationProp, ParamListBase } from '@react-navigation/native';
+import Constants from 'expo-constants';
 
 interface LoginScreenProps {
   navigation: NavigationProp<ParamListBase>;
@@ -17,7 +18,10 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [showDialog, setShowDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState('');
   
-  const { signInWithEmailAndPassword, user } = useAuth();
+  const { signInWithEmailAndPassword, user, error: authError } = useAuth();
+
+  // Display configuration info for debugging
+  const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.SUPABASE_URL || 'unknown';
 
   const handleLogin = async () => {
     try {
@@ -30,6 +34,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       }
 
       console.log('Attempting login with:', email, password);
+      console.log('Using Supabase URL from config:', supabaseUrl);
       
       // Use the contextual sign-in method
       const success = await signInWithEmailAndPassword(email, password);
@@ -47,7 +52,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           navigation.navigate('Main');
         }, 2000);
       } else {
-        setError('Failed to sign in. Please check your credentials.');
+        // Check for auth context error
+        if (authError) {
+          setError(authError);
+        } else {
+          setError('Failed to sign in. Please check your credentials.');
+        }
       }
     } catch (err) {
       console.error('Login error:', err);
@@ -71,6 +81,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <Text variant="bodyMedium" style={styles.subtitle}>
               Welcome to Wine App! Sign in with your test account.
             </Text>
+
+            {authError ? (
+              <View style={styles.errorContainer}>
+                <Text variant="bodyMedium" style={styles.errorText}>
+                  {authError}
+                </Text>
+              </View>
+            ) : null}
 
             <View style={styles.form}>
               <TextInput
@@ -117,6 +135,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 </Text>
                 <Text variant="bodySmall" style={styles.testUserText}>
                   Password: password123
+                </Text>
+                <Text variant="bodySmall" style={styles.testUserText}>
+                  Supabase URL: {supabaseUrl}
                 </Text>
               </View>
             </View>
@@ -184,6 +205,15 @@ const styles = StyleSheet.create({
   testUserText: {
     textAlign: 'center',
     marginBottom: 4,
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#D32F2F',
   },
 });
 

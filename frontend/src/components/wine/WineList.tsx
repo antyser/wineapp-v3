@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, FlatList, View, TouchableOpacity } from 'react-native';
 import { Text, Card, ActivityIndicator, Chip, useTheme } from 'react-native-paper';
-import { Wine } from '../../api/wineService';
+import { Wine } from '../../types/wine';
 
 interface WineListProps {
   wines: Wine[];

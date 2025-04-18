@@ -4,7 +4,25 @@ import { Card, Badge } from 'react-native-paper';
 import { Wine } from '../types/wine';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
 
-// Props for displaying a single wine item based on the target image layout
+/**
+ * WineListItem Component
+ * 
+ * A list item component for displaying wines in a vertical list format.
+ * Optimized for compact presentation in scrollable lists like search results
+ * or filtered collections. Shows key wine information with optional status badges.
+ * 
+ * Features:
+ * - Horizontal layout with image on the left and details on the right
+ * - Displays wine name, vintage, region, and country with flag emoji
+ * - Supports optional status badges (e.g., "Tasted", "In Cellar", "Wishlist")
+ * - Touchable for navigation to the wine detail screen
+ * 
+ * Used in:
+ * - Search results screen
+ * - Wine collection lists
+ * - History items
+ * - Filtered wine listings
+ */
 interface WineListItemProps {
   wine: Wine;
   badges?: string[]; // Optional badges like "Tasted", "Owned"

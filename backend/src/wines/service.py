@@ -15,7 +15,13 @@ from src.ai.wine_detail_agent import get_wine_details
 from src.core.storage_utils import download_image
 from src.core.supabase import get_supabase_client
 from src.crawler.wine_searcher import WineSearcherOffer, WineSearcherWine, fetch_wine
-from src.wines.schemas import Wine, WineCreate, WineSearchParams, WineUpdate
+from src.wines.schemas import (
+    UserWineResponse,
+    Wine,
+    WineCreate,
+    WineSearchParams,
+    WineUpdate,
+)
 
 
 async def get_wines(
@@ -798,7 +804,9 @@ async def get_wines_by_ids(
     return [Wine.model_validate(item) for item in response.data]
 
 
-async def get_user_wine(wine_id: UUID, user_id: UUID, client: Optional[Client] = None):
+async def get_user_wine(
+    wine_id: UUID, user_id: UUID, client: Optional[Client] = None
+) -> UserWineResponse:
     """
     Get comprehensive wine information for a specific user, including:
     1. Basic wine information
@@ -815,13 +823,14 @@ async def get_user_wine(wine_id: UUID, user_id: UUID, client: Optional[Client] =
         client: Supabase client (optional, will use default if not provided)
 
     Returns:
-        Dictionary with wine information, interaction, notes, and cellar wines
-        (follows UserWineResponse schema)
+        UserWineResponse with wine information, interaction, notes, and cellar wines
     """
     from src.cellar.service import get_cellar_wines_by_user_wine
     from src.interactions.service import get_interaction_by_user_wine
+    from src.notes.schemas import Note
     from src.notes.service import get_notes_by_user_wine
     from src.search.history.service import get_user_scan_image_for_wine
+    from src.wines.schemas import UserWineResponse
 
     if client is None:
         client = get_supabase_client()
@@ -856,19 +865,17 @@ async def get_user_wine(wine_id: UUID, user_id: UUID, client: Optional[Client] =
         cellar_wines_future,
     )
 
-    # Initialize the result dictionary
-    result = {
-        "wine": wine.model_dump() if wine else None,
-        "interaction": interaction,
-        "notes": notes or [],
-        "cellar_wines": cellar_wines or [],
-    }
-
     # If a user scan image was found, and we have wine information, update the image URL
-    if user_scan_image and result["wine"]:
-        result["wine"]["image_url"] = user_scan_image
+    if user_scan_image and wine:
+        wine.image_url = user_scan_image
 
-    return result
+    # Create and return a properly validated UserWineResponse object
+    return UserWineResponse(
+        wine=wine,
+        interaction=interaction,
+        notes=notes or [],
+        cellar_wines=cellar_wines or [],
+    )
 
 
 if __name__ == "__main__":

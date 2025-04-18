@@ -13,7 +13,7 @@ import ActionButtons from '../components/ActionButtons';
 import ImagePickerModal from '../components/ImagePickerModal';
 import LoadingModal from '../components/LoadingModal';
 import { useAuth } from '../auth/AuthContext';
-import { wineService } from '../api/wineService';
+import { searchWinesEndpointApiV1SearchPost } from '../api';
 import SearchHistoryList from '../components/SearchHistoryList';
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -137,7 +137,13 @@ const HomeScreen = () => {
 
       console.log('Calling API for wine recognition...');
       try {
-        const wines = await wineService.searchByImageUrl(publicUrl);
+        const { data: wines } = await searchWinesEndpointApiV1SearchPost({
+          body: {
+            text_input: null,
+            image_url: publicUrl
+          }
+        });
+        
         if (wines && wines.length > 0) {
           console.log(`Found ${wines.length} wines from API`);
           navigation.navigate('SearchResults', {
@@ -172,7 +178,12 @@ const HomeScreen = () => {
       try {
         setLoading(true);
         // Option 1: Direct search with results
-        const wines = await wineService.searchWines(searchQuery);
+        const { data: wines } = await searchWinesEndpointApiV1SearchPost({
+          body: {
+            text_input: searchQuery,
+            image_url: null
+          }
+        });
         
         if (wines && wines.length > 0) {
           // If exactly one wine is found, go directly to wine detail

@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineList from '../components/wine/WineList';
 import { Wine } from '../types/wine';
-import { wineService } from '../api/wineService';
+import { searchWinesEndpointApiV1SearchPost } from '../api';
 import { supabase } from '../lib/supabase';
 import { apiClient } from '../api/apiClient';
 
@@ -60,8 +60,13 @@ const WineSearchScreen = () => {
       setError('');
       
       try {
-        // Use wineService.searchWines function to search for wines
-        const wines = await wineService.searchWines(searchQuery);
+        // Use the SDK to search for wines
+        const { data: wines } = await searchWinesEndpointApiV1SearchPost({
+          body: {
+            text_input: searchQuery,
+            image_url: null
+          }
+        });
         
         // Navigate appropriately based on results
         if (wines && wines.length > 0) {

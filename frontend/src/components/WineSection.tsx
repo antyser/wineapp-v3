@@ -1,8 +1,11 @@
 import React from 'react';
 import { StyleSheet, ScrollView, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import WineCard from './WineCard';
+import WinePreviewCard from './WinePreviewCard';
 
+/**
+ * Defining the minimal wine interface needed for this component
+ */
 interface Wine {
   id: string;
   name: string;
@@ -11,6 +14,21 @@ interface Wine {
   image_url?: string;
 }
 
+/**
+ * WineSection Component
+ * 
+ * A horizontal scrollable section of wine preview cards, typically used on the home screen
+ * or category pages to showcase collections or groups of wines.
+ * 
+ * Features:
+ * - Section title
+ * - Horizontal scrolling list of wine preview cards
+ * - Each card is clickable to navigate to the wine detail page
+ * 
+ * Used in:
+ * - Home screen for "Featured Wines", "Recently Viewed", etc.
+ * - Category pages for grouped wine displays
+ */
 interface WineSectionProps {
   title: string;
   wines: Wine[];
@@ -25,7 +43,7 @@ const WineSection: React.FC<WineSectionProps> = ({ title, wines, onWinePress }) 
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cardsScroll}>
         {wines.map((wine) => (
-          <WineCard
+          <WinePreviewCard
             key={wine.id}
             id={wine.id}
             name={wine.name}

@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -18,7 +18,7 @@ class InteractionBase(BaseModel):
     tasted: Optional[bool] = False
 
 
-class InteractionCreate(InteractionBase):
+class InteractionCreate(InteractionBase, DBBaseModel):
     """Fields required to create a new interaction"""
 
     pass

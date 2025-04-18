@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 
 // Define user type
 export interface User {
@@ -94,23 +95,76 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setIsLoading(true);
       setError(null);
       
-      console.log('Attempting email/password sign-in...');
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log('Attempting email/password sign-in with credentials:', email);
+      
+      // Get Supabase URL from context to display in error messages
+      const supabaseUrlStr = process.env.SUPABASE_URL || 
+                            Constants.expoConfig?.extra?.supabaseUrl || 
+                            'http://127.0.0.1:54321';
+      
+      console.log('Using Supabase URL for auth:', supabaseUrlStr);
+      
+      try {
+        // Check credentials against expected test user
+        if (email === 'test@example.com' && password === 'password123') {
+          console.log('Using test user credentials');
+        } else {
+          console.warn('Not using test user credentials - sign in may fail');
+        }
+        
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (signInError) {
-        throw signInError;
-      }
+        if (signInError) {
+          console.error('Sign-in error from Supabase:', signInError);
+          throw signInError;
+        }
 
-      if (data.session) {
-        console.log('Email/password sign-in successful.');
+        if (!data || !data.session) {
+          console.error('No session returned from sign-in');
+          setError('Login successful but no session was created.');
+          return false;
+        }
+
+        console.log('Email/password sign-in successful. Session expires at:', new Date(data.session.expires_at! * 1000).toISOString());
+        console.log('User authenticated:', data.user?.id);
+        
         setSession(data.session);
         setUser(convertUser(data.session.user));
         return true;
-      } else {
-        console.warn('Email/password sign-in did not return a session.');
+      } catch (signInErr) {
+        console.error('Email/password sign-in error:', signInErr);
+        
+        // Check if it's a network error
+        if (signInErr instanceof Error && 
+            (signInErr.message.includes('fetch') || 
+             signInErr.message.includes('network') ||
+             signInErr.message.includes('Failed to') ||
+             signInErr.message.includes('ERR_NAME_NOT_RESOLVED'))) {
+          
+          // Check for common issues
+          if (signInErr.message.includes('kong') || signInErr.message.includes('docker')) {
+            setError(`Network error: Cannot connect to Supabase at ${supabaseUrlStr}. 
+            This appears to be a Docker internal URL that isn't accessible from your browser. 
+            Please update your .env file to use http://127.0.0.1:54321 instead.`);
+          } else {
+            setError(`Network error: Cannot connect to Supabase at ${supabaseUrlStr}. 
+            Please check that the Supabase server is running and the URL is correct.`);
+          }
+        } else {
+          // For auth-specific errors, provide more helpful messages
+          const errorMessage = signInErr instanceof Error ? signInErr.message : 'Failed to sign in';
+          if (errorMessage.includes('Email not confirmed')) {
+            setError('Your email address has not been confirmed. Please check your inbox for a confirmation email.');
+          } else if (errorMessage.includes('Invalid login credentials')) {
+            setError('Invalid email or password. Please check your credentials.');
+          } else {
+            setError(errorMessage);
+          }
+        }
+        
         return false;
       }
     } catch (err) {

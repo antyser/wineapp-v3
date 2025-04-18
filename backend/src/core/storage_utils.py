@@ -16,9 +16,127 @@ async def upload_image(file_path: str, bucket_name: str = "images") -> Optional[
     return None
 
 
-async def download_image(url: str, dest_path: Optional[str] = None) -> Optional[str]:
-    """Placeholder function for downloading images"""
-    return None
+async def download_image(
+    image_url: str,
+) -> Optional[bytes]:
+    """
+    Download an image from Supabase Storage or external URL
+
+    Args:
+        image_url: URL of the image to download
+            Can be:
+            - Full URL (https://...)
+            - Supabase storage path (storage.download?path=...)
+            - Bucket/path reference (bucket_name/folder/file.jpg)
+
+    Returns:
+        Bytes content of the image or None if download failed
+    """
+    try:
+        logger.info(f"Downloading image from: {image_url}")
+
+        if not image_url:
+            logger.error("Empty image URL provided")
+            return None
+
+        client = get_supabase_client()
+
+        # Get the base Supabase URL from our client
+        supabase_url = client.supabase_url
+        logger.info(f"Using Supabase URL: {supabase_url}")
+
+        # Handle different URL formats
+        if image_url.startswith("http"):
+            # If URL contains localhost or 127.0.0.1, replace with proper Supabase URL
+            if "localhost:54321" in image_url or "127.0.0.1:54321" in image_url:
+                # Extract the path portion after the domain
+                path_part = (
+                    image_url.split("54321", 1)[1] if "54321" in image_url else ""
+                )
+
+                # Create a new URL with the proper Supabase domain
+                image_url = f"{supabase_url}{path_part}"
+                logger.info(f"Converted localhost URL to: {image_url}")
+
+            # Direct external URL
+            async with httpx.AsyncClient() as http_client:
+                logger.info(f"Making HTTP request to: {image_url}")
+                try:
+                    response = await http_client.get(image_url, timeout=10.0)
+                    if response.status_code != 200:
+                        logger.error(
+                            f"Failed to download image from URL. Status: {response.status_code}"
+                        )
+                        return None
+                    return response.content
+                except httpx.RequestError as e:
+                    logger.error(f"HTTP request failed: {str(e)}")
+                    # Try an alternative approach if it's a Supabase storage URL
+                    if "/storage/v1/object/public/" in image_url:
+                        # Extract bucket and path
+                        parts = image_url.split("/storage/v1/object/public/", 1)
+                        if len(parts) > 1:
+                            bucket_path = parts[1].split("/", 1)
+                            if len(bucket_path) == 2:
+                                bucket = bucket_path[0]
+                                path = bucket_path[1]
+                                logger.info(
+                                    f"Trying alternative download method: bucket={bucket}, path={path}"
+                                )
+                                try:
+                                    # Download using the Supabase client
+                                    response = client.storage.from_(bucket).download(
+                                        path
+                                    )
+                                    return response
+                                except Exception as e2:
+                                    logger.error(
+                                        f"Alternative download method failed: {str(e2)}"
+                                    )
+                    return None
+
+        elif image_url.startswith("storage.download"):
+            # Supabase storage path - need to convert to full URL
+            full_url = f"{supabase_url}/{image_url}"
+            logger.info(f"Converted storage path to full URL: {full_url}")
+
+            async with httpx.AsyncClient() as http_client:
+                try:
+                    response = await http_client.get(full_url, timeout=10.0)
+                    if response.status_code != 200:
+                        logger.error(
+                            f"Failed to download image from Supabase. Status: {response.status_code}"
+                        )
+                        return None
+                    return response.content
+                except httpx.RequestError as e:
+                    logger.error(f"HTTP request failed: {str(e)}")
+                    return None
+
+        else:
+            # Assume it's a bucket/path reference
+            parts = image_url.split("/", 1)
+            if len(parts) < 2:
+                logger.error(f"Invalid storage path format: {image_url}")
+                return None
+
+            bucket = parts[0]
+            path = parts[1]
+
+            try:
+                # Download using the Supabase client
+                logger.info(
+                    f"Downloading from Supabase storage: bucket={bucket}, path={path}"
+                )
+                response = client.storage.from_(bucket).download(path)
+                return response
+            except Exception as e:
+                logger.error(f"Error downloading from Supabase Storage: {str(e)}")
+                return None
+
+    except Exception as e:
+        logger.error(f"Error downloading image: {str(e)}")
+        return None
 
 
 async def get_signed_url(path: str, bucket_name: str = "images") -> Optional[str]:
@@ -88,80 +206,6 @@ async def upload_image(
     except Exception as e:
         logger.error(f"Error uploading file to Supabase Storage: {str(e)}")
         return False, None
-
-
-async def download_image(
-    image_url: str,
-) -> Optional[bytes]:
-    """
-    Download an image from Supabase Storage or external URL
-
-    Args:
-        image_url: URL of the image to download
-            Can be:
-            - Full URL (https://...)
-            - Supabase storage path (storage.download?path=...)
-            - Bucket/path reference (bucket_name/folder/file.jpg)
-
-    Returns:
-        Bytes content of the image or None if download failed
-    """
-    try:
-        logger.info(f"Downloading image from: {image_url}")
-
-        if not image_url:
-            logger.error("Empty image URL provided")
-            return None
-
-        client = get_supabase_client()
-
-        # Handle different URL formats
-        if image_url.startswith("http"):
-            # Direct external URL
-            async with httpx.AsyncClient() as http_client:
-                response = await http_client.get(image_url)
-                if response.status_code != 200:
-                    logger.error(
-                        f"Failed to download image from URL. Status: {response.status_code}"
-                    )
-                    return None
-                return response.content
-
-        elif image_url.startswith("storage.download"):
-            # Supabase storage path - need to convert to full URL
-            supabase_url = client.supabase_url
-            full_url = f"{supabase_url}/{image_url}"
-
-            async with httpx.AsyncClient() as http_client:
-                response = await http_client.get(full_url)
-                if response.status_code != 200:
-                    logger.error(
-                        f"Failed to download image from Supabase. Status: {response.status_code}"
-                    )
-                    return None
-                return response.content
-
-        else:
-            # Assume it's a bucket/path reference
-            parts = image_url.split("/", 1)
-            if len(parts) < 2:
-                logger.error(f"Invalid storage path format: {image_url}")
-                return None
-
-            bucket = parts[0]
-            path = parts[1]
-
-            try:
-                # Download using the Supabase client
-                response = client.storage.from_(bucket).download(path)
-                return response
-            except Exception as e:
-                logger.error(f"Error downloading from Supabase Storage: {str(e)}")
-                return None
-
-    except Exception as e:
-        logger.error(f"Error downloading image: {str(e)}")
-        return None
 
 
 async def get_signed_url(

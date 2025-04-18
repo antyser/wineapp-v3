@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
 import { Text, Divider, Card } from 'react-native-paper';
-import { wineService, SearchHistoryItemResponse as SearchHistoryItem } from '../api/wineService';
+import { getUserSearchHistoryApiV1SearchHistoryGet } from '../api';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -9,6 +9,17 @@ import { Wine } from '../types/wine';
 import WineListItem from './WineListItem';
 import { formatTimeAgo } from '../utils/dateUtils';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
+
+// Define the interface for search history item
+interface SearchHistoryItem {
+  id: string;
+  user_id: string;
+  search_type: 'text' | 'image';
+  search_query: string | null;
+  result_wine_ids: string[] | null;
+  created_at: string;
+  wines: Wine[] | null;
+}
 
 interface SearchHistoryListProps {
   onSearchPress?: (query: string) => void;
@@ -33,8 +44,15 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
   const fetchSearchHistory = async () => {
     try {
       setLoading(true);
-      const historyData = await wineService.getSearchHistory(maxItems);
-      setHistory(historyData);
+      const { data } = await getUserSearchHistoryApiV1SearchHistoryGet({
+        query: { limit: maxItems, offset: 0 }
+      });
+      
+      if (data && data.items) {
+        setHistory(data.items);
+      } else {
+        setHistory([]);
+      }
     } catch (err) {
       console.error('Error fetching search history:', err);
       setError('Failed to load search history');

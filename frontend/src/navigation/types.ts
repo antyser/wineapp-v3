@@ -8,7 +8,7 @@ export type RootStackParamList = {
   WineDetail: { wineId: string; wine?: any };
   AddWine: undefined;
   ScanLabel: undefined;
-  AddTastingNote: { wineId: string };
+  AddTastingNote: { wineId: string; noteId?: string };
   WineSearch: {
     returnScreen?: string;
     context?: 'cellar' | 'wishlist' | 'tastingNote';
@@ -19,7 +19,7 @@ export type RootStackParamList = {
   // Cellar screens
   CellarDetail: { cellarId: string };
   CellarForm: { cellar?: Cellar };
-  EditCellar: { cellar: Cellar };
+  EditCellar: { cellar?: Cellar };
   CellarStats: { cellarId: string };
 
   SearchResults: {

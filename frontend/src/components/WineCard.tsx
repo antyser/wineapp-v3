@@ -2,7 +2,21 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 
-interface WineCardProps {
+/**
+ * WinePreviewCard Component
+ * 
+ * This card component is designed for compact preview displays of wines,
+ * typically used in horizontal scrolling lists or grid layouts. It shows
+ * minimal wine information with a focus on the image, name, region, and vintage.
+ * 
+ * Used in:
+ * - Wine section carousels on the home screen
+ * - Collection previews
+ * - Featured wine displays
+ * 
+ * When tapped, it navigates to the full wine detail screen.
+ */
+interface WinePreviewCardProps {
   id: string;
   name: string;
   region?: string;
@@ -11,7 +25,7 @@ interface WineCardProps {
   onPress: (id: string) => void;
 }
 
-const WineCard: React.FC<WineCardProps> = ({
+const WinePreviewCard: React.FC<WinePreviewCardProps> = ({
   id,
   name,
   region,
@@ -56,4 +70,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default WineCard; 
+export default WinePreviewCard; 

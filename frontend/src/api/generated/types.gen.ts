@@ -118,6 +118,67 @@ export type HttpValidationError = {
     detail?: Array<ValidationError>;
 };
 
+export type Interaction = {
+    id?: string | null;
+    user_id: string;
+    wine_id: string;
+    liked?: boolean | null;
+    wishlist?: boolean | null;
+    rating?: number | null;
+    tasted?: boolean | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+};
+
+/**
+ * Fields required to create a new interaction
+ */
+export type InteractionCreate = {
+    user_id: string;
+    wine_id: string;
+    liked?: boolean | null;
+    wishlist?: boolean | null;
+    rating?: number | null;
+    tasted?: boolean | null;
+};
+
+/**
+ * Fields that can be updated for an interaction
+ */
+export type InteractionUpdate = {
+    liked?: boolean | null;
+    wishlist?: boolean | null;
+    rating?: number | null;
+    tasted?: boolean | null;
+};
+
+/**
+ * Fields required to create a new note
+ */
+export type NoteCreate = {
+    user_id?: string | null;
+    wine_id: string;
+    tasting_date?: string | null;
+    note_text: string;
+};
+
+/**
+ * Fields that can be updated for a note
+ */
+export type NoteUpdate = {
+    tasting_date?: string | null;
+    note_text?: string | null;
+};
+
+/**
+ * Payload for upserting a note (create if not exists, update if exists)
+ */
+export type NoteUpsertPayload = {
+    wine_id: string;
+    tasting_date?: string | null;
+    note_text: string;
+};
+
 /**
  * Enhanced search history item with wine details
  */
@@ -150,6 +211,18 @@ export type SearchRequest = {
  * Enum for search types
  */
 export type SearchType = 'text' | 'image';
+
+/**
+ * Response model for the user's comprehensive wine information
+ */
+export type UserWineResponse = {
+    wine?: Wine | null;
+    interaction?: Interaction | null;
+    notes?: Array<SrcWinesSchemasNote>;
+    cellar_wines?: Array<{
+        [key: string]: unknown;
+    }>;
+};
 
 export type ValidationError = {
     loc: Array<string | number>;
@@ -239,6 +312,29 @@ export type WineUpdate = {
     name_alias?: Array<string> | null;
     winemaker_notes?: string | null;
     professional_reviews?: string | null;
+};
+
+/**
+ * Note model with all fields
+ */
+export type SrcNotesSchemasNote = {
+    user_id: string;
+    wine_id: string;
+    tasting_date?: string | null;
+    note_text: string;
+    id: string;
+};
+
+export type SrcWinesSchemasNote = {
+    id: string;
+    user_id: string;
+    wine_id: string;
+    cellar_wine_id?: string | null;
+    tasting_date?: string | null;
+    note_text: string;
+    rating_5?: number | null;
+    created_at: string;
+    updated_at: string;
 };
 
 export type GetAllWinesApiV1WinesGetData = {
@@ -384,6 +480,33 @@ export type UpdateExistingWineApiV1WinesWineIdPatchResponses = {
 };
 
 export type UpdateExistingWineApiV1WinesWineIdPatchResponse = UpdateExistingWineApiV1WinesWineIdPatchResponses[keyof UpdateExistingWineApiV1WinesWineIdPatchResponses];
+
+export type GetWineForUserApiV1WinesUserWineIdGetData = {
+    body?: never;
+    path: {
+        wine_id: string;
+    };
+    query?: never;
+    url: '/api/v1/wines/user/{wine_id}';
+};
+
+export type GetWineForUserApiV1WinesUserWineIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWineForUserApiV1WinesUserWineIdGetError = GetWineForUserApiV1WinesUserWineIdGetErrors[keyof GetWineForUserApiV1WinesUserWineIdGetErrors];
+
+export type GetWineForUserApiV1WinesUserWineIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: UserWineResponse;
+};
+
+export type GetWineForUserApiV1WinesUserWineIdGetResponse = GetWineForUserApiV1WinesUserWineIdGetResponses[keyof GetWineForUserApiV1WinesUserWineIdGetResponses];
 
 export type ListCellarsApiV1CellarsGetData = {
     body?: never;
@@ -794,6 +917,439 @@ export type GetUserSearchHistoryApiV1SearchHistoryGetResponses = {
 };
 
 export type GetUserSearchHistoryApiV1SearchHistoryGetResponse = GetUserSearchHistoryApiV1SearchHistoryGetResponses[keyof GetUserSearchHistoryApiV1SearchHistoryGetResponses];
+
+export type CreateNoteApiV1NotesPostData = {
+    body: NoteCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notes/';
+};
+
+export type CreateNoteApiV1NotesPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateNoteApiV1NotesPostError = CreateNoteApiV1NotesPostErrors[keyof CreateNoteApiV1NotesPostErrors];
+
+export type CreateNoteApiV1NotesPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SrcNotesSchemasNote;
+};
+
+export type CreateNoteApiV1NotesPostResponse = CreateNoteApiV1NotesPostResponses[keyof CreateNoteApiV1NotesPostResponses];
+
+export type GetNotesByUserApiV1NotesUserUserIdGetData = {
+    body?: never;
+    path: {
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/user/{user_id}';
+};
+
+export type GetNotesByUserApiV1NotesUserUserIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNotesByUserApiV1NotesUserUserIdGetError = GetNotesByUserApiV1NotesUserUserIdGetErrors[keyof GetNotesByUserApiV1NotesUserUserIdGetErrors];
+
+export type GetNotesByUserApiV1NotesUserUserIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+export type GetNotesByUserApiV1NotesUserUserIdGetResponse = GetNotesByUserApiV1NotesUserUserIdGetResponses[keyof GetNotesByUserApiV1NotesUserUserIdGetResponses];
+
+export type GetNotesByWineApiV1NotesWineWineIdGetData = {
+    body?: never;
+    path: {
+        wine_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/wine/{wine_id}';
+};
+
+export type GetNotesByWineApiV1NotesWineWineIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNotesByWineApiV1NotesWineWineIdGetError = GetNotesByWineApiV1NotesWineWineIdGetErrors[keyof GetNotesByWineApiV1NotesWineWineIdGetErrors];
+
+export type GetNotesByWineApiV1NotesWineWineIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+export type GetNotesByWineApiV1NotesWineWineIdGetResponse = GetNotesByWineApiV1NotesWineWineIdGetResponses[keyof GetNotesByWineApiV1NotesWineWineIdGetResponses];
+
+export type DeleteNoteApiV1NotesNoteIdDeleteData = {
+    body?: never;
+    path: {
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/{note_id}';
+};
+
+export type DeleteNoteApiV1NotesNoteIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteNoteApiV1NotesNoteIdDeleteError = DeleteNoteApiV1NotesNoteIdDeleteErrors[keyof DeleteNoteApiV1NotesNoteIdDeleteErrors];
+
+export type DeleteNoteApiV1NotesNoteIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type DeleteNoteApiV1NotesNoteIdDeleteResponse = DeleteNoteApiV1NotesNoteIdDeleteResponses[keyof DeleteNoteApiV1NotesNoteIdDeleteResponses];
+
+export type GetNoteByIdApiV1NotesNoteIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * The ID of the note to retrieve
+         */
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/{note_id}';
+};
+
+export type GetNoteByIdApiV1NotesNoteIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNoteByIdApiV1NotesNoteIdGetError = GetNoteByIdApiV1NotesNoteIdGetErrors[keyof GetNoteByIdApiV1NotesNoteIdGetErrors];
+
+export type GetNoteByIdApiV1NotesNoteIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SrcNotesSchemasNote;
+};
+
+export type GetNoteByIdApiV1NotesNoteIdGetResponse = GetNoteByIdApiV1NotesNoteIdGetResponses[keyof GetNoteByIdApiV1NotesNoteIdGetResponses];
+
+export type UpdateNoteApiV1NotesNoteIdPatchData = {
+    body: NoteUpdate;
+    path: {
+        note_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notes/{note_id}';
+};
+
+export type UpdateNoteApiV1NotesNoteIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateNoteApiV1NotesNoteIdPatchError = UpdateNoteApiV1NotesNoteIdPatchErrors[keyof UpdateNoteApiV1NotesNoteIdPatchErrors];
+
+export type UpdateNoteApiV1NotesNoteIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: SrcNotesSchemasNote;
+};
+
+export type UpdateNoteApiV1NotesNoteIdPatchResponse = UpdateNoteApiV1NotesNoteIdPatchResponses[keyof UpdateNoteApiV1NotesNoteIdPatchResponses];
+
+export type UpsertNoteEndpointApiV1NotesUpsertPostData = {
+    body: NoteUpsertPayload;
+    path?: never;
+    query?: never;
+    url: '/api/v1/notes/upsert';
+};
+
+export type UpsertNoteEndpointApiV1NotesUpsertPostErrors = {
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Not Found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: unknown;
+};
+
+export type UpsertNoteEndpointApiV1NotesUpsertPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: SrcNotesSchemasNote;
+};
+
+export type UpsertNoteEndpointApiV1NotesUpsertPostResponse = UpsertNoteEndpointApiV1NotesUpsertPostResponses[keyof UpsertNoteEndpointApiV1NotesUpsertPostResponses];
+
+export type CreateInteractionApiV1InteractionsPostData = {
+    body: InteractionCreate;
+    path?: never;
+    query?: never;
+    url: '/api/v1/interactions/';
+};
+
+export type CreateInteractionApiV1InteractionsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateInteractionApiV1InteractionsPostError = CreateInteractionApiV1InteractionsPostErrors[keyof CreateInteractionApiV1InteractionsPostErrors];
+
+export type CreateInteractionApiV1InteractionsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type CreateInteractionApiV1InteractionsPostResponse = CreateInteractionApiV1InteractionsPostResponses[keyof CreateInteractionApiV1InteractionsPostResponses];
+
+export type DeleteInteractionApiV1InteractionsInteractionIdDeleteData = {
+    body?: never;
+    path: {
+        interaction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/interactions/{interaction_id}';
+};
+
+export type DeleteInteractionApiV1InteractionsInteractionIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteInteractionApiV1InteractionsInteractionIdDeleteError = DeleteInteractionApiV1InteractionsInteractionIdDeleteErrors[keyof DeleteInteractionApiV1InteractionsInteractionIdDeleteErrors];
+
+export type DeleteInteractionApiV1InteractionsInteractionIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type DeleteInteractionApiV1InteractionsInteractionIdDeleteResponse = DeleteInteractionApiV1InteractionsInteractionIdDeleteResponses[keyof DeleteInteractionApiV1InteractionsInteractionIdDeleteResponses];
+
+export type GetInteractionApiV1InteractionsInteractionIdGetData = {
+    body?: never;
+    path: {
+        interaction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/interactions/{interaction_id}';
+};
+
+export type GetInteractionApiV1InteractionsInteractionIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInteractionApiV1InteractionsInteractionIdGetError = GetInteractionApiV1InteractionsInteractionIdGetErrors[keyof GetInteractionApiV1InteractionsInteractionIdGetErrors];
+
+export type GetInteractionApiV1InteractionsInteractionIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetInteractionApiV1InteractionsInteractionIdGetResponse = GetInteractionApiV1InteractionsInteractionIdGetResponses[keyof GetInteractionApiV1InteractionsInteractionIdGetResponses];
+
+export type UpdateInteractionApiV1InteractionsInteractionIdPatchData = {
+    body: InteractionUpdate;
+    path: {
+        interaction_id: string;
+    };
+    query?: never;
+    url: '/api/v1/interactions/{interaction_id}';
+};
+
+export type UpdateInteractionApiV1InteractionsInteractionIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateInteractionApiV1InteractionsInteractionIdPatchError = UpdateInteractionApiV1InteractionsInteractionIdPatchErrors[keyof UpdateInteractionApiV1InteractionsInteractionIdPatchErrors];
+
+export type UpdateInteractionApiV1InteractionsInteractionIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type UpdateInteractionApiV1InteractionsInteractionIdPatchResponse = UpdateInteractionApiV1InteractionsInteractionIdPatchResponses[keyof UpdateInteractionApiV1InteractionsInteractionIdPatchResponses];
+
+export type GetInteractionsByUserApiV1InteractionsUserUserIdGetData = {
+    body?: never;
+    path: {
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/interactions/user/{user_id}';
+};
+
+export type GetInteractionsByUserApiV1InteractionsUserUserIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInteractionsByUserApiV1InteractionsUserUserIdGetError = GetInteractionsByUserApiV1InteractionsUserUserIdGetErrors[keyof GetInteractionsByUserApiV1InteractionsUserUserIdGetErrors];
+
+export type GetInteractionsByUserApiV1InteractionsUserUserIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+export type GetInteractionsByUserApiV1InteractionsUserUserIdGetResponse = GetInteractionsByUserApiV1InteractionsUserUserIdGetResponses[keyof GetInteractionsByUserApiV1InteractionsUserUserIdGetResponses];
+
+export type GetInteractionByWineApiV1InteractionsWineWineIdGetData = {
+    body?: never;
+    path: {
+        wine_id: string;
+    };
+    query?: never;
+    url: '/api/v1/interactions/wine/{wine_id}';
+};
+
+export type GetInteractionByWineApiV1InteractionsWineWineIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInteractionByWineApiV1InteractionsWineWineIdGetError = GetInteractionByWineApiV1InteractionsWineWineIdGetErrors[keyof GetInteractionByWineApiV1InteractionsWineWineIdGetErrors];
+
+export type GetInteractionByWineApiV1InteractionsWineWineIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetInteractionByWineApiV1InteractionsWineWineIdGetResponse = GetInteractionByWineApiV1InteractionsWineWineIdGetResponses[keyof GetInteractionByWineApiV1InteractionsWineWineIdGetResponses];
+
+export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostData = {
+    body?: never;
+    path: {
+        wine_id: string;
+        action: string;
+    };
+    query?: never;
+    url: '/api/v1/interactions/wine/{wine_id}/toggle/{action}';
+};
+
+export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostError = ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostErrors[keyof ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostErrors];
+
+export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponse = ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponses[keyof ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponses];
+
+export type RateWineApiV1InteractionsWineWineIdRatePostData = {
+    body?: never;
+    path: {
+        wine_id: string;
+    };
+    query: {
+        rating: number;
+    };
+    url: '/api/v1/interactions/wine/{wine_id}/rate';
+};
+
+export type RateWineApiV1InteractionsWineWineIdRatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RateWineApiV1InteractionsWineWineIdRatePostError = RateWineApiV1InteractionsWineWineIdRatePostErrors[keyof RateWineApiV1InteractionsWineWineIdRatePostErrors];
+
+export type RateWineApiV1InteractionsWineWineIdRatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type RateWineApiV1InteractionsWineWineIdRatePostResponse = RateWineApiV1InteractionsWineWineIdRatePostResponses[keyof RateWineApiV1InteractionsWineWineIdRatePostResponses];
 
 export type RootGetData = {
     body?: never;

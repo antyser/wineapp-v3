@@ -4,12 +4,43 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Appbar, Divider, Text, Button, Chip, Portal, Dialog, useTheme } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import WineCard from '../components/wine/WineCard';
+import WineDetailCard from '../components/WineDetailCard';
 import { Wine } from '../types/wine';
-import { wineService } from '../api/wineService';
+import { 
+  getOneWineApiV1WinesWineIdGet,
+  getWineForUserApiV1WinesUserWineIdGet,
+  toggleInteractionApiV1InteractionsWineWineIdToggleActionPost,
+  rateWineApiV1InteractionsWineWineIdRatePost,
+  getNotesByWineApiV1NotesWineWineIdGet
+} from '../api';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// Helper function to convert API wine type to our local Wine type
+const mapApiWineToLocalWine = (apiWine: any): Wine => {
+  return {
+    id: apiWine.id,
+    name: apiWine.name,
+    vintage: apiWine.vintage || undefined,
+    region: apiWine.region || undefined,
+    country: apiWine.country || undefined,
+    winery: apiWine.producer || apiWine.winery || undefined,
+    type: apiWine.wine_type || apiWine.type || undefined,
+    varietal: apiWine.grape_variety || apiWine.varietal || undefined,
+    image_url: apiWine.image_url || undefined,
+    average_price: apiWine.average_price || undefined,
+    description: apiWine.description || undefined,
+    wine_searcher_id: apiWine.wine_searcher_id || undefined,
+    // Add AI fields if available
+    drinking_window: apiWine.drinking_window || undefined,
+    food_pairings: apiWine.food_pairings || undefined,
+    abv: apiWine.abv || undefined,
+    winemaker_notes: apiWine.winemaker_notes || undefined,
+    professional_reviews: apiWine.professional_reviews || undefined,
+    tasting_notes: apiWine.tasting_notes || undefined,
+  };
+};
 
 const WineDetailScreen = () => {
   const route = useRoute<WineDetailScreenRouteProp>();
@@ -21,6 +52,10 @@ const WineDetailScreen = () => {
   const [loading, setLoading] = useState(!routeWine);
   const [error, setError] = useState('');
   const [isInWishlist, setIsInWishlist] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isTasted, setIsTasted] = useState(false);
+  const [userRating, setUserRating] = useState(0);
+  const [hasExistingNotes, setHasExistingNotes] = useState(false);
   const [showCellarDialog, setShowCellarDialog] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -29,40 +64,199 @@ const WineDetailScreen = () => {
     if (routeWine) {
       console.log('Using wine data from route params:', routeWine.name);
       setWine(routeWine);
+      // We still need to fetch user interaction data
+      fetchUserInteractions(routeWine.id);
+      // Check for existing notes
+      checkExistingNotes(routeWine.id);
       setLoading(false);
       return;
     }
     
     // Otherwise, fetch from API
-    const fetchWineDetails = async () => {
-      try {
-        setLoading(true);
-        setError('');
-        console.log(`Fetching wine details for ID: ${wineId}`);
-        const data = await wineService.getWineById(wineId);
-        console.log('Successfully retrieved wine data:', data?.name);
-        setWine(data);
-        // Here we would also check if the wine is in the user's wishlist
-        // For now we'll just set it to false
-        setIsInWishlist(false);
-      } catch (err) {
-        console.error('Error fetching wine details:', err);
-        setError('Failed to load wine details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchWineDetails();
   }, [wineId, routeWine, retryCount]);
+
+  const fetchWineDetails = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      console.log(`Fetching wine details for ID: ${wineId}`);
+      
+      // Attempt to get the wine with user data
+      try {
+        const userWineResponse = await getWineForUserApiV1WinesUserWineIdGet({
+          path: { wine_id: wineId }
+        });
+        
+        if (userWineResponse.data) {
+          console.log('Successfully retrieved user wine data');
+          const apiWineData = userWineResponse.data.wine;
+          const interaction = userWineResponse.data.interaction;
+          
+          if (apiWineData) {
+            // Convert API wine to our local Wine type
+            setWine(mapApiWineToLocalWine(apiWineData));
+          }
+          
+          if (interaction) {
+            setIsInWishlist(interaction.wishlist || false);
+            setIsLiked(interaction.liked || false);
+            setIsTasted(interaction.tasted || false);
+            setUserRating(interaction.rating || 0);
+          }
+          
+          // Check for existing notes
+          if (apiWineData) {
+            checkExistingNotes(apiWineData.id);
+          }
+          
+          setLoading(false);
+          return;
+        }
+      } catch (userWineError) {
+        console.warn('Failed to get user wine data, falling back to regular wine fetch', userWineError);
+      }
+      
+      // Fall back to regular wine fetch
+      const response = await getOneWineApiV1WinesWineIdGet({
+        path: { wine_id: wineId }
+      });
+      
+      if (response.data) {
+        console.log('Successfully retrieved wine data:', response.data.name);
+        // Convert the API wine type to our local Wine type
+        setWine(mapApiWineToLocalWine(response.data));
+      } else {
+        throw new Error('No wine data returned from API');
+      }
+    } catch (err) {
+      console.error('Error fetching wine details:', err);
+      setError('Failed to load wine details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUserInteractions = async (wineId: string) => {
+    try {
+      console.log('Fetching user interactions for wine ID:', wineId);
+      
+      const userWineResponse = await getWineForUserApiV1WinesUserWineIdGet({
+        path: { wine_id: wineId }
+      });
+      
+      if (userWineResponse.data && userWineResponse.data.interaction) {
+        const interaction = userWineResponse.data.interaction;
+        console.log('Received interaction data:', interaction);
+        
+        setIsInWishlist(interaction.wishlist || false);
+        setIsLiked(interaction.liked || false);
+        setIsTasted(interaction.tasted || false);
+        setUserRating(interaction.rating || 0);
+        
+        console.log('Updated state - isTasted:', interaction.tasted, 'rating:', interaction.rating);
+      } else {
+        console.log('No interaction data received');
+      }
+    } catch (error) {
+      console.error('Error fetching user interactions:', error);
+    }
+  };
+
+  const checkExistingNotes = async (wineId: string) => {
+    try {
+      const notesResponse = await getNotesByWineApiV1NotesWineWineIdGet({
+        path: { wine_id: wineId }
+      });
+      
+      const hasNotes = !!(notesResponse.data && notesResponse.data.length > 0);
+      setHasExistingNotes(hasNotes);
+    } catch (error) {
+      console.error('Error checking for existing notes:', error);
+      setHasExistingNotes(false);
+    }
+  };
 
   const handleRetry = () => {
     setRetryCount(prevCount => prevCount + 1);
   };
 
-  const handleAddToWishlist = () => {
-    // This would be connected to the API in the future
-    setIsInWishlist(!isInWishlist);
+  const handleAddToWishlist = async () => {
+    if (!wine) return;
+    
+    try {
+      const newWishlistState = !isInWishlist;
+      // Optimistically update UI
+      setIsInWishlist(newWishlistState);
+      
+      // Call API to toggle wishlist state
+      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
+        path: { 
+          wine_id: wine.id,
+          action: 'wishlist'
+        }
+      });
+      
+      console.log('Wishlist toggled:', response.data);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+      // Revert on error
+      setIsInWishlist(!isInWishlist);
+      setError('Failed to update wishlist. Please try again.');
+    }
+  };
+
+  const handleLike = async () => {
+    if (!wine) return;
+    
+    try {
+      const newLikedState = !isLiked;
+      // Optimistically update UI
+      setIsLiked(newLikedState);
+      
+      // Call API to toggle liked state
+      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
+        path: { 
+          wine_id: wine.id,
+          action: 'liked'
+        }
+      });
+      
+      console.log('Like toggled:', response.data);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      // Revert on error
+      setIsLiked(!isLiked);
+      setError('Failed to update like status. Please try again.');
+    }
+  };
+
+  const handleRateWine = async (rating: number) => {
+    if (!wine) return;
+    
+    try {
+      console.log('Setting wine rating to:', rating);
+      
+      // Optimistically update UI
+      setUserRating(rating);
+      
+      // Call API to set rating
+      const response = await rateWineApiV1InteractionsWineWineIdRatePost({
+        path: { wine_id: wine.id },
+        query: { rating }
+      });
+      
+      console.log('Wine rated, response:', response.data);
+      
+      // Update from response if available
+      if (response.data && typeof response.data.rating === 'number') {
+        setUserRating(response.data.rating);
+      }
+    } catch (error) {
+      console.error('Error rating wine:', error);
+      setUserRating(0); // Reset on error
+      setError('Failed to rate wine. Please try again.');
+    }
   };
 
   const handleAddToCellar = () => {
@@ -70,15 +264,60 @@ const WineDetailScreen = () => {
     setShowCellarDialog(true);
   };
 
-  const handleAddNote = () => {
-    if (wine) {
-      navigation.navigate('AddTastingNote', { wineId: wine.id });
+  const handleToggleTasted = async () => {
+    if (!wine) return;
+    
+    try {
+      // Toggle tasted status in API
+      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
+        path: { 
+          wine_id: wine.id,
+          action: 'tasted'
+        }
+      });
+      
+      console.log('Tasted status toggled, response:', response.data);
+      
+      // Update state directly from response instead of fetching again
+      if (response.data && typeof response.data.tasted === 'boolean') {
+        setIsTasted(response.data.tasted);
+      } else {
+        // Fallback to toggling the current state
+        setIsTasted(!isTasted);
+      }
+    } catch (error) {
+      console.error('Error toggling tasted status:', error);
+      setError('Failed to update tasted status. Please try again.');
     }
   };
 
-  const handleConsume = () => {
-    // To be implemented - would navigate to a consumption screen
-    console.log('Consume wine:', wineId);
+  const handleAddNote = async () => {
+    if (!wine) return;
+    
+    try {
+      // Check if there are existing notes
+      const notesResponse = await getNotesByWineApiV1NotesWineWineIdGet({
+        path: { wine_id: wine.id }
+      });
+      
+      // If there are notes, get the ID of the first one
+      let firstNoteId = undefined;
+      if (notesResponse.data && notesResponse.data.length > 0) {
+        const firstNote = notesResponse.data[0];
+        if (firstNote && typeof firstNote === 'object' && 'id' in firstNote) {
+          firstNoteId = String(firstNote.id);
+        }
+      }
+      
+      // Navigate to AddTastingNote screen with the note ID if available
+      navigation.navigate('AddTastingNote', { 
+        wineId: wine.id,
+        noteId: firstNoteId 
+      });
+    } catch (error) {
+      console.error('Error handling note:', error);
+      setError('Failed to handle note. Please try again.');
+    }
   };
 
   if (loading) {
@@ -140,51 +379,42 @@ const WineDetailScreen = () => {
           <Text style={styles.errorBannerText}>{error}</Text>
           <Button
             mode="text"
-            onPress={handleRetry}
+            onPress={() => setError('')}
             labelStyle={styles.errorButtonLabel}
             compact
           >
-            Retry
+            Dismiss
           </Button>
         </View>
       )}
 
       <ScrollView style={styles.scrollView}>
         {wine && (
-          <WineCard
+          <WineDetailCard
             wine={wine}
             onAddToWishlist={handleAddToWishlist}
+            onLike={handleLike}
             onAddToCellar={handleAddToCellar}
             onAddNote={handleAddNote}
-            onConsume={handleConsume}
+            onToggleTasted={handleToggleTasted}
+            onRateWine={handleRateWine}
             isInWishlist={isInWishlist}
+            isLiked={isLiked}
+            isTasted={isTasted}
+            rating={userRating}
           />
         )}
 
-        {/* Additional wine details */}
-        {wine && wine.description && (
-          <View style={styles.section}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              About This Wine
-            </Text>
-            <Divider style={styles.divider} />
-
-            {wine.description ? (
-              <Text variant="bodyMedium">{wine.description}</Text>
-            ) : (
-              <Text variant="bodyMedium" style={styles.emptyText}>
-                No description available.
-              </Text>
-            )}
-          </View>
-        )}
-
-        {/* AI Insights Section */}
+        {/* About This Wine Section */}
         <View style={styles.section}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
-            AI Insights
+              About This Wine
           </Text>
           <Divider style={styles.divider} />
+          
+          {wine && wine.description && (
+            <Text variant="bodyMedium" style={styles.paragraphText}>{wine.description}</Text>
+          )}
 
           {wine?.food_pairings && (
             <View style={styles.insightRow}>
@@ -219,14 +449,14 @@ const WineDetailScreen = () => {
             </View>
           )}
 
-          {!wine?.food_pairings && !wine?.drinking_window && !wine?.abv && (
+          {!wine?.description && !wine?.food_pairings && !wine?.drinking_window && !wine?.abv && (
             <Text variant="bodyMedium" style={styles.emptyText}>
-              No AI insights available for this wine.
+              No information available for this wine.
             </Text>
           )}
         </View>
 
-        {/* Winemaker Notes - New Section */}
+        {/* Winemaker Notes Section */}
         {wine?.winemaker_notes && (
           <View style={styles.section}>
             <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -237,7 +467,18 @@ const WineDetailScreen = () => {
           </View>
         )}
 
-        {/* Professional Reviews - New Section */}
+        {/* Tasting Notes Section */}
+        {wine?.tasting_notes && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Tasting Notes
+            </Text>
+            <Divider style={styles.divider} />
+            <Text variant="bodyMedium">{wine.tasting_notes}</Text>
+          </View>
+        )}
+
+        {/* Professional Reviews Section */}
         {wine?.professional_reviews && (
           <View style={styles.section}>
             <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -248,26 +489,6 @@ const WineDetailScreen = () => {
           </View>
         )}
 
-        {/* Previous Tasting Notes - Placeholder for future implementation */}
-        <View style={styles.section}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Your Tasting Notes
-          </Text>
-          <Divider style={styles.divider} />
-
-          <Text variant="bodyMedium" style={styles.emptyText}>
-            You haven't added any tasting notes for this wine yet.
-          </Text>
-
-          <Button
-            mode="outlined"
-            style={styles.button}
-            labelStyle={styles.buttonLabel}
-            onPress={handleAddNote}
-          >
-            Add Tasting Note
-          </Button>
-        </View>
       </ScrollView>
 
       {/* Dialog for selecting a cellar */}
@@ -361,7 +582,7 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   sectionTitle: {
     color: '#000000',
@@ -387,6 +608,41 @@ const styles = StyleSheet.create({
   },
   insightValue: {
     color: '#000000',
+  },
+  paragraphText: {
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  compactHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  inlineDivider: {
+    backgroundColor: '#E0E0E0',
+    height: 1,
+    flex: 1,
+    marginLeft: 12,
+  },
+  compactText: {
+    marginBottom: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
+  },
+  compactSection: {
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#E0E0E0',
+  },
+  compactSectionTitle: {
+    color: '#000000',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 
