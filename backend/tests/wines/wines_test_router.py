@@ -2,10 +2,23 @@
 Tests for the wines API endpoints
 """
 
-from fastapi.testclient import TestClient
+import asyncio
+import uuid
+from datetime import datetime, timedelta
+from typing import Dict, List
+from unittest.mock import MagicMock, patch
 
+import pytest
+from fastapi.testclient import TestClient
+from loguru import logger
+
+from src.auth.models import User
+from src.core.supabase import get_supabase_client
 from src.main import app
 from src.wines import wines_router
+from src.wines.schemas import EnrichedUserWine, Wine, WineCreate
+from src.wines.service import MyWinesSearchParams, search_wines
+from tests.wines.mock_wines import get_mock_wines
 
 
 def test_register_router():
@@ -206,3 +219,133 @@ def test_delete_wine_not_found(client: TestClient):
     data = response.json()
     assert "detail" in data
     assert "not found" in data["detail"].lower()
+
+
+@pytest.fixture
+def auth_headers() -> Dict[str, str]:
+    """
+    Create headers with a fake auth token for testing authenticated endpoints
+    We will patch the auth middleware to accept this token
+    """
+    return {"Authorization": "Bearer test-auth-token"}
+
+
+@pytest.fixture
+def test_user_id() -> uuid.UUID:
+    """
+    A fixed test user ID to use for all tests
+    """
+    return uuid.UUID("00000000-0000-0000-0000-000000000123")
+
+
+@pytest.mark.asyncio
+async def test_search_my_wines(
+    client: TestClient, auth_headers: Dict[str, str], test_user_id: uuid.UUID
+):
+    """
+    Test the search_my_wines endpoint by mocking the auth middleware
+    but using the real database.
+    """
+    # Patch the SupabaseAuth.__call__ method to return the test user
+    with patch(
+        "src.auth.utils.SupabaseAuth.__call__",
+        return_value={"user_id": str(test_user_id)},
+    ):
+        # Test 1: Basic endpoint access
+        response = client.get("/api/v1/wines/my-wines", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+
+        assert "items" in data
+        assert "total" in data
+        # Note: We don't assert exact counts because the database content may vary
+
+        # Test 2: Filter by wine type (if applicable)
+        if data["total"] > 0 and len(data["items"]) > 0:
+            # Get the type of the first wine to use as a filter
+            wine_type = data["items"][0]["type"]
+            if wine_type:
+                response = client.get(
+                    f"/api/v1/wines/my-wines?wine_type={wine_type}",
+                    headers=auth_headers,
+                )
+                assert response.status_code == 200
+                filtered_data = response.json()
+
+                # All returned wines should have this type
+                for wine in filtered_data["items"]:
+                    assert wine["type"] == wine_type
+
+        # Test 3: Pagination
+        response = client.get("/api/v1/wines/my-wines?limit=1", headers=auth_headers)
+        assert response.status_code == 200
+        limited_data = response.json()
+
+        if limited_data["total"] > 0:
+            assert len(limited_data["items"]) <= 1
+
+        # Test 4: Sorting
+        response = client.get(
+            "/api/v1/wines/my-wines?sort_by=vintage&sort_order=desc",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+
+        # Verify results are properly sorted if there are multiple items
+        sorted_data = response.json()
+        items = sorted_data["items"]
+        if len(items) >= 2:
+            for i in range(len(items) - 1):
+                if (
+                    items[i]["vintage"] is not None
+                    and items[i + 1]["vintage"] is not None
+                ):
+                    assert items[i]["vintage"] >= items[i + 1]["vintage"]
+
+
+@pytest.mark.asyncio
+async def test_search_my_wines_service(test_user_id: uuid.UUID, supabase):
+    """
+    Test the search_my_wines service function using the real database.
+    We'll test basic functionality and filtering capabilities.
+    """
+    # Test with default parameters
+    params = MyWinesSearchParams()
+    result = await search_wines(user_id=test_user_id, params=params, client=supabase)
+
+    # We can't reliably assert exact counts because we're using the real database
+    assert isinstance(result.total, int)
+    assert isinstance(result.items, list)
+
+    # Test with pagination
+    params = MyWinesSearchParams(limit=1, offset=0)
+    result = await search_wines(user_id=test_user_id, params=params, client=supabase)
+
+    # Verify the pagination limits results
+    assert len(result.items) <= 1
+
+    # If there are wines returned, test filtering on one of them
+    if result.items and len(result.items) > 0:
+        sample_wine = result.items[0]
+
+        # Test filtering by wine type if available
+        if sample_wine.type:
+            type_params = MyWinesSearchParams(wine_type=sample_wine.type)
+            type_result = await search_wines(
+                user_id=test_user_id, params=type_params, client=supabase
+            )
+
+            # All wines should have this type
+            for wine in type_result.items:
+                assert wine.type == sample_wine.type
+
+        # Test filtering by country if available
+        if sample_wine.country:
+            country_params = MyWinesSearchParams(country=sample_wine.country)
+            country_result = await search_wines(
+                user_id=test_user_id, params=country_params, client=supabase
+            )
+
+            # All wines should have this country
+            for wine in country_result.items:
+                assert wine.country == sample_wine.country

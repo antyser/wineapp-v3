@@ -1,7 +1,7 @@
 # Search module
 # Handles search functionality (AI, history) and related APIs
 
-from src.search.api import router as search_history_router
+from src.search.router import router as search_history_router
 from src.search.history.service import (
     create_search_history_record,
     get_search_history_for_user,

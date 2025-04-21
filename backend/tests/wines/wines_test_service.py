@@ -8,13 +8,16 @@ import pytest
 
 from src.wines.schemas import WineCreate, WineSearchParams, WineUpdate
 from src.wines.service import (
+    MyWinesSearchParams,
     create_wine,
     delete_wine,
     get_wine,
     get_wines,
     search_wine_from_db,
+    search_wines,
     update_wine,
 )
+from tests.wines.mock_wines import get_mock_wines  # Import the mock wines function
 
 
 @pytest.mark.asyncio
@@ -89,25 +92,30 @@ async def test_create_wine(supabase):
     """
     Test creating a new wine
     """
+    # Get a mock wine to use as template
+    mock_wines = get_mock_wines()
+    mock_wine = mock_wines[0]
+
+    # Create a new test wine based on the mock data
     new_wine = WineCreate(
-        name="Test Wine",
-        winery="Test Winery",
-        vintage=2022,
-        region="Test Region",
-        country="Test Country",
-        varietal="Test Varietal",
-        type="Red",
-        price=25.99,
-        rating=90,
-        tasting_notes="Test tasting notes",
-        wine_searcher_url="http://example.com/test-wine",
-        average_price=24.50,
-        description="A test wine description.",
-        drinking_window="2024-2028",
-        food_pairings="Cheese, Pasta",
-        abv="13.5%",
-        wine_searcher_id="test-123",
-        name_alias=["Alias 1", "Alias B"],
+        name=f"Test Wine from Mock {mock_wine['name']}",
+        winery=mock_wine["winery"],
+        vintage=mock_wine["vintage"],
+        region=mock_wine["region"],
+        country=mock_wine["country"],
+        varietal=mock_wine["varietal"],
+        type=mock_wine["type"],
+        price=mock_wine["price"],
+        rating=None,  # Use None to test a different value
+        tasting_notes=mock_wine.get("tasting_notes"),
+        wine_searcher_url=mock_wine.get("wine_searcher_url"),
+        average_price=mock_wine.get("average_price"),
+        description=mock_wine.get("description"),
+        drinking_window=mock_wine.get("drinking_window"),
+        food_pairings=mock_wine.get("food_pairings"),
+        abv=mock_wine.get("abv"),
+        wine_searcher_id=mock_wine.get("wine_searcher_id"),
+        name_alias=mock_wine.get("name_alias"),
     )
 
     created_wine = await create_wine(new_wine, client=supabase)
@@ -243,6 +251,199 @@ async def test_delete_wine_not_found(supabase):
     non_existent_id = UUID("00000000-0000-0000-0000-000000000000")
     deleted = await delete_wine(non_existent_id, client=supabase)
     assert deleted is False
+
+
+@pytest.mark.asyncio
+async def test_search_wines(supabase):
+    """
+    Test searching for wines with various filters and user context
+    """
+    # Get mock wines to use for testing
+    mock_wines = get_mock_wines()
+
+    # Create at least 2 test wines with distinct properties for filtering
+    test_wine1 = WineCreate(
+        name="SearchTest Red Wine",
+        winery="Search Winery",
+        vintage=2019,
+        region="Search Region",
+        country="Search Country",
+        varietal="Cabernet Sauvignon",
+        type="Red",
+        price=49.99,
+        tasting_notes="Search test tasting notes for red wine",
+    )
+
+    test_wine2 = WineCreate(
+        name="SearchTest White Wine",
+        winery="Search Winery",
+        vintage=2021,
+        region="Search Region",
+        country="Search Country",
+        varietal="Chardonnay",
+        type="White",
+        price=29.99,
+        tasting_notes="Search test tasting notes for white wine",
+    )
+
+    # Create the test wines in the database
+    created_wine1 = await create_wine(test_wine1, client=supabase)
+    created_wine2 = await create_wine(test_wine2, client=supabase)
+
+    # Test 1: Basic search without user context
+    params = MyWinesSearchParams(limit=10, offset=0)
+
+    results = await search_wines(params=params, client=supabase)
+    assert results is not None
+    assert isinstance(results.items, list)
+    assert results.total >= 2  # At least our 2 test wines
+
+    # Test 2: Search with query filter
+    query_params = MyWinesSearchParams(query="SearchTest", limit=10, offset=0)
+
+    query_results = await search_wines(params=query_params, client=supabase)
+    assert query_results is not None
+    assert query_results.total >= 2
+
+    # Verify both test wines are in the results
+    test_wine_ids = {str(created_wine1.id), str(created_wine2.id)}
+    found_ids = {
+        str(wine.id) for wine in query_results.items if str(wine.id) in test_wine_ids
+    }
+    assert len(found_ids) == 2
+
+    # Test 3: Search with wine type filter
+    type_params = MyWinesSearchParams(wine_type="Red", limit=10, offset=0)
+
+    type_results = await search_wines(params=type_params, client=supabase)
+    assert type_results is not None
+
+    # Should include our red test wine
+    found_red = any(
+        str(wine.id) == str(created_wine1.id) for wine in type_results.items
+    )
+    assert found_red
+
+    # Shouldn't include our white test wine
+    found_white = any(
+        str(wine.id) == str(created_wine2.id) for wine in type_results.items
+    )
+    assert not found_white
+
+    # Test 4: Search with user context (should return empty since no interactions exist)
+    test_user_id = UUID("00000000-0000-0000-0000-000000000999")  # A test user ID
+    user_params = MyWinesSearchParams(limit=10, offset=0)
+    user_results = await search_wines(
+        user_id=test_user_id, params=user_params, client=supabase
+    )
+
+    # Since this test user has no interactions, results should be empty
+    assert user_results is not None
+    assert user_results.total == 0
+    assert len(user_results.items) == 0
+
+    # Test 5: Search with user context after creating an interaction
+    # First, create an interaction for the test user and the first test wine
+    interaction_data = {
+        "user_id": str(test_user_id),
+        "wine_id": str(created_wine1.id),
+        "wishlist": True,
+        "rating": 4,
+    }
+    supabase.table("interactions").insert(interaction_data).execute()
+
+    # Now search for the user's wines again
+    user_results_with_interaction = await search_wines(
+        user_id=test_user_id, params=user_params, client=supabase
+    )
+
+    # Should find exactly one wine now
+    assert user_results_with_interaction is not None
+    assert user_results_with_interaction.total == 1
+    assert len(user_results_with_interaction.items) == 1
+
+    # Verify it's the right wine
+    assert str(user_results_with_interaction.items[0].id) == str(created_wine1.id)
+
+    # Verify the enriched user data is present
+    assert user_results_with_interaction.items[0].wishlist is True
+    assert user_results_with_interaction.items[0].rating == 4
+
+    # Test 6: Verify that not providing user_id returns ALL wines
+    # This ensures search_wines works in "global mode" when no user_id is passed
+    # Create a new params object to search for our test wines
+    global_params = MyWinesSearchParams(
+        query="SearchTest",  # Only find our test wines for clear comparison
+        limit=10,
+        offset=0,
+    )
+
+    # Search without providing a user_id
+    global_results = await search_wines(params=global_params, client=supabase)
+
+    # Should find both our test wines regardless of interactions
+    assert global_results is not None
+    assert global_results.total >= 2
+
+    # Verify both test wines are in the results
+    global_found_ids = {
+        str(wine.id) for wine in global_results.items if str(wine.id) in test_wine_ids
+    }
+    assert len(global_found_ids) == 2
+
+    # The wines should have default enrichment values when no user context
+    for wine in global_results.items:
+        if str(wine.id) in test_wine_ids:
+            # Without user_id, wishlist should be False and rating should be None
+            assert wine.wishlist is False
+            assert wine.rating is None
+            assert wine.latest_note is None
+
+    # Clean up - delete the interaction
+    supabase.table("interactions").delete().eq("user_id", str(test_user_id)).execute()
+
+    # Test 7: Test sorting of results
+    # Create a new params object for sorting tests
+    sort_params = MyWinesSearchParams(
+        query="SearchTest",  # Find only our test wines
+        sort_by="vintage",
+        sort_order="asc",
+        limit=10,
+        offset=0,
+    )
+
+    # Get results sorted by vintage ascending (oldest first)
+    sort_asc_results = await search_wines(params=sort_params, client=supabase)
+    assert sort_asc_results is not None
+    assert sort_asc_results.total >= 2
+
+    # Filter to only our test wines
+    test_wines_asc = [
+        wine for wine in sort_asc_results.items if str(wine.id) in test_wine_ids
+    ]
+    assert len(test_wines_asc) == 2
+
+    # The red wine (2019) should come before the white wine (2021) in ascending order
+    assert str(test_wines_asc[0].id) == str(created_wine1.id)
+    assert str(test_wines_asc[1].id) == str(created_wine2.id)
+
+    # Now test descending order (newest first)
+    sort_params.sort_order = "desc"
+    sort_desc_results = await search_wines(params=sort_params, client=supabase)
+
+    # Filter to only our test wines
+    test_wines_desc = [
+        wine for wine in sort_desc_results.items if str(wine.id) in test_wine_ids
+    ]
+    assert len(test_wines_desc) == 2
+
+    # The white wine (2021) should come before the red wine (2019) in descending order
+    assert str(test_wines_desc[0].id) == str(created_wine2.id)
+    assert str(test_wines_desc[1].id) == str(created_wine1.id)
+
+    # Cleanup - delete the test wines
+    await delete_wine(created_wine1.id, client=supabase)
+    await delete_wine(created_wine2.id, client=supabase)
 
 
 @pytest.mark.asyncio

@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
 
+from fastapi.encoders import jsonable_encoder
 from postgrest import APIError
 from supabase import Client
 
@@ -394,14 +395,7 @@ async def add_wine_to_cellar(
     if not cellar:
         return None
 
-    # Then check if wine exists
-    wine_service = importlib.import_module("src.wines.service")
-    wine = await wine_service.get_wine(cellar_wine.wine_id, client)
-    if not wine:
-        return None
-
-    # Add wine to cellar
-    cellar_wine_data = cellar_wine.model_dump()
+    cellar_wine_data = jsonable_encoder(cellar_wine)
 
     # Add generated fields
     now = datetime.now().isoformat()
@@ -412,19 +406,6 @@ async def add_wine_to_cellar(
             "updated_at": now,
         }
     )
-
-    # Convert UUID fields to strings for Supabase
-    for field in ["cellar_id", "wine_id"]:
-        if isinstance(cellar_wine_data.get(field), UUID):
-            cellar_wine_data[field] = str(cellar_wine_data[field])
-
-    # Convert purchase_date to ISO format string if it exists
-    if cellar_wine_data.get("purchase_date") and hasattr(
-        cellar_wine_data["purchase_date"], "isoformat"
-    ):
-        cellar_wine_data["purchase_date"] = cellar_wine_data[
-            "purchase_date"
-        ].isoformat()
 
     # Insert the cellar wine
     response = client.table("cellar_wines").insert(cellar_wine_data).execute()

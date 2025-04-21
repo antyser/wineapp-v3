@@ -16,7 +16,7 @@ class CellarBase(BaseModel):
 class CellarCreate(CellarBase):
     """Fields required to create a cellar"""
 
-    user_id: UUID
+    user_id: Optional[UUID] = None
 
 
 class CellarUpdate(BaseModel):

@@ -1,7 +1,7 @@
 # Cellar module
 # Handles cellar, cellar wines, and related models
 
-from src.cellar.api import router as cellar_router
+from src.cellar.router import router as cellar_router
 from src.cellar.service import (
     add_wine_to_cellar,
     create_cellar,

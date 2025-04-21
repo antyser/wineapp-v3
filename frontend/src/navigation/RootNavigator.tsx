@@ -10,6 +10,7 @@ import CellarStatsScreen from '../screens/CellarStatsScreen';
 import WineDetailScreen from '../screens/WineDetailScreen';
 import WineSearchScreen from '../screens/WineSearchScreen';
 import AddWineScreen from '../screens/AddWineScreen';
+import AddBottlesScreen from '../screens/AddBottlesScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import NoteScreen from '../screens/TastingNoteScreen';
@@ -72,6 +73,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="CellarStats"
           component={CellarStatsScreen}
+        />
+
+        <Stack.Screen
+          name="AddBottles"
+          component={AddBottlesScreen}
         />
 
         <Stack.Screen

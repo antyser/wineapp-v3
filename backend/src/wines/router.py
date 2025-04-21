@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated, List, Optional
+from typing import Annotated, Dict, List, Optional, Union
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
@@ -7,10 +7,11 @@ from loguru import logger
 
 from src.auth import get_current_user, get_optional_user
 from src.auth.models import User
-from src.search.schemas import SearchHistoryCreate, SearchType
-from src.search.service import ai_search_wines
 from src.wines import service
 from src.wines.schemas import (
+    MyWinesSearchParams,
+    PaginatedEnrichedWineResponse,
+    PaginatedWineResponse,
     UserWineResponse,
     Wine,
     WineCreate,
@@ -23,16 +24,35 @@ from src.wines.service import (
     get_user_wine,
     get_wine,
     get_wines,
+    search_wines,
     update_wine,
 )
 
 router = APIRouter(prefix="/wines", tags=["wines"])
 
 
-@router.get("/", response_model=List[Wine])
+@router.get("/", response_model=PaginatedWineResponse)
 async def get_all_wines(params: WineSearchParams = Depends()):
-    result = await service.get_wines(params)
-    return result["items"]
+    return await service.get_wines(params)
+
+
+@router.get("/my-wines", response_model=PaginatedEnrichedWineResponse)
+async def search_current_user_wines(
+    current_user: UUID = Depends(get_current_user),
+    params: MyWinesSearchParams = Depends(),
+):
+    """
+    Search for wines within the current authenticated user's interacted items
+    (cellar, notes, wishlist).
+
+    Returns enriched wine data with user interaction information.
+
+    Allows filtering by name, type, country, region, winery, grape,
+    and supports pagination and sorting.
+    """
+    logger.info(f"Searching my wines for user {current_user} with params: {params}")
+    result = await service.search_wines(user_id=current_user, params=params)
+    return result
 
 
 @router.get("/{wine_id}", response_model=Wine)

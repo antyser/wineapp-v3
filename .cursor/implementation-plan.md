@@ -86,27 +86,27 @@
 ### Auth Domain Implementation
 - [X] Set up authentication with Supabase Auth
 - [X] Create auth service and middleware
-- [ ] Implement user profile management
+- [] Implement user profile management
 - [X] Add auth routes and endpoints
 - [X] Create login and signup screens
-- [ ] Add integration tests for auth domain
+- [X] Add integration tests for auth domain
 
 ### Notes Domain Implementation
-- [ ] Define note model and schema
-- [ ] Implement notes CRUD operations
-- [ ] Create note service for business logic
-- [ ] Add notes routes and endpoints
-- [ ] Create tasting note form UI
-- [ ] Build note detail view and history
-- [ ] Add rating system
-- [ ] Add integration tests for notes domain
+- [X] Define note model and schema
+- [X] Implement notes CRUD operations
+- [X] Create note service for business logic
+- [X] Add notes routes and endpoints
+- [X] Create tasting note form UI
+- [X] Build note detail view and history
+- [X] Add rating system
+- [X] Add integration tests for notes domain
 
 ### Wishlist & Collection
-- [ ] Implement wishlist functionality
-- [ ] Create UI for managing wishlist
-- [ ] Build collection view and statistics
+- [X] Implement wishlist functionality
+- [X] Create UI for managing wishlist
+- [X] Build collection view and statistics
 - [ ] Add sharing capabilities
-- [ ] Add integration tests for wishlist
+- [X] Add integration tests for wishlist
 
 ## Phase 5: Advanced Features & Refinement
 

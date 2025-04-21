@@ -6,7 +6,7 @@ from src.cellar import cellar_router
 from src.core import get_supabase_client, settings
 from src.interactions import interaction_router
 from src.notes import notes_router
-from src.search.api import router as search_history_router
+from src.search.router import router as search_history_router
 from src.wines import wines_router
 
 app = FastAPI(

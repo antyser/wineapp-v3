@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
 
 from src.cellar.schemas import CellarWine
 from src.interactions.schemas import Interaction
@@ -102,10 +102,64 @@ class WineSearchResults(BaseModel):
     total: int
 
 
+class MyWinesSearchParams(BaseModel):
+    query: Optional[str] = Field(
+        None, description="General text search across name, winery, region, varietal"
+    )
+    wine_type: Optional[str] = Field(
+        None, description="Filter by wine type (e.g., red, white)"
+    )
+    country: Optional[str] = Field(None, description="Filter by country of origin")
+    grape_variety: Optional[str] = Field(None, description="Filter by grape variety")
+    region: Optional[str] = Field(None, description="Filter by region")
+    winery: Optional[str] = Field(None, description="Filter by winery/producer")
+    # Add other relevant filters if needed, e.g., vintage range
+
+    sort_by: Optional[str] = Field(
+        "name",
+        description="Field to sort by (e.g., name, vintage, rating, created_at)",
+    )
+    sort_order: str = Field(
+        "asc", description="Sort order: 'asc' or 'desc'", pattern="^(asc|desc)$"
+    )
+
+    limit: int = Field(20, ge=1, le=100, description="Number of items per page")
+    offset: int = Field(0, ge=0, description="Offset for pagination")
+
+
+class PaginatedWineResponse(BaseModel):
+    items: List[Wine]
+    total: int
+
+
 class UserWineResponse(BaseModel):
     """Response model for the user's comprehensive wine information"""
 
     wine: Optional[Wine] = None
     interaction: Optional[Interaction] = None
     notes: List[Note] = Field(default_factory=list)
-    cellar_wines: List[CellarWine] = Field(default_factory=list)
+    cellar_wines: Optional[List[CellarWine]] = []
+
+
+# Schema for enriched user wine data (combines wine with user interaction data)
+class EnrichedUserWine(Wine):
+    """Wine data enriched with user interaction information"""
+
+    # Interaction data
+    wishlist: Optional[bool] = False
+    rating: Optional[float] = None
+
+    # Most recent note data (if any)
+    latest_note: Optional[str] = None
+    latest_note_date: Optional[datetime] = None
+
+    # Removed cellar-related fields
+
+    # Timestamps of user interactions
+    last_interaction: Optional[datetime] = None
+
+
+# Response for the my-wines list endpoint
+class PaginatedEnrichedWineResponse(BaseModel):
+    items: List[EnrichedUserWine]
+    total: int

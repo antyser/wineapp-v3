@@ -63,16 +63,6 @@ export default function MainDrawer() {
           ),
         }}
       />
-      <Drawer.Screen
-        name="TestCellarAdd"
-        component={TestCellarAddScreen}
-        options={{
-          title: 'Test Cellar Add',
-          drawerIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="database-plus" color={color} size={size} />
-          ),
-        }}
-      />
     </Drawer.Navigator>
   );
 }

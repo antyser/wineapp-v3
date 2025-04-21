@@ -36,8 +36,8 @@ const CellarFormScreen = ({ route, navigation }: Props) => {
           }
         });
         
-        // Navigate to MyWines screen
-        navigation.navigate('MyWines');
+        // Navigate to Main stack first with the MyWines tab as the initial tab
+        navigation.navigate('Main', { screen: 'MyWines' });
       }
     } catch (error) {
       console.error('Failed to save cellar:', error);

@@ -1,6 +1,6 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 Okay, here are the updated instructions with the addition of `black` and `ruff`:
@@ -33,3 +33,5 @@ Okay, here are the updated instructions with the addition of `black` and `ruff`:
 10. Avoid Global Variables.
 11. Always use Absolute imports.
 12. **Follow Black and Ruff coding style**: Ensure code is automatically formatted with `black` and adheres to the rules enforced by `ruff`.
+13. when pytest, you should ALWAYS call the db directly instead of mock.
+14. When writing the database access code, don't create an RPC call unless I told you to.

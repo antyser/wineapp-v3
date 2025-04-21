@@ -177,14 +177,14 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
           <Icon source={isInWishlist ? 'bookmark' : 'bookmark-outline'} size={24} color={isInWishlist ? '#FFFFFF' : '#000000'} />
         </TouchableOpacity>
         
-        <Button
+{/*         <Button
           mode="outlined"
           onPress={onAddToCellar}
           style={styles.textButton}
           labelStyle={styles.buttonLabel}
         >
           Add to Cellar
-        </Button>
+        </Button> */}
         
         <Button
           mode="outlined"

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Appbar, Divider, Text, Button, Chip, Portal, Dialog, useTheme } from 'react-native-paper';
+import { Appbar, Divider, Text, Button, Chip, Portal, Dialog, useTheme, RadioButton, TextInput } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineDetailCard from '../components/WineDetailCard';
@@ -11,8 +11,12 @@ import {
   getWineForUserApiV1WinesUserWineIdGet,
   toggleInteractionApiV1InteractionsWineWineIdToggleActionPost,
   rateWineApiV1InteractionsWineWineIdRatePost,
-  getNotesByWineApiV1NotesWineWineIdGet
+  getNotesByWineApiV1NotesWineWineIdGet,
+  listCellarsApiV1CellarsGet,
+  createCellarApiV1CellarsPost,
+  addWineToCellarApiV1CellarsWinesPost
 } from '../api';
+import { Cellar } from '../api/generated';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -56,9 +60,8 @@ const WineDetailScreen = () => {
   const [isTasted, setIsTasted] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [hasExistingNotes, setHasExistingNotes] = useState(false);
-  const [showCellarDialog, setShowCellarDialog] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-
+  
   useEffect(() => {
     // If we already have the wine from route params, use it directly
     if (routeWine) {
@@ -260,35 +263,17 @@ const WineDetailScreen = () => {
   };
 
   const handleAddToCellar = () => {
-    // Show dialog to select cellar
-    setShowCellarDialog(true);
-  };
-
-  const handleToggleTasted = async () => {
     if (!wine) return;
     
-    try {
-      // Toggle tasted status in API
-      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
-        path: { 
-          wine_id: wine.id,
-          action: 'tasted'
-        }
-      });
-      
-      console.log('Tasted status toggled, response:', response.data);
-      
-      // Update state directly from response instead of fetching again
-      if (response.data && typeof response.data.tasted === 'boolean') {
-        setIsTasted(response.data.tasted);
-      } else {
-        // Fallback to toggling the current state
-        setIsTasted(!isTasted);
+    // Navigate to the AddBottles screen with the wine
+    navigation.navigate('AddBottles', {
+      wine,
+      onBottlesAdded: () => {
+        // Optional callback when bottles are added successfully
+        console.log('Bottles added successfully');
+        // Could add a success message or refresh data if needed
       }
-    } catch (error) {
-      console.error('Error toggling tasted status:', error);
-      setError('Failed to update tasted status. Please try again.');
-    }
+    });
   };
 
   const handleAddNote = async () => {
@@ -317,6 +302,33 @@ const WineDetailScreen = () => {
     } catch (error) {
       console.error('Error handling note:', error);
       setError('Failed to handle note. Please try again.');
+    }
+  };
+
+  const handleToggleTasted = async () => {
+    if (!wine) return;
+    
+    try {
+      // Toggle tasted status in API
+      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
+        path: { 
+          wine_id: wine.id,
+          action: 'tasted'
+        }
+      });
+      
+      console.log('Tasted status toggled, response:', response.data);
+      
+      // Update state directly from response instead of fetching again
+      if (response.data && typeof response.data.tasted === 'boolean') {
+        setIsTasted(response.data.tasted);
+      } else {
+        // Fallback to toggling the current state
+        setIsTasted(!isTasted);
+      }
+    } catch (error) {
+      console.error('Error toggling tasted status:', error);
+      setError('Failed to update tasted status. Please try again.');
     }
   };
 
@@ -490,39 +502,6 @@ const WineDetailScreen = () => {
         )}
 
       </ScrollView>
-
-      {/* Dialog for selecting a cellar */}
-      <Portal>
-        <Dialog visible={showCellarDialog} onDismiss={() => setShowCellarDialog(false)}>
-          <Dialog.Title>Add to Cellar</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              Select a cellar to add this wine to:
-            </Text>
-            {/* This would be replaced with a list of user's cellars */}
-            <Text variant="bodyMedium" style={styles.emptyText}>
-              You don't have any cellars yet.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button
-              onPress={() => setShowCellarDialog(false)}
-              labelStyle={styles.buttonLabel}
-            >
-              Cancel
-            </Button>
-            <Button
-              onPress={() => {
-                // This would actually add the wine to the cellar
-                setShowCellarDialog(false);
-              }}
-              labelStyle={styles.buttonLabel}
-            >
-              Confirm
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
     </View>
   );
 };
@@ -643,6 +622,58 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  centeredContent: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  input: {
+    marginVertical: 8,
+  },
+  dialogText: {
+    marginBottom: 12,
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+  },
+  quantityButton: {
+    margin: 0,
+    minWidth: 40,
+    height: 40,
+  },
+  quantityInput: {
+    width: 60,
+    height: 40,
+    marginHorizontal: 8,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    marginTop: 16,
+  },
+  pickerContainer: {
+    maxHeight: 180,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+  },
+  dialogScrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
+  },
+  dialogHelper: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 16,
+    fontStyle: 'italic',
   },
 });
 

@@ -2,7 +2,7 @@ import asyncio
 import os
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 from uuid import UUID, uuid4
 
 import httpx
@@ -16,6 +16,10 @@ from src.core.storage_utils import download_image
 from src.core.supabase import get_supabase_client
 from src.crawler.wine_searcher import WineSearcherOffer, WineSearcherWine, fetch_wine
 from src.wines.schemas import (
+    EnrichedUserWine,
+    MyWinesSearchParams,
+    PaginatedEnrichedWineResponse,
+    PaginatedWineResponse,
     UserWineResponse,
     Wine,
     WineCreate,
@@ -802,6 +806,210 @@ async def get_wines_by_ids(
         return []
 
     return [Wine.model_validate(item) for item in response.data]
+
+
+async def search_wines(
+    user_id: Optional[UUID] = None,
+    params: MyWinesSearchParams = None,
+    client: Optional[Client] = None,
+) -> PaginatedEnrichedWineResponse:
+    """
+    Search for wines in the database with optional user filtering.
+
+    When user_id is provided, it searches for wines the user has interacted with
+    through notes or interactions. Otherwise, it searches all wines based on
+    the other provided parameters.
+
+    Args:
+        user_id: Optional UUID of the user to filter wines by. If provided, only returns
+                wines the user has interacted with.
+        params: Search parameters (MyWinesSearchParams).
+        client: Supabase client (optional).
+
+    Returns:
+        PaginatedEnrichedWineResponse containing enriched wine items and total count.
+    """
+    if client is None:
+        client = get_supabase_client()
+
+    if params is None:
+        params = MyWinesSearchParams()
+
+    user_id_str = str(user_id) if user_id else None
+    if user_id:
+        logger.info(f"Searching user wines for {user_id_str} with params: {params}")
+    else:
+        logger.info(f"Searching all wines with params: {params}")
+
+    try:
+        # This is a more complex query than what the Supabase Python client easily supports
+        # We'll use a raw SQL query via the Supabase REST API
+        # Build the filter conditions for the SQL query
+        filter_conditions = []
+        params_dict = {}  # For parameterized query
+
+        # Add user filter if user_id is provided
+        if user_id:
+            filter_conditions.append("(i.user_id = :user_id OR n.user_id = :user_id)")
+            params_dict["user_id"] = user_id_str
+
+        # Add text search filter if provided
+        if params.query:
+            query_value = f"%{params.query}%"
+            filter_conditions.append(
+                "(w.name ILIKE :query OR w.winery ILIKE :query OR "
+                "w.region ILIKE :query OR w.varietal ILIKE :query OR w.country ILIKE :query)"
+            )
+            params_dict["query"] = query_value
+
+        # Add specific attribute filters
+        if params.wine_type:
+            filter_conditions.append("w.type ILIKE :wine_type")
+            params_dict["wine_type"] = f"%{params.wine_type}%"
+
+        if params.country:
+            filter_conditions.append("w.country ILIKE :country")
+            params_dict["country"] = f"%{params.country}%"
+
+        if params.grape_variety:
+            filter_conditions.append("w.varietal ILIKE :grape_variety")
+            params_dict["grape_variety"] = f"%{params.grape_variety}%"
+
+        if params.region:
+            filter_conditions.append("w.region ILIKE :region")
+            params_dict["region"] = f"%{params.region}%"
+
+        if params.winery:
+            filter_conditions.append("w.winery ILIKE :winery")
+            params_dict["winery"] = f"%{params.winery}%"
+
+        # Combine filter conditions
+        filter_clause = " AND ".join(filter_conditions) if filter_conditions else "1=1"
+
+        # Determine the sort column and direction
+        sort_column = params.sort_by or "w.name"
+        if not sort_column.startswith("w."):
+            sort_column = f"w.{sort_column}"
+
+        sort_order = "ASC" if params.sort_order.lower() == "asc" else "DESC"
+
+        # If we have a user_id, execute the user-specific query with joins
+        if user_id:
+            # The count query to get total records
+            count_query = f"""
+            SELECT COUNT(DISTINCT w.id) 
+            FROM wines w
+            LEFT JOIN interactions i ON w.id = i.wine_id
+            LEFT JOIN notes n ON w.id = n.wine_id
+            WHERE {filter_clause}
+            """
+
+            # The main query to get the enriched wine data
+            main_query = f"""
+            WITH user_interactions AS (
+                SELECT 
+                    w.id as wine_id,
+                    MAX(i.wishlist) as wishlist,
+                    MAX(i.rating) as rating,
+                    MAX(i.updated_at) as interaction_date,
+                    MAX(n.note_text) FILTER (WHERE n.id IS NOT NULL) as latest_note,
+                    MAX(n.created_at) FILTER (WHERE n.id IS NOT NULL) as latest_note_date
+                FROM wines w
+                LEFT JOIN interactions i ON w.id = i.wine_id AND i.user_id = :user_id
+                LEFT JOIN notes n ON w.id = n.wine_id AND n.user_id = :user_id
+                WHERE {filter_clause}
+                GROUP BY w.id
+            )
+            SELECT 
+                w.*,
+                ui.wishlist,
+                ui.rating,
+                ui.latest_note,
+                ui.latest_note_date,
+                ui.interaction_date as last_interaction
+            FROM wines w
+            JOIN user_interactions ui ON w.id = ui.wine_id
+            ORDER BY {sort_column} {sort_order}
+            LIMIT :limit OFFSET :offset
+            """
+        else:
+            # Simpler query when no user filtering is needed
+            count_query = f"""
+            SELECT COUNT(*) 
+            FROM wines w
+            WHERE {filter_clause}
+            """
+
+            # The main query for global wine search
+            main_query = f"""
+            SELECT 
+                w.*,
+                FALSE as wishlist,
+                NULL as rating,
+                NULL as latest_note,
+                NULL as latest_note_date,
+                NULL as last_interaction
+            FROM wines w
+            WHERE {filter_clause}
+            ORDER BY {sort_column} {sort_order}
+            LIMIT :limit OFFSET :offset
+            """
+
+        # Add pagination parameters
+        params_dict["limit"] = params.limit
+        params_dict["offset"] = params.offset
+
+        # Execute the count query
+        count_result = client.rpc(
+            "exec_sql", {"query": count_query, "params": params_dict}
+        ).execute()
+
+        total_count = 0
+        if count_result.data and len(count_result.data) > 0:
+            # Different result format based on the query type
+            if "count" in count_result.data[0]:
+                total_count = count_result.data[0].get("count", 0)
+            else:
+                total_count = count_result.data[0].get("count(*)", 0)
+
+        # Execute the main query
+        result = client.rpc(
+            "exec_sql", {"query": main_query, "params": params_dict}
+        ).execute()
+
+        # Parse the results and convert to EnrichedUserWine objects
+        enriched_wines = []
+        if result.data:
+            for item in result.data:
+                try:
+                    # First validate as Wine
+                    wine_data = {
+                        k: v for k, v in item.items() if k in Wine.__annotations__
+                    }
+                    wine = Wine.model_validate(wine_data)
+
+                    # Then add enrichment fields
+                    enriched_data = {
+                        **wine.model_dump(),
+                        "wishlist": item.get("wishlist", False),
+                        "rating": item.get("rating"),
+                        "latest_note": item.get("latest_note"),
+                        "latest_note_date": item.get("latest_note_date"),
+                        "last_interaction": item.get("last_interaction"),
+                    }
+
+                    enriched_wine = EnrichedUserWine.model_validate(enriched_data)
+                    enriched_wines.append(enriched_wine)
+                except Exception as e:
+                    logger.error(f"Error validating wine data: {e}")
+                    # Continue processing other wines even if one fails
+
+        return PaginatedEnrichedWineResponse(items=enriched_wines, total=total_count)
+
+    except Exception as e:
+        logger.error(f"Error searching wines: {e}")
+        # Return empty result on error
+        return PaginatedEnrichedWineResponse(items=[], total=0)
 
 
 async def get_user_wine(

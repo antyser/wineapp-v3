@@ -69,16 +69,49 @@ client.interceptors.request.use(async (request) => {
 });
 
 // Add response interceptor for logging
-client.interceptors.response.use((response) => {
-  if (response.ok) {
-    console.log(`[Generated API Client] ✅ Response: ${response.status}`);
-  } else {
-    console.error(`[Generated API Client] ❌ Response error: ${response.status}`, {
-      url: response.url,
-    });
+client.interceptors.response.use(
+  async (response) => {
+    if (response.ok) {
+      console.log(`[Generated API Client] ✅ Response: ${response.status}`);
+    } else {
+      // Clone the response to extract error details
+      const clonedResponse = response.clone();
+      
+      try {
+        // Try to get the response body for additional error details
+        const errorData = await clonedResponse.json().catch(() => null);
+        
+        // Log with any available context
+        console.error(`[Generated API Client] ❌ Response error: ${response.status}`, {
+          url: response.url,
+          method: response.request?.method,
+          errorDetails: errorData
+        });
+        
+        // Add extra logging for 422 errors which are validation errors
+        if (response.status === 422) {
+          console.error('[Generated API Client] Validation Error Details:', errorData);
+          
+          // If available in your client implementation, try to log the request
+          if (response.config) {
+            console.error('[Generated API Client] Request Configuration:', {
+              url: response.config.url,
+              method: response.config.method,
+              body: response.config.body || response.config.data
+            });
+          }
+        }
+      } catch (logError) {
+        console.error(`[Generated API Client] ❌ Response error: ${response.status}`, {
+          url: response.url,
+          logError: 'Error extracting response details',
+          errorMessage: logError instanceof Error ? logError.message : String(logError)
+        });
+      }
+    }
+    return response;
   }
-  return response;
-});
+);
 
 // Export the configured client and all generated types/functions
 export { client };

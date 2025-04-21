@@ -20,7 +20,7 @@ export type CellarCreate = {
     name: string;
     sections?: Array<string> | null;
     image_url?: string | null;
-    user_id: string;
+    user_id?: string | null;
 };
 
 /**
@@ -55,6 +55,24 @@ export type CellarUpdate = {
     name?: string | null;
     sections?: Array<string> | null;
     image_url?: string | null;
+};
+
+/**
+ * Full cellar wine model with all fields
+ */
+export type CellarWine = {
+    cellar_id: string;
+    wine_id: string;
+    purchase_date?: string | null;
+    purchase_price?: number | null;
+    quantity?: number;
+    size?: string | null;
+    section?: string | null;
+    condition?: string | null;
+    status?: string;
+    id: string;
+    created_at: string;
+    updated_at: string;
 };
 
 /**
@@ -118,16 +136,17 @@ export type HttpValidationError = {
     detail?: Array<ValidationError>;
 };
 
+/**
+ * Interaction model with all fields
+ */
 export type Interaction = {
-    id?: string | null;
     user_id: string;
     wine_id: string;
     liked?: boolean | null;
     wishlist?: boolean | null;
     rating?: number | null;
     tasted?: boolean | null;
-    created_at?: string | null;
-    updated_at?: string | null;
+    id: string;
 };
 
 /**
@@ -150,6 +169,17 @@ export type InteractionUpdate = {
     wishlist?: boolean | null;
     rating?: number | null;
     tasted?: boolean | null;
+};
+
+/**
+ * Note model with all fields
+ */
+export type Note = {
+    user_id: string;
+    wine_id: string;
+    tasting_date?: string | null;
+    note_text: string;
+    id: string;
 };
 
 /**
@@ -218,10 +248,8 @@ export type SearchType = 'text' | 'image';
 export type UserWineResponse = {
     wine?: Wine | null;
     interaction?: Interaction | null;
-    notes?: Array<SrcWinesSchemasNote>;
-    cellar_wines?: Array<{
-        [key: string]: unknown;
-    }>;
+    notes?: Array<Note>;
+    cellar_wines?: Array<CellarWine>;
 };
 
 export type ValidationError = {
@@ -312,29 +340,6 @@ export type WineUpdate = {
     name_alias?: Array<string> | null;
     winemaker_notes?: string | null;
     professional_reviews?: string | null;
-};
-
-/**
- * Note model with all fields
- */
-export type SrcNotesSchemasNote = {
-    user_id: string;
-    wine_id: string;
-    tasting_date?: string | null;
-    note_text: string;
-    id: string;
-};
-
-export type SrcWinesSchemasNote = {
-    id: string;
-    user_id: string;
-    wine_id: string;
-    cellar_wine_id?: string | null;
-    tasting_date?: string | null;
-    note_text: string;
-    rating_5?: number | null;
-    created_at: string;
-    updated_at: string;
 };
 
 export type GetAllWinesApiV1WinesGetData = {
@@ -938,7 +943,7 @@ export type CreateNoteApiV1NotesPostResponses = {
     /**
      * Successful Response
      */
-    200: SrcNotesSchemasNote;
+    200: Note;
 };
 
 export type CreateNoteApiV1NotesPostResponse = CreateNoteApiV1NotesPostResponses[keyof CreateNoteApiV1NotesPostResponses];
@@ -994,9 +999,7 @@ export type GetNotesByWineApiV1NotesWineWineIdGetResponses = {
     /**
      * Successful Response
      */
-    200: Array<{
-        [key: string]: unknown;
-    }>;
+    200: Array<Note>;
 };
 
 export type GetNotesByWineApiV1NotesWineWineIdGetResponse = GetNotesByWineApiV1NotesWineWineIdGetResponses[keyof GetNotesByWineApiV1NotesWineWineIdGetResponses];
@@ -1055,7 +1058,7 @@ export type GetNoteByIdApiV1NotesNoteIdGetResponses = {
     /**
      * Successful Response
      */
-    200: SrcNotesSchemasNote;
+    200: Note;
 };
 
 export type GetNoteByIdApiV1NotesNoteIdGetResponse = GetNoteByIdApiV1NotesNoteIdGetResponses[keyof GetNoteByIdApiV1NotesNoteIdGetResponses];
@@ -1082,7 +1085,7 @@ export type UpdateNoteApiV1NotesNoteIdPatchResponses = {
     /**
      * Successful Response
      */
-    200: SrcNotesSchemasNote;
+    200: Note;
 };
 
 export type UpdateNoteApiV1NotesNoteIdPatchResponse = UpdateNoteApiV1NotesNoteIdPatchResponses[keyof UpdateNoteApiV1NotesNoteIdPatchResponses];
@@ -1113,7 +1116,7 @@ export type UpsertNoteEndpointApiV1NotesUpsertPostResponses = {
     /**
      * Successful Response
      */
-    200: SrcNotesSchemasNote;
+    200: Note;
 };
 
 export type UpsertNoteEndpointApiV1NotesUpsertPostResponse = UpsertNoteEndpointApiV1NotesUpsertPostResponses[keyof UpsertNoteEndpointApiV1NotesUpsertPostResponses];

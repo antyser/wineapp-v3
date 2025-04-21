@@ -105,6 +105,12 @@ export const getWineForUserApiV1WinesUserWineIdGet = <ThrowOnError extends boole
  */
 export const listCellarsApiV1CellarsGet = <ThrowOnError extends boolean = false>(options?: Options<ListCellarsApiV1CellarsGetData, ThrowOnError>) => {
     return (options?.client ?? _heyApiClient).get<ListCellarsApiV1CellarsGetResponse, ListCellarsApiV1CellarsGetError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars',
         ...options
     });
@@ -116,6 +122,12 @@ export const listCellarsApiV1CellarsGet = <ThrowOnError extends boolean = false>
  */
 export const createCellarApiV1CellarsPost = <ThrowOnError extends boolean = false>(options: Options<CreateCellarApiV1CellarsPostData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).post<CreateCellarApiV1CellarsPostResponse, CreateCellarApiV1CellarsPostError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars',
         ...options,
         headers: {
@@ -131,6 +143,12 @@ export const createCellarApiV1CellarsPost = <ThrowOnError extends boolean = fals
  */
 export const deleteCellarApiV1CellarsCellarIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteCellarApiV1CellarsCellarIdDeleteData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).delete<DeleteCellarApiV1CellarsCellarIdDeleteResponse, DeleteCellarApiV1CellarsCellarIdDeleteError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/{cellar_id}',
         ...options
     });
@@ -142,6 +160,12 @@ export const deleteCellarApiV1CellarsCellarIdDelete = <ThrowOnError extends bool
  */
 export const getCellarApiV1CellarsCellarIdGet = <ThrowOnError extends boolean = false>(options: Options<GetCellarApiV1CellarsCellarIdGetData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<GetCellarApiV1CellarsCellarIdGetResponse, GetCellarApiV1CellarsCellarIdGetError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/{cellar_id}',
         ...options
     });
@@ -153,6 +177,12 @@ export const getCellarApiV1CellarsCellarIdGet = <ThrowOnError extends boolean = 
  */
 export const updateCellarApiV1CellarsCellarIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateCellarApiV1CellarsCellarIdPatchData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).patch<UpdateCellarApiV1CellarsCellarIdPatchResponse, UpdateCellarApiV1CellarsCellarIdPatchError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/{cellar_id}',
         ...options,
         headers: {
@@ -168,6 +198,12 @@ export const updateCellarApiV1CellarsCellarIdPatch = <ThrowOnError extends boole
  */
 export const listCellarWinesApiV1CellarsCellarIdWinesGet = <ThrowOnError extends boolean = false>(options: Options<ListCellarWinesApiV1CellarsCellarIdWinesGetData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<ListCellarWinesApiV1CellarsCellarIdWinesGetResponse, ListCellarWinesApiV1CellarsCellarIdWinesGetError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/{cellar_id}/wines',
         ...options
     });
@@ -179,6 +215,12 @@ export const listCellarWinesApiV1CellarsCellarIdWinesGet = <ThrowOnError extends
  */
 export const getCellarStatisticsApiV1CellarsCellarIdStatisticsGet = <ThrowOnError extends boolean = false>(options: Options<GetCellarStatisticsApiV1CellarsCellarIdStatisticsGetData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<GetCellarStatisticsApiV1CellarsCellarIdStatisticsGetResponse, GetCellarStatisticsApiV1CellarsCellarIdStatisticsGetError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/{cellar_id}/statistics',
         ...options
     });
@@ -190,6 +232,12 @@ export const getCellarStatisticsApiV1CellarsCellarIdStatisticsGet = <ThrowOnErro
  */
 export const removeWineFromCellarApiV1CellarsWinesCellarWineIdDelete = <ThrowOnError extends boolean = false>(options: Options<RemoveWineFromCellarApiV1CellarsWinesCellarWineIdDeleteData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).delete<RemoveWineFromCellarApiV1CellarsWinesCellarWineIdDeleteResponse, RemoveWineFromCellarApiV1CellarsWinesCellarWineIdDeleteError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/wines/{cellar_wine_id}',
         ...options
     });
@@ -201,6 +249,12 @@ export const removeWineFromCellarApiV1CellarsWinesCellarWineIdDelete = <ThrowOnE
  */
 export const getCellarWineApiV1CellarsWinesCellarWineIdGet = <ThrowOnError extends boolean = false>(options: Options<GetCellarWineApiV1CellarsWinesCellarWineIdGetData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<GetCellarWineApiV1CellarsWinesCellarWineIdGetResponse, GetCellarWineApiV1CellarsWinesCellarWineIdGetError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/wines/{cellar_wine_id}',
         ...options
     });
@@ -212,6 +266,12 @@ export const getCellarWineApiV1CellarsWinesCellarWineIdGet = <ThrowOnError exten
  */
 export const updateCellarWineApiV1CellarsWinesCellarWineIdPatch = <ThrowOnError extends boolean = false>(options: Options<UpdateCellarWineApiV1CellarsWinesCellarWineIdPatchData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).patch<UpdateCellarWineApiV1CellarsWinesCellarWineIdPatchResponse, UpdateCellarWineApiV1CellarsWinesCellarWineIdPatchError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/wines/{cellar_wine_id}',
         ...options,
         headers: {
@@ -227,6 +287,12 @@ export const updateCellarWineApiV1CellarsWinesCellarWineIdPatch = <ThrowOnError 
  */
 export const addWineToCellarApiV1CellarsWinesPost = <ThrowOnError extends boolean = false>(options: Options<AddWineToCellarApiV1CellarsWinesPostData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).post<AddWineToCellarApiV1CellarsWinesPostResponse, AddWineToCellarApiV1CellarsWinesPostError, ThrowOnError>({
+        security: [
+            {
+                scheme: 'bearer',
+                type: 'http'
+            }
+        ],
         url: '/api/v1/cellars/wines',
         ...options,
         headers: {

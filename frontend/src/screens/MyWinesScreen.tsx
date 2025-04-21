@@ -1,268 +1,135 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Button, useTheme, Chip, FAB, Divider, Portal, Modal, ActivityIndicator } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, FlatList } from 'react-native';
+import { Text, Button, useTheme, Chip, Searchbar, Divider, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { CellarList } from '../components/cellar';
-import { api } from '../api';
-import { Cellar } from '../api/generated';
-import ConfirmDialog from '../components/common/ConfirmDialog';
+
+// Define a placeholder type for user wine data - replace with actual schema later
+type UserWine = {
+  id: string;
+  name: string;
+  vintage?: string;
+  // Add other relevant fields later
+};
 
 const MyWinesScreen = () => {
   const theme = useTheme();
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('cellar');
 
-  // Cellar state
-  const [cellars, setCellars] = useState<Cellar[]>([]);
-  const [cellarBottleCounts, setCellarBottleCounts] = useState<Record<string, number>>({});
-  const [loadingCellars, setLoadingCellars] = useState(true);
-  const [cellarError, setCellarError] = useState<string | null>(null);
-
-  // Action modals
-  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
-  const [cellarToDelete, setCellarToDelete] = useState<Cellar | null>(null);
+  // New state for search, filters, and wine data
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userWines, setUserWines] = useState<UserWine[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCellars();
-  }, []);
+    // Replace fetchCellars with fetchUserWines
+    fetchUserWines();
+  }, []); // Add dependencies later for search, sort, filter
 
-  const fetchCellars = async () => {
+  // Placeholder function for fetching user wines
+  const fetchUserWines = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setLoadingCellars(true);
-      setCellarError(null);
-
-      // In a real app, you'd filter by the current user's ID
-      const result = await api.listCellarsApiV1CellarsGet();
-      setCellars(result.data.items);
-
-      // Fetch bottle counts for each cellar
-      const counts: Record<string, number> = {};
-      for (const cellar of result.data.items) {
-        try {
-          const stats = await api.getCellarStatisticsApiV1CellarsCellarIdStatisticsGet({
-            path: { cellar_id: cellar.id }
-          });
-          counts[cellar.id] = stats.data.total_bottles;
-        } catch (err) {
-          console.error(`Failed to fetch statistics for cellar ${cellar.id}:`, err);
-          counts[cellar.id] = 0;
-        }
-      }
-
-      setCellarBottleCounts(counts);
+      // TODO: Implement API call to fetch user wines based on searchQuery, sort, filters
+      // For now, simulate fetching with a delay and empty data
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setUserWines([]); // Start with empty data or mock data
+      console.log("Fetching user wines with query:", searchQuery); // Placeholder log
     } catch (err) {
-      console.error('Failed to fetch cellars:', err);
-      setCellarError('Failed to load your cellars. Please try again.');
+      console.error('Failed to fetch user wines:', err);
+      setError('Failed to load your wines. Please try again.');
     } finally {
-      setLoadingCellars(false);
+      setIsLoading(false);
     }
   };
 
-  const handleCellarPress = (cellar: Cellar) => {
-    navigation.navigate('CellarDetail', { cellarId: cellar.id });
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    // TODO: Debounce this call in a real implementation
+    fetchUserWines();
   };
 
-  const handleEditCellar = (cellar: Cellar) => {
-    navigation.navigate('CellarForm', { cellar });
+  const handleSortPress = () => {
+    // TODO: Implement sort modal/screen navigation
+    console.log("Sort pressed");
   };
 
-  const handleDeleteCellar = (cellar: Cellar) => {
-    setCellarToDelete(cellar);
-    setConfirmDeleteVisible(true);
+  const handleFilterPress = () => {
+    // TODO: Implement filter modal/screen navigation
+    console.log("Filter pressed");
   };
 
-  const confirmDeleteCellar = async () => {
-    if (!cellarToDelete) return;
-
-    try {
-      await api.deleteCellarApiV1CellarsCellarIdDelete({
-        path: { cellar_id: cellarToDelete.id }
-      });
-      setCellars(cellars.filter(c => c.id !== cellarToDelete.id));
-      setConfirmDeleteVisible(false);
-      setCellarToDelete(null);
-    } catch (err) {
-      console.error('Failed to delete cellar:', err);
-      // Could show an error message here
-    }
+  const handleQuickFilterPress = (filterType: string) => {
+    // TODO: Implement quick filter logic
+    console.log("Quick filter pressed:", filterType);
+    // Potentially update filter state and call fetchUserWines()
   };
 
-  const handleAddCellar = () => {
-    navigation.navigate('CellarForm');
-  };
-
-  const handleAddWine = () => {
-    if (activeTab === 'cellar' && cellars.length > 0) {
-      // Navigate to wine search with context about being in cellars tab
-      navigation.navigate('WineSearch', {
-        returnScreen: 'MyWines',
-        context: 'cellar'
-      });
-    } else if (activeTab === 'wishlist') {
-      // Navigate to wine search with wishlist context
-      navigation.navigate('WineSearch', {
-        returnScreen: 'MyWines',
-        context: 'wishlist'
-      });
-    } else if (activeTab === 'tastings') {
-      // Navigate to wine search with tasting note context
-      navigation.navigate('WineSearch', {
-        returnScreen: 'MyWines',
-        context: 'tastingNote'
-      });
-    } else {
-      // If in cellars tab but no cellars exist, create cellar first
-      handleAddCellar();
-    }
-  };
+  const renderWineItem = ({ item }: { item: UserWine }) => (
+    <View style={styles.wineItem}>
+      <Text>{item.name} {item.vintage ? `(${item.vintage})` : ''}</Text>
+      {/* Add more details later */}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.tabContainer}>
-        <Chip
-          selected={activeTab === 'cellar'}
-          onPress={() => setActiveTab('cellar')}
-          style={styles.tab}
-          selectedColor={theme.colors.primary}
-        >
-          My Cellar
-        </Chip>
-        <Chip
-          selected={activeTab === 'wishlist'}
-          onPress={() => setActiveTab('wishlist')}
-          style={styles.tab}
-          selectedColor={theme.colors.primary}
-        >
-          Wishlist
-        </Chip>
-        <Chip
-          selected={activeTab === 'tastings'}
-          onPress={() => setActiveTab('tastings')}
-          style={styles.tab}
-          selectedColor={theme.colors.primary}
-        >
-          Tastings
-        </Chip>
+      {/* Header: Search, Sort, Filter */}
+      <View style={styles.headerContainer}>
+        <Searchbar
+          placeholder="Search your wines..."
+          onChangeText={handleSearch}
+          value={searchQuery}
+          style={styles.searchBar}
+        />
+        <View style={styles.actionsContainer}>
+          <Button onPress={handleSortPress} icon="sort">Sort</Button>
+          <Button onPress={handleFilterPress} icon="filter-variant">Filter</Button>
+        </View>
+      </View>
+
+      {/* Quick Filters */}
+      <View style={styles.quickFilterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <Chip style={styles.chip} onPress={() => handleQuickFilterPress('Red')}>Red</Chip>
+          <Chip style={styles.chip} onPress={() => handleQuickFilterPress('White')}>White</Chip>
+          <Chip style={styles.chip} onPress={() => handleQuickFilterPress('Sparkling')}>Sparkling</Chip>
+          <Chip style={styles.chip} onPress={() => handleQuickFilterPress('France')}>🇫🇷 France</Chip>
+          {/* Add more quick filters later, potentially dynamically */}
+        </ScrollView>
       </View>
 
       <Divider />
 
-      {activeTab === 'cellar' && (
-        <View style={styles.content}>
-          {cellars.length > 0 ? (
-            <CellarList
-              cellars={cellars}
-              cellarBottleCounts={cellarBottleCounts}
-              loading={loadingCellars}
-              error={cellarError || undefined}
-              onCellarPress={handleCellarPress}
-              onEditCellar={handleEditCellar}
-              onDeleteCellar={handleDeleteCellar}
-              onAddCellar={handleAddCellar}
-            />
-          ) : loadingCellars ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" />
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text variant="bodyLarge" style={styles.emptyText}>
-                You don't have any cellars yet. Create one to get started!
-              </Text>
-              <Button
-                mode="contained"
-                onPress={handleAddCellar}
-                style={styles.emptyButton}
-              >
-                Create Cellar
-              </Button>
-            </View>
-          )}
-        </View>
-      )}
-
-      {activeTab === 'wishlist' && (
-        <ScrollView style={styles.content}>
-          <Text variant="titleLarge" style={styles.sectionTitle}>
-            Wishlist
-          </Text>
-
-          {/* Empty state for now */}
+      {/* Main Content: Wine List */}
+      <View style={styles.content}>
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" />
+          </View>
+        ) : error ? (
+          <View style={styles.centered}>
+            <Text style={styles.errorText}>{error}</Text>
+            <Button onPress={fetchUserWines}>Retry</Button>
+          </View>
+        ) : userWines.length > 0 ? (
+          <FlatList
+            data={userWines}
+            renderItem={renderWineItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+          />
+        ) : (
           <View style={styles.emptyState}>
             <Text variant="bodyLarge" style={styles.emptyText}>
-              Your wishlist is empty. Add wines you want to try!
+              No wines found matching your criteria.
             </Text>
-            <Button
-              mode="contained"
-              onPress={handleAddWine}
-              style={styles.emptyButton}
-            >
-              Add to Wishlist
-            </Button>
+            {/* Optional: Add a button to clear filters or search */}
           </View>
-        </ScrollView>
-      )}
-
-      {activeTab === 'tastings' && (
-        <ScrollView style={styles.content}>
-          <Text variant="titleLarge" style={styles.sectionTitle}>
-            Tasting Notes
-          </Text>
-
-          {/* Empty state for now */}
-          <View style={styles.emptyState}>
-            <Text variant="bodyLarge" style={styles.emptyText}>
-              You haven't added any tasting notes yet.
-            </Text>
-            <Button
-              mode="contained"
-              onPress={handleAddWine}
-              style={styles.emptyButton}
-            >
-              Add Tasting Note
-            </Button>
-          </View>
-        </ScrollView>
-      )}
-
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={handleAddWine}
-      />
-
-      <Portal>
-        <Modal
-          visible={confirmDeleteVisible}
-          onDismiss={() => setConfirmDeleteVisible(false)}
-          contentContainerStyle={styles.modalContent}
-        >
-          <Text variant="titleMedium" style={styles.modalTitle}>
-            Delete Cellar
-          </Text>
-          <Text variant="bodyMedium" style={styles.modalText}>
-            Are you sure you want to delete "{cellarToDelete?.name}"? This action cannot be undone.
-          </Text>
-          <View style={styles.modalActions}>
-            <Button
-              mode="outlined"
-              onPress={() => setConfirmDeleteVisible(false)}
-              style={styles.modalButton}
-            >
-              Cancel
-            </Button>
-            <Button
-              mode="contained"
-              onPress={confirmDeleteCellar}
-              style={[styles.modalButton, styles.deleteButton]}
-              buttonColor="#D32F2F"
-            >
-              Delete
-            </Button>
-          </View>
-        </Modal>
-      </Portal>
+        )}
+      </View>
     </SafeAreaView>
   );
 };
@@ -270,15 +137,28 @@ const MyWinesScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#F9F9F9', // Slightly off-white background
   },
-  tabContainer: {
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  searchBar: {
+    marginBottom: 8,
+  },
+  actionsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 16,
+    justifyContent: 'flex-start', // Align actions to the start
+    alignItems: 'center',
+    gap: 8, // Add gap between buttons
   },
-  tab: {
-    marginHorizontal: 4,
+  quickFilterContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  chip: {
+    marginRight: 8, // Space between chips
   },
   content: {
     flex: 1,
@@ -287,54 +167,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
   },
-  sectionTitle: {
+  errorText: {
+    color: 'red',
     marginBottom: 16,
-    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  listContent: {
     paddingHorizontal: 16,
+    paddingBottom: 16, // Add padding at the bottom of the list
+  },
+  wineItem: {
+    backgroundColor: 'white',
+    padding: 16,
+    marginBottom: 12, // Space between items
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee', // Subtle border
   },
   emptyState: {
+    flex: 1, // Take remaining space
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-    marginTop: 40,
   },
   emptyText: {
     textAlign: 'center',
     marginBottom: 16,
-  },
-  emptyButton: {
-    marginTop: 8,
-  },
-  fab: {
-    position: 'absolute',
-    margin: 16,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#8E2430',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    margin: 20,
-    borderRadius: 8,
-  },
-  modalTitle: {
-    marginBottom: 16,
-    fontWeight: 'bold',
-  },
-  modalText: {
-    marginBottom: 20,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  modalButton: {
-    marginLeft: 10,
-  },
-  deleteButton: {
-    backgroundColor: '#D32F2F',
+    color: '#666', // Lighter text for empty state
   },
 });
 

@@ -1,5 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { Cellar } from '../api/services';
+import { Cellar } from '../api/generated/types.gen';
 
 export type RootStackParamList = {
   Main: NavigatorScreenParams<MainDrawerParamList>;
@@ -21,6 +21,7 @@ export type RootStackParamList = {
   CellarForm: { cellar?: Cellar };
   EditCellar: { cellar?: Cellar };
   CellarStats: { cellarId: string };
+  AddBottles: { wine: any; onBottlesAdded?: () => void };
 
   SearchResults: {
     wines: any[];
