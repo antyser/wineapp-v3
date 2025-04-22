@@ -38,10 +38,13 @@ const AuthContext = createContext<AuthContextType>({
 // Helper to convert Supabase user to our User type
 const convertUser = (supabaseUser: SupabaseUser): User => {
   console.log('Converting Supabase user:', supabaseUser);
+  // Log the is_anonymous field directly from Supabase user object
+  console.log('Supabase user is_anonymous:', supabaseUser.is_anonymous);
+  
   return {
     id: supabaseUser.id,
     email: supabaseUser.email || undefined,
-    isAnonymous: supabaseUser.app_metadata?.provider === 'anonymous' || false,
+    isAnonymous: supabaseUser.is_anonymous ?? false,
   };
 };
 
@@ -107,13 +110,6 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       console.log('Using Supabase URL for auth:', supabaseUrlStr);
       
       try {
-        // Check credentials against expected test user
-        if (email === 'test@example.com' && password === 'password123') {
-          console.log('Using test user credentials');
-        } else {
-          console.warn('Not using test user credentials - sign in may fail');
-        }
-        
         const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,

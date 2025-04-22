@@ -1,0 +1,8 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+      "wine_detail_agent": "./src/ai/chat/graph.py:graph"
+  
+    },
+    "env": ".env"
+  }

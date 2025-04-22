@@ -431,19 +431,14 @@ async def search_wine(
        - Case-insensitive partial `name` match.
        - Exact match within the `name_alias` array.
        - If found (and vintage matches if provided), return the existing wine.
-    2. If not found locally, fetch from Wine-Searcher API and generate AI details in parallel:
+    2. If not found locally, fetch from Wine-Searcher API:
        - Use Wine-Searcher for factual data.
-       - Use AI agent for additional contextual details.
-       - Merge the results with Wine-Searcher data taking precedence for factual fields.
-    3. If Wine-Searcher returns a result:
        - Save/update the result in the `wine_searcher_wines` table.
-       - Create or update the wine in the main `wines` table with the merged data.
-    4. If Wine-Searcher returns nothing but AI generates data:
-       - Create a new wine using the AI-generated data.
-    5. If both sources fail: Create a minimal placeholder wine.
+       - Create or update the wine in the main `wines` table.
+    3. If Wine-Searcher returns nothing: Create a minimal placeholder wine.
 
     Args:
-        wine_name: Name of the wine to search for (typically from AI extraction).
+        wine_name: Name of the wine to search for.
         vintage: Optional vintage to filter by.
         client: Supabase client (optional).
 
@@ -461,36 +456,17 @@ async def search_wine(
     if db_wine:
         return db_wine
 
-    # If not found, fetch from Wine-Searcher and AI in parallel
-    fetch_tasks = []
-
-    # Task 1: Fetch from Wine-Searcher
-    wine_searcher_task = asyncio.create_task(
-        fetch_wine(wine_name=wine_name, vintage=vintage)
-    )
-    fetch_tasks.append(wine_searcher_task)
-
-    # Task 2: Generate wine details using AI
-    query = wine_name
-    if vintage:
-        query = f"{wine_name} {vintage}"
-    ai_details_task = asyncio.create_task(get_wine_details(query))
-    fetch_tasks.append(ai_details_task)
-
-    # Wait for both tasks to complete
-    wine_searcher_wine, ai_wine_details = await asyncio.gather(*fetch_tasks)
-
-    # Initialize a merged wine data dictionary
-    merged_wine_data = {}
+    # If not found, fetch from Wine-Searcher
+    wine_searcher_wine = await fetch_wine(wine_name=wine_name, vintage=vintage)
 
     # Case 1: We have Wine-Searcher data
     if wine_searcher_wine:
         # Save to wine_searcher_wines table
         await save_wine_searcher(wine_searcher_wine)
 
-        # First, convert Wine-Searcher data to our model
+        # Convert Wine-Searcher data to our model
         wine_model = convert_wine_searcher_to_wine(wine_searcher_wine)
-        merged_wine_data = wine_model.model_dump()
+        wine_data = wine_model.model_dump()
 
         # Check if we already have a wine with this wine_searcher_id
         existing_query = (
@@ -503,16 +479,6 @@ async def search_wine(
         if existing_response.data and len(existing_response.data) > 0:
             existing_wine = Wine.model_validate(existing_response.data[0])
 
-            # If the AI also returned data, merge it with the existing wine
-            if ai_wine_details:
-                update_data = merge_ai_wine_data(existing_wine, ai_wine_details)
-                if update_data:
-                    # Only update if we have new fields from AI
-                    updated_wine = await update_wine(
-                        existing_wine.id, WineUpdate(**update_data), client
-                    )
-                    return updated_wine
-
             # If the existing wine has a different name than the search term, add the search term to the name_alias
             if existing_wine.name != wine_name:
                 name_alias = existing_wine.name_alias or []
@@ -524,37 +490,21 @@ async def search_wine(
                     )
             return existing_wine
 
-        # If we have AI details, merge them with Wine-Searcher data
-        if ai_wine_details:
-            # Merge the AI data into the wine model data
-            ai_wine_dict = ai_wine_details.model_dump()
-            merged_wine_data = merge_wine_data(merged_wine_data, ai_wine_dict)
-
         # If the wine_searcher name differs from our search term, add the search term as an alias
-        if merged_wine_data["name"] != wine_name:
+        if wine_data["name"] != wine_name:
             # Initialize name_alias to an empty list if it doesn't exist or is None
-            if (
-                "name_alias" not in merged_wine_data
-                or merged_wine_data["name_alias"] is None
-            ):
-                merged_wine_data["name_alias"] = []
+            if "name_alias" not in wine_data or wine_data["name_alias"] is None:
+                wine_data["name_alias"] = []
 
-            if wine_name not in merged_wine_data["name_alias"]:
-                merged_wine_data["name_alias"].append(wine_name)
+            if wine_name not in wine_data["name_alias"]:
+                wine_data["name_alias"].append(wine_name)
 
-        # Create the wine with merged data
-        wine_create = WineCreate.model_validate(merged_wine_data)
+        # Create the wine
+        wine_create = WineCreate.model_validate(wine_data)
         wine_db = await create_wine(wine_create, client)
         return wine_db
 
-    # Case 2: No Wine-Searcher data but we have AI-generated details
-    elif ai_wine_details:
-        # Use AI-generated data to create the wine
-        wine_create = ai_wine_details
-        wine_db = await create_wine(wine_create, client)
-        return wine_db
-
-    # Case 3: Neither source returned data - create a placeholder
+    # Case 2: No Wine-Searcher data - create a placeholder
     wine_create = WineCreate(
         name=wine_name,
         vintage=vintage,
@@ -582,46 +532,6 @@ def merge_wine_data(primary_data: dict, secondary_data: dict) -> dict:
             merged[key] = value
 
     return merged
-
-
-def merge_ai_wine_data(existing_wine: Wine, ai_wine: WineCreate) -> dict:
-    """
-    Extract fields from AI-generated wine data that aren't already populated in an existing wine.
-
-    Args:
-        existing_wine: Existing wine from the database
-        ai_wine: AI-generated wine data
-
-    Returns:
-        Dictionary with only the fields from AI that add new information
-    """
-    update_data = {}
-    existing_dict = existing_wine.model_dump()
-    ai_dict = ai_wine.model_dump()
-
-    # AI-specific fields to always update if available from AI
-    ai_priority_fields = [
-        "drinking_window",
-        "food_pairings",
-        "tasting_notes",
-        "winemaker_notes",
-        "professional_reviews",
-    ]
-
-    # Add fields from AI data that don't exist or are None in existing wine
-    for key, value in ai_dict.items():
-        # Skip null values from AI
-        if value is None:
-            continue
-
-        # For AI-priority fields, we always take the AI value if it exists
-        if key in ai_priority_fields and value:
-            update_data[key] = value
-        # For other fields, only use AI value if the existing field is empty
-        elif key not in existing_dict or existing_dict[key] is None:
-            update_data[key] = value
-
-    return update_data
 
 
 async def ai_search_wines(
@@ -1021,6 +931,7 @@ async def get_user_wine(
     2. User's interaction with the wine (likes, wishlist, rating, etc.)
     3. User's notes about the wine
     4. User's cellar information for this wine
+    5. Offers from Wine-Searcher for this wine (if available)
 
     The function also uses the user's scan image from search history (if available)
     as the primary image for the wine.
@@ -1031,12 +942,13 @@ async def get_user_wine(
         client: Supabase client (optional, will use default if not provided)
 
     Returns:
-        UserWineResponse with wine information, interaction, notes, and cellar wines
+        UserWineResponse with wine information, interaction, notes, cellar wines, and offers
     """
     from src.cellar.service import get_cellar_wines_by_user_wine
     from src.interactions.service import get_interaction_by_user_wine
     from src.notes.schemas import Note
     from src.notes.service import get_notes_by_user_wine
+    from src.offers.service import get_offers
     from src.search.history.service import get_user_scan_image_for_wine
     from src.wines.schemas import UserWineResponse
 
@@ -1077,12 +989,21 @@ async def get_user_wine(
     if user_scan_image and wine:
         wine.image_url = user_scan_image
 
+    # 6. Get offers from Wine-Searcher if the wine has a wine_searcher_id
+    offers = []
+    if wine and wine.wine_searcher_id:
+        offers = await get_offers(wine_id=wine.wine_searcher_id, client=client)
+        logger.info(
+            f"Found {len(offers)} offers for wine ID {wine_id} from Wine-Searcher"
+        )
+
     # Create and return a properly validated UserWineResponse object
     return UserWineResponse(
         wine=wine,
         interaction=interaction,
         notes=notes or [],
         cellar_wines=cellar_wines or [],
+        offers=offers or [],
     )
 
 

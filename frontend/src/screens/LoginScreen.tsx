@@ -1,161 +1,210 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, HelperText, Portal, Dialog } from 'react-native-paper';
+import { StyleSheet, View, ScrollView, Platform } from 'react-native';
+import { Text, Button, TextInput, ActivityIndicator, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
-import { NavigationProp, ParamListBase } from '@react-navigation/native';
-import Constants from 'expo-constants';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 
-interface LoginScreenProps {
-  navigation: NavigationProp<ParamListBase>;
-}
-
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const [email, setEmail] = useState('test@example.com'); // Pre-filled with test user email
-  const [password, setPassword] = useState('password123'); // Pre-filled with test password
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [showDialog, setShowDialog] = useState(false);
-  const [dialogMessage, setDialogMessage] = useState('');
+const LoginScreen = () => {
+  const { 
+    signInWithGoogle,
+    signInWithApple,
+    signInWithEmailOtp,
+    verifyEmailOtp,
+    isLoading,
+    error,
+    isAuthenticated,
+    user
+  } = useAuth();
   
-  const { signInWithEmailAndPassword, user, error: authError } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const theme = useTheme();
 
-  // Display configuration info for debugging
-  const supabaseUrl = Constants.expoConfig?.extra?.supabaseUrl || process.env.SUPABASE_URL || 'unknown';
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleLogin = async () => {
-    try {
-      setLoading(true);
-      setError('');
-
-      if (!email || !password) {
-        setError('Please enter both email and password');
-        return;
-      }
-
-      console.log('Attempting login with:', email, password);
-      console.log('Using Supabase URL from config:', supabaseUrl);
-      
-      // Use the contextual sign-in method
-      const success = await signInWithEmailAndPassword(email, password);
-
-      console.log('Login result:', success, 'Current user:', user);
-
-      if (success) {
-        // Successfully signed in
-        setDialogMessage(`Successfully logged in as ${email}!`);
-        setShowDialog(true);
-        
-        // Navigate to Home screen after showing the success dialog
-        setTimeout(() => {
-          setShowDialog(false);
-          navigation.navigate('Main');
-        }, 2000);
+  // If user becomes authenticated, navigate away (e.g., back to Main)
+  React.useEffect(() => {
+    // Check specifically if the user is NOT anonymous
+    if (isAuthenticated && user && !user.isAnonymous) {
+      console.log('User authenticated (non-anonymous), navigating away from LoginScreen');
+      // Optional: Navigate back or to a specific screen upon successful login
+      if (navigation.canGoBack()) {
+        navigation.goBack();
       } else {
-        // Check for auth context error
-        if (authError) {
-          setError(authError);
-        } else {
-          setError('Failed to sign in. Please check your credentials.');
-        }
+        // If cannot go back (e.g., app started here), navigate to main
+        navigation.replace('Main', { screen: 'Home' }); // Use replace to avoid back button to login
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
-    } finally {
-      setLoading(false);
     }
+  }, [isAuthenticated, user, navigation]);
+
+  const handleGoogleSignIn = async () => {
+    setLocalLoading(true);
+    setLocalError(null);
+    await signInWithGoogle();
+    // Auth context handles state update and navigation via useEffect
+    setLocalLoading(false);
   };
 
+  const handleAppleSignIn = async () => {
+    setLocalLoading(true);
+    setLocalError(null);
+    await signInWithApple();
+    // Auth context handles state update and navigation via useEffect
+    setLocalLoading(false);
+  };
+
+  const handleSendOtp = async () => {
+    if (!email) {
+      setLocalError('Please enter your email address.');
+      return;
+    }
+    setLocalLoading(true);
+    setLocalError(null);
+    const success = await signInWithEmailOtp(email);
+    if (success) {
+      setOtpSent(true);
+      setLocalError(null);
+    } else {
+      setLocalError(error || 'Failed to send OTP. Please check your email address.');
+    }
+    setLocalLoading(false);
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp) {
+      setLocalError('Please enter the OTP code.');
+      return;
+    }
+    setLocalLoading(true);
+    setLocalError(null);
+    await verifyEmailOtp(email, otp);
+    // Auth context handles state update and navigation via useEffect
+    setLocalLoading(false);
+     // We rely on the useEffect to navigate away if successful
+    if (!isAuthenticated) {
+       setLocalError(error || 'Invalid or expired OTP code.')
+    }
+  };
+  
+  // Combine local and global loading/error states
+  const displayLoading = isLoading || localLoading;
+  const displayError = localError || error;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            <Text variant="headlineLarge" style={styles.title}>
-              Sign In
-            </Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Welcome to Wine App! Sign in with your test account.
-            </Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScrollView contentContainerStyle={styles.contentContainer}>
+        <Text variant="headlineMedium" style={styles.title}>Welcome Back</Text>
+        <Text variant="bodyMedium" style={styles.subtitle}>Sign in or create an account</Text>
+        
+        {/* Global Error Display */}       
+        {displayError && (
+           <Text style={styles.errorText}>{displayError}</Text>
+        )}
+        
+        {/* Loading Indicator */} 
+        {displayLoading && (
+          <ActivityIndicator animating={true} size="large" style={styles.loadingIndicator} />
+        )}
 
-            {authError ? (
-              <View style={styles.errorContainer}>
-                <Text variant="bodyMedium" style={styles.errorText}>
-                  {authError}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.form}>
-              <TextInput
-                label="Email"
-                value={email}
-                onChangeText={setEmail}
-                mode="outlined"
-                autoCapitalize="none"
-                keyboardType="email-address"
-                style={styles.input}
-              />
-
-              <TextInput
-                label="Password"
-                value={password}
-                onChangeText={setPassword}
-                mode="outlined"
-                secureTextEntry
-                style={styles.input}
-              />
-
-              {error ? (
-                <HelperText type="error" visible={!!error}>
-                  {error}
-                </HelperText>
-              ) : null}
-
+        {!otpSent ? (
+          <>
+            {/* --- Social Logins --- */} 
+            <Button
+              mode="outlined"
+              onPress={handleGoogleSignIn}
+              style={styles.button}
+              icon="google"
+              disabled={displayLoading}
+              textColor={theme.colors.onSurface} // Ensure text is visible
+              labelStyle={styles.buttonLabel}
+            >
+              Sign in with Google
+            </Button>
+            
+            {Platform.OS === 'ios' && ( // Apple Sign in only on iOS
               <Button
-                mode="contained"
-                onPress={handleLogin}
-                loading={loading}
-                disabled={loading}
+                mode="outlined"
+                onPress={handleAppleSignIn}
                 style={styles.button}
+                icon="apple"
+                disabled={displayLoading}
+                textColor={theme.colors.onSurface}
+                labelStyle={styles.buttonLabel}
               >
-                Sign In
+                Sign in with Apple
               </Button>
-
-              <View style={styles.testUserInfo}>
-                <Text variant="bodySmall" style={styles.testUserText}>
-                  For testing, use these credentials:
-                </Text>
-                <Text variant="bodySmall" style={styles.testUserText}>
-                  Email: test@example.com
-                </Text>
-                <Text variant="bodySmall" style={styles.testUserText}>
-                  Password: password123
-                </Text>
-                <Text variant="bodySmall" style={styles.testUserText}>
-                  Supabase URL: {supabaseUrl}
-                </Text>
-              </View>
+            )}
+            
+            {/* --- Divider --- */} 
+            <View style={styles.dividerContainer}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <Portal>
-        <Dialog visible={showDialog} onDismiss={() => setShowDialog(false)}>
-          <Dialog.Title>Success</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">{dialogMessage}</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowDialog(false)}>OK</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+            
+            {/* --- Email OTP Input --- */} 
+            <TextInput
+              label="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              disabled={displayLoading}
+            />
+            <Button
+              mode="contained"
+              onPress={handleSendOtp}
+              style={styles.button}
+              disabled={displayLoading || !email}
+              labelStyle={styles.buttonLabel}
+            >
+              Send Login Code
+            </Button>
+          </>
+        ) : (
+          <> 
+            {/* --- OTP Verification --- */} 
+            <Text style={styles.infoText}>
+              Enter the 6-digit code sent to {email}
+            </Text>
+            <TextInput
+              label="OTP Code"
+              value={otp}
+              onChangeText={setOtp}
+              mode="outlined"
+              style={styles.input}
+              keyboardType="number-pad"
+              maxLength={6}
+              disabled={displayLoading}
+            />
+            <Button
+              mode="contained"
+              onPress={handleVerifyOtp}
+              style={styles.button}
+              disabled={displayLoading || !otp || otp.length !== 6}
+              labelStyle={styles.buttonLabel}
+            >
+              Verify Code & Sign In
+            </Button>
+             <Button
+              mode="text"
+              onPress={() => { setOtpSent(false); setOtp(''); setLocalError(null); }} 
+              style={styles.linkButton}
+              disabled={displayLoading}
+            >
+              Use a different email
+            </Button>
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -165,14 +214,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  scrollContent: {
+  contentContainer: {
     flexGrow: 1,
-  },
-  content: {
-    flex: 1,
     padding: 24,
     justifyContent: 'center',
   },
@@ -186,34 +229,44 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'center',
   },
-  form: {
-    width: '100%',
+  errorText: {
+    color: '#D32F2F',
+    marginBottom: 16,
   },
-  input: {
+  loadingIndicator: {
     marginBottom: 16,
   },
   button: {
     marginTop: 8,
     marginBottom: 24,
   },
-  testUserInfo: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
+  buttonLabel: {
+    fontWeight: 'bold',
   },
-  testUserText: {
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  errorContainer: {
-    backgroundColor: '#FFEBEE',
-    padding: 16,
-    borderRadius: 8,
+  input: {
     marginBottom: 16,
   },
-  errorText: {
-    color: '#D32F2F',
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#666666',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    color: '#666666',
+  },
+  infoText: {
+    marginBottom: 16,
+    color: '#666666',
+  },
+  linkButton: {
+    marginTop: 8,
+    marginBottom: 24,
   },
 });
 

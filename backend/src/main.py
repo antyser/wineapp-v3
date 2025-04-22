@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from supabase import Client
 
 from src.cellar import cellar_router
+from src.chat import chat_router
 from src.core import get_supabase_client, settings
 from src.interactions import interaction_router
 from src.notes import notes_router
@@ -31,6 +32,7 @@ app.include_router(cellar_router, prefix=settings.API_V1_STR)
 app.include_router(search_history_router, prefix=settings.API_V1_STR)
 app.include_router(notes_router, prefix=settings.API_V1_STR)
 app.include_router(interaction_router, prefix=settings.API_V1_STR)
+app.include_router(chat_router, prefix=settings.API_V1_STR)
 
 # API routes will be included here as we develop each domain
 # For now, just include some basic endpoints

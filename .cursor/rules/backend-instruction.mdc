@@ -27,7 +27,7 @@ Okay, here are the updated instructions with the addition of `black` and `ruff`:
 4.  Keep code Simple and clear.
 5.  Use List Comprehensions where appropriate.
 6.  Handle Exceptions using `try-except` blocks.
-7.  Use `uv` for dependency management (as a virtual environment alternative).
+7.  AWLAYS Use `uv` for dependency management, don't use pip directly.
 8.  Write Tests to ensure code reliability.
 9.  Use Type Hints for better code clarity.
 10. Avoid Global Variables.

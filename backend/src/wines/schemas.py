@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_serializer
 
 from src.cellar.schemas import CellarWine
+from src.crawler.wine_searcher import WineSearcherOffer
 from src.interactions.schemas import Interaction
 from src.models import DBBaseModel
 from src.notes.schemas import Note
@@ -139,6 +140,7 @@ class UserWineResponse(BaseModel):
     interaction: Optional[Interaction] = None
     notes: List[Note] = Field(default_factory=list)
     cellar_wines: Optional[List[CellarWine]] = []
+    offers: Optional[List[WineSearcherOffer]] = []
 
 
 # Schema for enriched user wine data (combines wine with user interaction data)
