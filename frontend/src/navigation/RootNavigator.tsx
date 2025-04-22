@@ -14,6 +14,7 @@ import AddBottlesScreen from '../screens/AddBottlesScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import NoteScreen from '../screens/TastingNoteScreen';
+import WineOffersScreen from '../screens/WineOffersScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -64,10 +65,6 @@ export default function RootNavigator() {
         <Stack.Screen
           name="CellarForm"
           component={CellarFormScreen}
-        />
-        <Stack.Screen
-          name="EditCellar"
-          component={CellarFormScreen}
           options={{ title: 'Edit Cellar' }}
         />
         <Stack.Screen
@@ -83,6 +80,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="SearchResults"
           component={SearchResultsScreen}
+        />
+
+        <Stack.Screen
+          name="WineOffers"
+          component={WineOffersScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

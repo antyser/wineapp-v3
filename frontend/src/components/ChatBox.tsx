@@ -1,11 +1,10 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
-import { Text, Button, TextInput, MD3Colors, Chip } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import { Text, Button, TextInput, MD3Colors, IconButton, Chip } from 'react-native-paper';
 import Markdown from 'react-native-markdown-display';
 import { useAuth } from '../auth/AuthContext';
 import { wineChatApiV1ChatWinePost } from '../api/generated/sdk.gen';
-import { Message, MessageContent } from '../api/generated/types.gen';
+import { Message } from '../api/generated/types.gen';
 
 // Default model to use
 const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
@@ -16,15 +15,29 @@ interface UIMessage {
   content: string;
   role: 'user' | 'assistant';
   timestamp: Date;
-  followup_questions?: string[];
+  followup_questions?: string[]; // Match API property name
 }
 
-const ChatScreen = () => {
+interface ChatBoxProps {
+  wineName?: string;
+  initialContext?: string;
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+const ChatBox: React.FC<ChatBoxProps> = ({ 
+  wineName, 
+  initialContext,
+  isVisible, 
+  onClose 
+}) => {
+  const initialMessage = `Hello! I'm your wine assistant. What would you like to know about ${wineName || 'this wine'}?`;
+  
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<UIMessage[]>([
     {
       id: '0',
-      content: "Hello! I'm your wine assistant. Ask me anything about wines, food pairings, or recommendations based on your preferences.",
+      content: initialMessage,
       role: 'assistant',
       timestamp: new Date(),
       followup_questions: [
@@ -37,6 +50,23 @@ const ChatScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { getToken } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+
+  // Reset messages when the wine changes or modal becomes visible
+  useEffect(() => {
+    if (isVisible) {
+      setMessages([{
+        id: Date.now().toString(),
+        content: initialMessage,
+        role: 'assistant',
+        timestamp: new Date(),
+        followup_questions: [
+          "What food pairs well with this wine?",
+          "Tell me about the winery",
+          "What's the drinking window for this wine?"
+        ]
+      }]);
+    }
+  }, [isVisible, wineName, initialMessage]);
 
   useEffect(() => {
     // Delay scrolling slightly to ensure the list is fully rendered
@@ -68,11 +98,24 @@ const ChatScreen = () => {
       const token = await getToken();
       if (!token) throw new Error('Not authenticated');
 
-      // Convert UI messages to the API message format
-      const apiMessages: Message[] = messages.map(msg => ({
+      // Prepare context if available
+      let apiMessages: Message[] = [];
+      
+      // Add initial context about the wine if provided
+      if (initialContext) {
+        apiMessages.push({
+          role: 'assistant',
+          content: { text: `The user is asking about ${wineName}. Here's some context about this wine: ${initialContext}` }
+        });
+      }
+      
+      // Add conversation history
+      const historyMessages = messages.map(msg => ({
         role: msg.role,
         content: { text: msg.content }
       }));
+      
+      apiMessages = [...apiMessages, ...historyMessages];
       
       // Add the user message to the API messages
       apiMessages.push({
@@ -82,7 +125,7 @@ const ChatScreen = () => {
 
       console.log("Sending messages to API:", apiMessages);
 
-      // Use the SDK to make the API call
+      // Use the SDK to make the API call for the response
       const response = await wineChatApiV1ChatWinePost({
         headers: {
           Authorization: `Bearer ${token}`
@@ -139,8 +182,9 @@ const ChatScreen = () => {
       
       setIsLoading(false);
     }
-  }, [inputText, getToken, messages]);
+  }, [inputText, getToken, messages, wineName, initialContext]);
 
+  // Handle followup question selection
   const handleFollowupQuestion = (question: string) => {
     sendMessage(question);
   };
@@ -148,11 +192,11 @@ const ChatScreen = () => {
   const renderMessage = ({ item }: { item: UIMessage }) => {
     const isUser = item.role === 'user';
     
-    console.log("Rendering message:", item);
-    console.log("Has followup questions:", item.followup_questions ? "yes" : "no");
+    console.log("Rendering ChatBox message:", item);
+    console.log("Message has followup questions:", item.followup_questions ? "yes" : "no");
     
     if (item.followup_questions) {
-      console.log("Followup questions:", item.followup_questions);
+      console.log("ChatBox followup questions:", item.followup_questions);
     }
 
     return (
@@ -177,15 +221,25 @@ const ChatScreen = () => {
     );
   };
 
+  if (!isVisible) return null;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+    <Modal
+      visible={isVisible}
+      onRequestClose={onClose}
+      animationType="slide"
+      transparent={false}
+    >
+      <View style={styles.container}>
         <View style={styles.header}>
-          <Text variant="headlineMedium">Wine Assistant</Text>
+          <IconButton 
+            icon="close" 
+            onPress={onClose} 
+            style={styles.closeButton}
+          />
+          <Text variant="headlineMedium">
+            {wineName ? `About ${wineName}` : 'Wine Assistant'}
+          </Text>
         </View>
         
         <FlatList
@@ -227,27 +281,32 @@ const ChatScreen = () => {
           </View>
         )}
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            mode="outlined"
-            style={styles.input}
-            placeholder="Ask about wines..."
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            disabled={isLoading}
-          />
-          <Button
-            mode="contained"
-            onPress={() => sendMessage()}
-            disabled={!inputText.trim() || isLoading}
-            style={styles.sendButton}
-          >
-            Send
-          </Button>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        >
+          <View style={styles.inputContainer}>
+            <TextInput
+              mode="outlined"
+              style={styles.input}
+              placeholder={`Ask about ${wineName || 'this wine'}...`}
+              value={inputText}
+              onChangeText={setInputText}
+              multiline
+              disabled={isLoading}
+            />
+            <Button
+              mode="contained"
+              onPress={() => sendMessage()}
+              disabled={!inputText.trim() || isLoading}
+              style={styles.sendButton}
+            >
+              Send
+            </Button>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   );
 };
 
@@ -261,6 +320,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EDF1F7',
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    left: 8,
   },
   messageList: {
     flex: 1,
@@ -371,4 +436,4 @@ const markdownStyles = {
   },
 };
 
-export default ChatScreen;
+export default ChatBox; 

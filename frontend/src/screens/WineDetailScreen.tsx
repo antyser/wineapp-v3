@@ -1,22 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Appbar, Divider, Text, Button, Chip, Portal, Dialog, useTheme, RadioButton, TextInput } from 'react-native-paper';
+import { Appbar, Divider, Text, Button, useTheme } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineDetailCard from '../components/WineDetailCard';
+import ChatBox from '../components/ChatBox';
 import { Wine } from '../types/wine';
+import { WineSearcherOffer } from '../api/generated/types.gen';
 import { 
   getOneWineApiV1WinesWineIdGet,
   getWineForUserApiV1WinesUserWineIdGet,
   toggleInteractionApiV1InteractionsWineWineIdToggleActionPost,
   rateWineApiV1InteractionsWineWineIdRatePost,
   getNotesByWineApiV1NotesWineWineIdGet,
-  listCellarsApiV1CellarsGet,
-  createCellarApiV1CellarsPost,
-  addWineToCellarApiV1CellarsWinesPost
 } from '../api';
-import { Cellar } from '../api/generated';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -52,6 +50,7 @@ const WineDetailScreen = () => {
   const theme = useTheme();
   const { wineId, wine: routeWine } = route.params;
 
+  const [isChatVisible, setIsChatVisible] = useState(false);
   const [wine, setWine] = useState<Wine | null>(routeWine || null);
   const [loading, setLoading] = useState(!routeWine);
   const [error, setError] = useState('');
@@ -61,6 +60,7 @@ const WineDetailScreen = () => {
   const [userRating, setUserRating] = useState(0);
   const [hasExistingNotes, setHasExistingNotes] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [offers, setOffers] = useState<WineSearcherOffer[]>([]);
   
   useEffect(() => {
     // If we already have the wine from route params, use it directly
@@ -106,6 +106,11 @@ const WineDetailScreen = () => {
             setIsLiked(interaction.liked || false);
             setIsTasted(interaction.tasted || false);
             setUserRating(interaction.rating || 0);
+          }
+          
+          // Store offers if available
+          if (userWineResponse.data.offers && userWineResponse.data.offers.length > 0) {
+            setOffers(userWineResponse.data.offers);
           }
           
           // Check for existing notes
@@ -243,7 +248,7 @@ const WineDetailScreen = () => {
       // Optimistically update UI
       setUserRating(rating);
       
-      // Call API to set rating
+      // Call API to set rating (the API already supports decimal ratings)
       const response = await rateWineApiV1InteractionsWineWineIdRatePost({
         path: { wine_id: wine.id },
         query: { rating }
@@ -332,6 +337,49 @@ const WineDetailScreen = () => {
     }
   };
 
+  // Prepare context information for the AI
+  const getWineContext = () => {
+    if (!wine) return '';
+    
+    return `
+      Wine: ${wine.name || ''}
+      ${wine.vintage ? `Vintage: ${wine.vintage}` : ''}
+      ${wine.region ? `Region: ${wine.region}` : ''}
+      ${wine.country ? `Country: ${wine.country}` : ''}
+      ${wine.varietal ? `Grape Variety: ${wine.varietal}` : ''}
+      ${wine.winery ? `Producer: ${wine.winery}` : ''}
+      ${wine.description ? `Description: ${wine.description}` : ''}
+      ${wine.average_price ? `Price Range: $${wine.average_price}` : ''}
+      ${wine.drinking_window ? `Drinking Window: ${wine.drinking_window}` : ''}
+      ${wine.food_pairings ? `Food Pairings: ${wine.food_pairings}` : ''}
+      ${wine.tasting_notes ? `Tasting Notes: ${wine.tasting_notes}` : ''}
+    `.trim();
+  };
+
+  // Format wine name with vintage if available and not equal to 1
+  const getFormattedWineName = () => {
+    if (!wine) return '';
+    if (wine.vintage && wine.vintage !== '1' && wine.name) {
+      return `${wine.vintage} ${wine.name}`;
+    }
+    return wine.name || '';
+  };
+
+  // Handle Buy Wine button click
+  const handleBuyWine = () => {
+    if (!wine) return;
+    
+    if (offers && offers.length > 0) {
+      // Navigate to the WineOffers screen instead of showing a modal
+      navigation.navigate('WineOffers', {
+        wineName: getFormattedWineName(),
+        offers: offers
+      });
+    } else {
+      setError('No offers available for this wine.');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -410,10 +458,12 @@ const WineDetailScreen = () => {
             onAddNote={handleAddNote}
             onToggleTasted={handleToggleTasted}
             onRateWine={handleRateWine}
+            onBuyWine={handleBuyWine}
             isInWishlist={isInWishlist}
             isLiked={isLiked}
             isTasted={isTasted}
             rating={userRating}
+            hasOffers={offers && offers.length > 0}
           />
         )}
 
@@ -466,42 +516,26 @@ const WineDetailScreen = () => {
               No information available for this wine.
             </Text>
           )}
+          
+          {/* Ask AI Button */}
+          <Button 
+            mode="outlined" 
+            icon="chat-question"
+            style={styles.askAiButton}
+            onPress={() => setIsChatVisible(true)}
+          >
+            Ask AI about this wine
+          </Button>
         </View>
-
-        {/* Winemaker Notes Section */}
-        {wine?.winemaker_notes && (
-          <View style={styles.section}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Winemaker Notes
-            </Text>
-            <Divider style={styles.divider} />
-            <Text variant="bodyMedium">{wine.winemaker_notes}</Text>
-          </View>
-        )}
-
-        {/* Tasting Notes Section */}
-        {wine?.tasting_notes && (
-          <View style={styles.section}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Tasting Notes
-            </Text>
-            <Divider style={styles.divider} />
-            <Text variant="bodyMedium">{wine.tasting_notes}</Text>
-          </View>
-        )}
-
-        {/* Professional Reviews Section */}
-        {wine?.professional_reviews && (
-          <View style={styles.section}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Professional Reviews
-            </Text>
-            <Divider style={styles.divider} />
-            <Text variant="bodyMedium">{wine.professional_reviews}</Text>
-          </View>
-        )}
-
       </ScrollView>
+      
+      {/* ChatBox component */}
+      <ChatBox 
+        isVisible={isChatVisible}
+        onClose={() => setIsChatVisible(false)}
+        wineName={getFormattedWineName()}
+        initialContext={getWineContext()}
+      />
     </View>
   );
 };
@@ -576,6 +610,8 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#9E9E9E',
     marginBottom: 16,
+    textAlign: 'center',
+    padding: 16,
   },
   insightRow: {
     marginBottom: 12,
@@ -592,89 +628,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
-  compactHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  inlineDivider: {
-    backgroundColor: '#E0E0E0',
-    height: 1,
-    flex: 1,
-    marginLeft: 12,
-  },
-  compactText: {
-    marginBottom: 8,
-    fontSize: 14,
-    lineHeight: 20,
-    fontStyle: 'italic',
-  },
-  compactSection: {
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    backgroundColor: '#F8F8F8',
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#E0E0E0',
-  },
-  compactSectionTitle: {
-    color: '#000000',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  centeredContent: {
-    alignItems: 'center',
-    padding: 16,
-  },
-  radioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-  },
-  input: {
-    marginVertical: 8,
-  },
-  dialogText: {
-    marginBottom: 12,
-  },
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 8,
-  },
-  quantityButton: {
-    margin: 0,
-    minWidth: 40,
-    height: 40,
-  },
-  quantityInput: {
-    width: 60,
-    height: 40,
-    marginHorizontal: 8,
-    textAlign: 'center',
-  },
-  inputContainer: {
+  askAiButton: {
     marginTop: 16,
-  },
-  pickerContainer: {
-    maxHeight: 180,
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-  },
-  dialogScrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-  },
-  dialogHelper: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 16,
-    fontStyle: 'italic',
-  },
+    alignSelf: 'flex-start',
+  }
 });
 
 export default WineDetailScreen;

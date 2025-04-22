@@ -15,7 +15,7 @@ import { Wine } from '../types/wine';
  * - Shows wine image
  * - Provides action buttons for wine management (wishlist, cellar, notes, consumption)
  * - Handles interaction states (e.g., whether a wine is in a wishlist)
- * - Includes rating functionality
+ * - Includes rating functionality with support for half-stars (fractional ratings)
  * - Supports like and wishlist toggles that save to user interactions
  * 
  * Used in:
@@ -30,10 +30,12 @@ interface WineDetailCardProps {
   onAddNote?: () => void;
   onToggleTasted?: () => void;
   onRateWine?: (rating: number) => void;
+  onBuyWine?: () => void;
   isInWishlist?: boolean;
   isLiked?: boolean;
   isTasted?: boolean;
   rating?: number;
+  hasOffers?: boolean;
 }
 
 const WineDetailCard: React.FC<WineDetailCardProps> = ({
@@ -44,12 +46,31 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
   onAddNote,
   onToggleTasted,
   onRateWine,
+  onBuyWine,
   isInWishlist = false,
   isLiked = false,
   isTasted = false,
   rating = 0,
+  hasOffers = false,
 }) => {
   const theme = useTheme();
+
+  // Helper function to determine which star icon to use
+  const getStarIcon = (position: number, rating: number): string => {
+    if (rating >= position) {
+      return 'star'; // Full star
+    } else if (rating >= position - 0.5) {
+      return 'star-half-full'; // Half star
+    } else {
+      return 'star-outline'; // Empty star
+    }
+  };
+
+  // Helper function to format rating display
+  const formatRating = (rating: number): string => {
+    // If it's a whole number, don't show decimal places
+    return Number.isInteger(rating) ? rating.toString() : rating.toFixed(1);
+  };
 
   // Function to render star rating
   const renderRating = () => {
@@ -60,10 +81,25 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
       stars.push(
         <IconButton
           key={i}
-          icon={i <= rating ? 'star' : 'star-outline'}
-          iconColor={i <= rating ? '#FFD700' : '#C0C0C0'}
+          icon={getStarIcon(i, rating)}
+          iconColor={'#FFD700'}
           size={24}
-          onPress={() => onRateWine && onRateWine(i)}
+          onPress={() => {
+            // If clicking on a star that's already full or half, give a more precise rating
+            if (i === Math.ceil(rating) && rating % 1 !== 0) {
+              // Clicking on a half star makes it full
+              console.log(`Clicked on half-star position ${i}, updating to full star: ${Math.floor(rating) + 1}`);
+              onRateWine && onRateWine(Math.floor(rating) + 1);
+            } else if (i === Math.floor(rating) && rating % 1 === 0) {
+              // Clicking on a full star makes it half
+              console.log(`Clicked on full star position ${i}, updating to half star: ${i - 0.5}`);
+              onRateWine && onRateWine(i - 0.5);
+            } else {
+              // Normal case - full star
+              console.log(`Setting new rating to: ${i}`);
+              onRateWine && onRateWine(i);
+            }
+          }}
           style={styles.starIcon}
           testID={`star-${i}`}
         />
@@ -153,8 +189,15 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
           {/* Rating component */}
           <View style={styles.ratingContainer}>
             <Text variant="bodyMedium" style={styles.label}>Your Rating: </Text>
-            <View style={styles.starContainer}>
-              {renderRating().map(star => star)}
+            <View style={styles.ratingRow}>
+              <View style={styles.starContainer}>
+                {renderRating().map(star => star)}
+              </View>
+              {rating > 0 && (
+                <Text variant="bodyMedium" style={styles.ratingText}>
+                  ({formatRating(rating)})
+                </Text>
+              )}
             </View>
           </View>
         </View>
@@ -193,6 +236,17 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
           labelStyle={styles.buttonLabel}
         >
           Tasting Note
+        </Button>
+        
+        <Button
+          mode="outlined"
+          onPress={onBuyWine}
+          style={styles.textButton}
+          labelStyle={styles.buttonLabel}
+          icon="tag-outline"
+          disabled={!hasOffers}
+        >
+          View Offers
         </Button>
         
         {/* <TouchableOpacity 
@@ -299,13 +353,15 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   ratingContainer: {
-    marginTop: 8,
-    marginBottom: 8,
+    marginVertical: 8,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   starContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
   },
   starIcon: {
     margin: 0,
@@ -342,12 +398,23 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
   },
+  disabledButton: {
+    borderColor: '#CCCCCC',
+    backgroundColor: '#F0F0F0',
+  },
   buttonLabel: {
     color: '#000000',
     fontSize: 12,
   },
+  disabledButtonLabel: {
+    color: '#999999',
+  },
   activeButtonLabel: {
     color: '#FFFFFF',
+  },
+  ratingText: {
+    marginLeft: 8,
+    color: '#000000',
   },
 });
 

@@ -5,10 +5,7 @@ import { MainDrawerParamList } from './types';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
-import MyWinesScreen from '../screens/MyWinesScreen';
-import ChatScreen from '../screens/ChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import TestCellarAddScreen from '../screens/TestCellarAddScreen';
 
 const Drawer = createDrawerNavigator<MainDrawerParamList>();
 
@@ -18,12 +15,15 @@ export default function MainDrawer() {
   return (
     <Drawer.Navigator
       screenOptions={{
-        drawerActiveTintColor: theme.colors.primary,
-        drawerInactiveTintColor: theme.colors.tertiary,
+        drawerActiveTintColor: '#000000', // Black for active items
+        drawerInactiveTintColor: '#444444', // Darker gray for inactive items
         headerStyle: {
           backgroundColor: theme.colors.background,
         },
-        headerTintColor: theme.colors.primary,
+        headerTintColor: '#000000', // Black for header text
+        drawerLabelStyle: {
+          fontWeight: '600', // Make the font slightly bolder
+        },
       }}
     >
       <Drawer.Screen
@@ -32,25 +32,6 @@ export default function MainDrawer() {
         options={{
           drawerIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="home" color={color} size={size} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="MyWines"
-        component={MyWinesScreen}
-        options={{
-          title: 'My Wines',
-          drawerIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="glass-wine" color={color} size={size} />
-          ),
-        }}
-      />
-      <Drawer.Screen
-        name="Chat"
-        component={ChatScreen}
-        options={{
-          drawerIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="chat" color={color} size={size} />
           ),
         }}
       />

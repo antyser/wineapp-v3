@@ -132,6 +132,72 @@ export type CellarWineUpdate = {
     status?: string | null;
 };
 
+/**
+ * Request body for chat API.
+ */
+export type ChatRequest = {
+    /**
+     * List of conversation messages
+     */
+    messages: Array<Message>;
+    /**
+     * Model to use for the chat
+     */
+    model?: string;
+    /**
+     * Whether to stream the response
+     */
+    stream?: boolean;
+};
+
+/**
+ * Response for chat API.
+ */
+export type ChatResponse = {
+    /**
+     * AI assistant response
+     */
+    response: MessageContent;
+    /**
+     * Generated follow-up questions
+     */
+    followup_questions?: Array<string>;
+};
+
+/**
+ * Wine data enriched with user interaction information
+ */
+export type EnrichedUserWine = {
+    name: string;
+    winery?: string | null;
+    vintage?: number | null;
+    region?: string | null;
+    country?: string | null;
+    varietal?: string | null;
+    type?: string | null;
+    price?: number | null;
+    rating?: number | null;
+    wine_searcher_url?: string | null;
+    average_price?: number | null;
+    description?: string | null;
+    name_alias?: Array<string> | null;
+    image_url?: string | null;
+    wine_searcher_id?: string | null;
+    drinking_window?: string | null;
+    food_pairings?: string | null;
+    abv?: string | null;
+    tasting_notes?: string | null;
+    winemaker_notes?: string | null;
+    professional_reviews?: string | null;
+    id: string;
+    created_at: string;
+    updated_at: string;
+    wishlist?: boolean | null;
+    latest_note?: string | null;
+    latest_note_date?: string | null;
+    last_interaction?: string | null;
+};
+
 export type HttpValidationError = {
     detail?: Array<ValidationError>;
 };
@@ -172,6 +238,30 @@ export type InteractionUpdate = {
 };
 
 /**
+ * Chat message model.
+ */
+export type Message = {
+    /**
+     * Role of the message sender
+     */
+    role: 'user' | 'assistant';
+    /**
+     * Content of the message
+     */
+    content: MessageContent;
+};
+
+/**
+ * Content of a chat message.
+ */
+export type MessageContent = {
+    /**
+     * The text content of the message
+     */
+    text: string;
+};
+
+/**
  * Note model with all fields
  */
 export type Note = {
@@ -207,6 +297,16 @@ export type NoteUpsertPayload = {
     wine_id: string;
     tasting_date?: string | null;
     note_text: string;
+};
+
+export type PaginatedEnrichedWineResponse = {
+    items: Array<EnrichedUserWine>;
+    total: number;
+};
+
+export type PaginatedWineResponse = {
+    items: Array<Wine>;
+    total: number;
 };
 
 /**
@@ -249,7 +349,8 @@ export type UserWineResponse = {
     wine?: Wine | null;
     interaction?: Interaction | null;
     notes?: Array<Note>;
-    cellar_wines?: Array<CellarWine>;
+    cellar_wines?: Array<CellarWine> | null;
+    offers?: Array<WineSearcherOffer> | null;
 };
 
 export type ValidationError = {
@@ -316,6 +417,20 @@ export type WineCreate = {
 };
 
 /**
+ * Offer from Wine-Searcher.com
+ */
+export type WineSearcherOffer = {
+    price?: number | null;
+    unit_price?: number | null;
+    description?: string | null;
+    seller_name?: string | null;
+    url?: string | null;
+    seller_address_region?: string | null;
+    seller_address_country?: string | null;
+    name?: string | null;
+};
+
+/**
  * Fields that can be updated
  */
 export type WineUpdate = {
@@ -375,7 +490,7 @@ export type GetAllWinesApiV1WinesGetResponses = {
     /**
      * Successful Response
      */
-    200: Array<Wine>;
+    200: PaginatedWineResponse;
 };
 
 export type GetAllWinesApiV1WinesGetResponse = GetAllWinesApiV1WinesGetResponses[keyof GetAllWinesApiV1WinesGetResponses];
@@ -404,6 +519,42 @@ export type CreateNewWineApiV1WinesPostResponses = {
 };
 
 export type CreateNewWineApiV1WinesPostResponse = CreateNewWineApiV1WinesPostResponses[keyof CreateNewWineApiV1WinesPostResponses];
+
+export type SearchCurrentUserWinesApiV1WinesMyWinesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        query?: string | null;
+        wine_type?: string | null;
+        country?: string | null;
+        grape_variety?: string | null;
+        region?: string | null;
+        winery?: string | null;
+        sort_by?: string | null;
+        sort_order?: string;
+        limit?: number;
+        offset?: number;
+    };
+    url: '/api/v1/wines/my-wines';
+};
+
+export type SearchCurrentUserWinesApiV1WinesMyWinesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SearchCurrentUserWinesApiV1WinesMyWinesGetError = SearchCurrentUserWinesApiV1WinesMyWinesGetErrors[keyof SearchCurrentUserWinesApiV1WinesMyWinesGetErrors];
+
+export type SearchCurrentUserWinesApiV1WinesMyWinesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PaginatedEnrichedWineResponse;
+};
+
+export type SearchCurrentUserWinesApiV1WinesMyWinesGetResponse = SearchCurrentUserWinesApiV1WinesMyWinesGetResponses[keyof SearchCurrentUserWinesApiV1WinesMyWinesGetResponses];
 
 export type DeleteExistingWineApiV1WinesWineIdDeleteData = {
     body?: never;
@@ -1353,6 +1504,31 @@ export type RateWineApiV1InteractionsWineWineIdRatePostResponses = {
 };
 
 export type RateWineApiV1InteractionsWineWineIdRatePostResponse = RateWineApiV1InteractionsWineWineIdRatePostResponses[keyof RateWineApiV1InteractionsWineWineIdRatePostResponses];
+
+export type WineChatApiV1ChatWinePostData = {
+    body: ChatRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/chat/wine';
+};
+
+export type WineChatApiV1ChatWinePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type WineChatApiV1ChatWinePostError = WineChatApiV1ChatWinePostErrors[keyof WineChatApiV1ChatWinePostErrors];
+
+export type WineChatApiV1ChatWinePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ChatResponse;
+};
+
+export type WineChatApiV1ChatWinePostResponse = WineChatApiV1ChatWinePostResponses[keyof WineChatApiV1ChatWinePostResponses];
 
 export type RootGetData = {
     body?: never;

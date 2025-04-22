@@ -20,6 +20,7 @@ interface AuthContextType {
   error: string | null;
   signOut: () => Promise<void>;
   signInWithEmailAndPassword: (email: string, password: string) => Promise<boolean>;
+  getToken: () => Promise<string | null>;
 }
 
 // Create context with default values
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextType>({
   error: null,
   signOut: async () => {},
   signInWithEmailAndPassword: async () => false,
+  getToken: async () => null,
 });
 
 // Helper to convert Supabase user to our User type
@@ -257,6 +259,27 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
+  // In the AuthProvider, add the getToken method
+  const getToken = async (): Promise<string | null> => {
+    try {
+      if (!session) {
+        console.log('No session found, attempting to get a fresh session');
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+          console.error('Error getting session:', error);
+          return null;
+        }
+        // Update the session
+        setSession(data.session);
+        return data.session.access_token;
+      }
+      return session.access_token;
+    } catch (err) {
+      console.error('Error getting token:', err);
+      return null;
+    }
+  };
+
   // Build context value
   const contextValue: AuthContextType = {
     user,
@@ -266,6 +289,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     error,
     signOut: handleSignOut,
     signInWithEmailAndPassword: handleEmailPasswordSignIn,
+    getToken,
   };
 
   return (

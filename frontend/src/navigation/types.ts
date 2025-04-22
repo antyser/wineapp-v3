@@ -1,5 +1,5 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { Cellar } from '../api/generated/types.gen';
+import { Cellar, WineSearcherOffer } from '../api/generated/types.gen';
 
 export type RootStackParamList = {
   Main: NavigatorScreenParams<MainDrawerParamList>;
@@ -23,6 +23,9 @@ export type RootStackParamList = {
   CellarStats: { cellarId: string };
   AddBottles: { wine: any; onBottlesAdded?: () => void };
 
+  // Offers screen
+  WineOffers: { wineName: string; offers: WineSearcherOffer[] };
+
   SearchResults: {
     wines: any[];
     title?: string;
@@ -32,10 +35,7 @@ export type RootStackParamList = {
 
 export type MainDrawerParamList = {
   Home: undefined;
-  MyWines: undefined;
-  Chat: undefined;
   Profile: undefined;
-  TestCellarAdd: undefined;
 };
 
 // Keep for backward compatibility during migration
