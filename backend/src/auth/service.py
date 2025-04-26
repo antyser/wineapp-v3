@@ -41,3 +41,27 @@ async def get_user_by_email(
     except Exception as e:
         logger.error(f"Error getting user by email: {str(e)}")
         return None
+
+
+async def delete_user_by_id(user_id: UUID, client: Optional[Client] = None) -> bool:
+    """
+    Delete a user by their ID using the admin client.
+
+    Args:
+        user_id: The UUID of the user to delete.
+        client: Supabase client (optional, will use default if not provided).
+
+    Returns:
+        True if deletion was successful, False otherwise.
+    """
+    if client is None:
+        client = get_supabase_client() # Ensure this returns an admin client if needed
+
+    try:
+        # Note: Ensure the client used here has admin privileges
+        await client.auth.admin.delete_user(user_id=str(user_id))
+        logger.info(f"Successfully deleted user with ID: {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting user with ID {user_id}: {str(e)}")
+        return False

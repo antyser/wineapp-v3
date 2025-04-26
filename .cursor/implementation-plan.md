@@ -11,7 +11,3 @@ frontend:
 2. stream the ai response
 3. ui improvement
 4. verify the login
-
-
-deployment:
-1. deploy the backend app in vercel

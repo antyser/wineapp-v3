@@ -1,11 +1,12 @@
 import React from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View, ScrollView, Alert } from 'react-native';
 import { Text, Button, Avatar, Divider } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { deleteMeApiV1AuthMeDelete } from '../api/generated/sdk.gen';
 
 const ProfileScreen = () => {
   const { user, isAuthenticated, signOut } = useAuth();
@@ -27,9 +28,35 @@ const ProfileScreen = () => {
   };
 
   const handleDeleteAccount = () => {
-    // This would need to be implemented with your backend
-    console.log('Delete account requested');
-    // Add confirmation dialog and actual account deletion logic
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('Attempting to delete account...');
+              const response = await deleteMeApiV1AuthMeDelete();
+              // Assuming the SDK throws an error on failure or the response indicates success
+              // Check response status if necessary, but 204 No Content is typical
+              console.log('Account deletion successful, signing out...');
+              await signOut();
+              // Optionally navigate to a specific screen after deletion
+              // navigation.navigate('Login'); 
+            } catch (error) {
+              console.error('Error deleting account:', error);
+              Alert.alert('Error', 'Could not delete account. Please try again.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleLoginPress = () => {

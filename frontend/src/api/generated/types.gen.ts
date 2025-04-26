@@ -1530,6 +1530,29 @@ export type WineChatApiV1ChatWinePostResponses = {
 
 export type WineChatApiV1ChatWinePostResponse = WineChatApiV1ChatWinePostResponses[keyof WineChatApiV1ChatWinePostResponses];
 
+export type DeleteMeApiV1AuthMeDeleteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/me';
+};
+
+export type DeleteMeApiV1AuthMeDeleteErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+};
+
+export type DeleteMeApiV1AuthMeDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteMeApiV1AuthMeDeleteResponse = DeleteMeApiV1AuthMeDeleteResponses[keyof DeleteMeApiV1AuthMeDeleteResponses];
+
 export type RootGetData = {
     body?: never;
     path?: never;
