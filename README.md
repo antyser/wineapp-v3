@@ -138,7 +138,6 @@ The storage configuration is handled by the `20240626030000_storage_buckets_rls_
    ```
    ENV=dev
    SUPABASE_URL=http://localhost:54321
-   SUPABASE_ANON_KEY=<your-local-anon-key>
    EXPO_PUBLIC_API_URL=http://localhost:8000
    ```
    
@@ -171,7 +170,6 @@ The storage configuration is handled by the `20240626030000_storage_buckets_rls_
    - Update with your local Supabase project URL and API keys:
    ```
    SUPABASE_URL=http://localhost:54321
-   SUPABASE_ANON_KEY=<your-local-anon-key>
    SUPABASE_SERVICE_ROLE_KEY=<your-local-service-role-key>
    ```
 

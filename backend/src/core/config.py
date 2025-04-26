@@ -6,13 +6,6 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
-load_dotenv()
-
-
-class Environment(str, Enum):
-    DEVELOPMENT = "development"
-    TESTING = "testing"
-    PRODUCTION = "production"
 
 
 class Settings(BaseSettings):
@@ -20,15 +13,13 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Wine App API"
 
     # Environment settings
-    ENVIRONMENT: Environment = Environment.DEVELOPMENT
     DEBUG: bool = True
 
-    # Supabase
-    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
-    SUPABASE_ANON_KEY: str = ""  # Public/anon key
-    SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
-    SUPABASE_DB_NAME: str = ""  # Database name (for test environment)
-    SUPABASE_KEY: Optional[str] = os.getenv("SUPABASE_KEY")
+    # Supabase - Let pydantic-settings load from environment
+    SUPABASE_URL: Optional[str] = None # Or just `str` if always required
+    SUPABASE_SERVICE_KEY: Optional[str] = None # Or just `str` if always required
+    SUPABASE_DB_NAME: str = ""  # Keep if needed for tests, otherwise remove
+    SUPABASE_KEY: Optional[str] = None # Still seems redundant? Consider removing
 
     # CORS
     # Parse BACKEND_CORS_ORIGINS from environment variable if available
@@ -64,31 +55,11 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None
     LOGFIRE_API_KEY: Optional[str] = None
 
-    @property
-    def is_development(self) -> bool:
-        """Check if current environment is development."""
-        return self.ENVIRONMENT == Environment.DEVELOPMENT
-
-    @property
-    def is_test(self) -> bool:
-        """Check if current environment is test."""
-        return self.ENVIRONMENT == Environment.TESTING
-
-    @property
-    def is_production(self) -> bool:
-        """Check if current environment is production."""
-        return self.ENVIRONMENT == Environment.PRODUCTION
-
     class Config:
-        # Choose the right .env file based on environment
-        env_file = (
-            f".env.{os.getenv('ENVIRONMENT', 'development')}"
-            if os.path.exists(f".env.{os.getenv('ENVIRONMENT', 'development')}")
-            else ".env"
-        )
         case_sensitive = True
-        extra = "allow"  # Allow extra fields in settings
+        extra = "allow" # Consider changing to "ignore" or "forbid"
 
 
 # Create a singleton settings instance
 settings = Settings()
+print(settings.SUPABASE_URL)

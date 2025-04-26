@@ -11,8 +11,6 @@ logger = logging.getLogger(__name__)
 # Default local Supabase values for development
 DEFAULT_LOCAL_URL = "http://127.0.0.1:54321"
 DEFAULT_DOCKER_URL = "http://supabase:54321"  # Docker container name
-DEFAULT_LOCAL_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
-DEFAULT_LOCAL_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
 
 
 def get_supabase_client() -> Client:
@@ -36,9 +34,6 @@ def get_supabase_client() -> Client:
             url = DEFAULT_LOCAL_URL
             logger.info(f"Using local Supabase URL: {url}")
 
-    if not key:
-        key = DEFAULT_LOCAL_SERVICE_KEY
-        logger.info("Using default service key for development")
 
     # Check URL format
     if not url:

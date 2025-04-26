@@ -1,0 +1,57 @@
+# docker-compose.prod.yml
+name: wineapp-prod
+
+services:
+  #---------------------------------------
+  # Backend Service (FastAPI) - PROD
+  #---------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.prod # Explicitly load production .env
+    ports:
+      - "8000:8000" # Or adjust if production port mapping is different
+    # NO volume mount for source code in production
+    # volumes: [] # Explicitly empty or just omit
+    restart: unless-stopped
+    networks:
+      - default # Only needs default network to talk to frontend & internet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  #---------------------------------------
+  # Frontend Service (React Native Web / Expo Web) - PROD
+  #---------------------------------------
+  frontend:
+    build: ./frontend # Consider a production build stage in Dockerfile
+    # env_file:
+    #   - ./frontend/.env.prod # Load frontend prod .env if needed
+    environment:
+      # Ensure frontend connects to backend using service name
+      EXPO_PUBLIC_API_URL: http://backend:8000
+      # Add SUPABASE_URL and ANON_KEY if needed directly by frontend
+      # These might come from frontend/.env.prod instead
+      NODE_ENV: production
+      WEB_PORT: 19006 # Or your production web port
+    ports:
+      # Map only necessary production ports (likely just web port)
+      - "19006:19006" # Example, adjust as needed
+    # NO volume mount for source code in production
+    # volumes: [] # Explicitly empty or just omit
+    depends_on:
+      - backend
+    networks:
+      - default
+    restart: unless-stopped
+    command: npm run web # Or your production start command
+
+networks:
+  default: # Define the default network for inter-service communication
+    driver: bridge
+  # NO supabase_network needed if connecting to external production Supabase

@@ -21,6 +21,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signInWithEmailAndPassword: (email: string, password: string) => Promise<boolean>;
   getToken: () => Promise<string | null>;
+  signInWithGoogle: () => Promise<boolean>;
 }
 
 // Create context with default values
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   signInWithEmailAndPassword: async () => false,
   getToken: async () => null,
+  signInWithGoogle: async () => false,
 });
 
 // Helper to convert Supabase user to our User type
@@ -174,6 +176,47 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
+  // Function to handle Google Sign-In
+  const signInWithGoogle = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Attempting Google sign-in...');
+
+      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          // Optional: Add any specific options for Google OAuth
+          // queryParams: { access_type: 'offline', prompt: 'consent' },
+          // redirectTo: 'yourapp://callback' // Ensure this matches your deep link config
+        },
+      });
+
+      if (signInError) {
+        console.error('Google sign-in error from Supabase:', signInError);
+        throw signInError;
+      }
+
+      // For OAuth, Supabase handles the redirect and session update automatically
+      // The onAuthStateChange listener should pick up the new session
+      console.log('Google sign-in initiated. Waiting for redirect and session update...');
+
+      // Note: We don't manually set user/session here for OAuth
+      // The browser/app will redirect, and onAuthStateChange handles the result.
+      // Return true optimistically, or handle potential immediate errors
+      return true;
+
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
+      return false;
+    } finally {
+      // Keep loading true until the redirect completes and onAuthStateChange fires
+      // Or set it to false if an immediate error occurred
+      if (error) setIsLoading(false);
+    }
+  };
+
   // Check for existing session on app load and handle auth changes
   useEffect(() => {
     // Get initial session
@@ -286,6 +329,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     signOut: handleSignOut,
     signInWithEmailAndPassword: handleEmailPasswordSignIn,
     getToken,
+    signInWithGoogle,
   };
 
   return (

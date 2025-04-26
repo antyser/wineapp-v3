@@ -1,0 +1,64 @@
+name: wineapp-dev
+
+services:
+  #---------------------------------------
+  # Backend Service (FastAPI) - DEV
+  #---------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env.prod
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount backend code for development hot-reloading
+      - ./backend:/app
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase_network # Connect to local Supabase network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  #---------------------------------------
+  # Frontend Service (React Native Web / Expo Web) - DEV
+  #---------------------------------------
+  frontend:
+    build: ./frontend
+    env_file:
+      - ./frontend/.env # Load frontend dev .env
+    environment:
+      # Ensure frontend connects to backend using service name
+      EXPO_PUBLIC_API_URL: http://backend:8000
+      # Add SUPABASE_URL and ANON_KEY if needed directly by frontend
+      # These might come from frontend/.env instead
+      NODE_ENV: development
+      WEB_PORT: 19006
+    ports:
+      - "19000:19000"
+      - "19006:19006"
+      - "8081:8081"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - default
+      # Add supabase_network ONLY if frontend talks DIRECTLY to local Supabase
+      # - supabase_network
+    restart: unless-stopped
+    command: npm run web
+
+networks:
+  default: # Define the default network for inter-service communication
+    driver: bridge
+  supabase_network: # Define how to connect to the external local Supabase network
+    external: true
+    name: supabase_network_wineapp-v3 

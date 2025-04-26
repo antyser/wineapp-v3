@@ -43,12 +43,6 @@ const HomeScreen = () => {
         return;
       }
 
-      if (useCamera && !isAuthenticated) {
-        console.log("User not authenticated for camera, showing sign-in prompt");
-        setShowSignInModal(true);
-        return;
-      }
-
       setShowImageOptions(false);
       setLoading(true);
       
@@ -67,13 +61,6 @@ const HomeScreen = () => {
           }));
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        if (!isAuthenticated) {
-          console.log("Image selected but user not authenticated, showing sign-in prompt");
-          setLoading(false);
-          setShowSignInModal(true);
-          return;
-        }
-        
         await handleImageSearch(result.assets[0]);
       } else {
         setLoading(false);
@@ -86,27 +73,42 @@ const HomeScreen = () => {
   };
 
   const handleImageSearch = async (imageAsset: ImagePicker.ImagePickerAsset) => {
+    let currentUserId: string | null = null;
+    
     try {
       if (isAuthLoading) {
         Alert.alert('Please wait', 'Authentication is still initializing.');
         setLoading(false);
         return;
       }
+
+      if (isAuthenticated && user?.id) {
+        console.log(`Authenticated user (${user.id}) performing image search...`);
+        currentUserId = user.id;
+      } else {
+        console.log("User not authenticated, attempting anonymous sign-in...");
+        const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+        
+        if (anonError || !anonData?.user?.id) {
+          console.error("Anonymous sign-in failed:", anonError);
+          Alert.alert('Authentication Failed', 'Could not initiate an anonymous session. Please try again or sign in.');
+          setLoading(false);
+          return;
+        }
+        
+        console.log(`Anonymous user (${anonData.user.id}) performing image search...`);
+        currentUserId = anonData.user.id;
+        // Note: The useAuth state might not update immediately after anonymous sign-in.
+        // We use the directly obtained currentUserId for this operation.
+      }
       
-      if (!isAuthenticated || !user || !user.id) {
-        console.log("User not authenticated for image search, showing sign-in prompt");
-        Alert.alert(
-          'Authentication Required',
-          'You need to be signed in to use this feature.',
-          [
-            { text: 'Sign In', onPress: () => { setLoading(false); navigation.navigate('Login'); } },
-            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) }
-          ]
-        );
-        return;
+      if (!currentUserId) {
+         // This should ideally not happen if anonymous sign-in succeeds
+         Alert.alert('Error', 'Could not retrieve user ID.');
+         setLoading(false);
+         return;
       }
 
-      console.log(`Authenticated user (${user.id}) performing image search...`);
       const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
       const photoUri = imageAsset.uri;
 
@@ -115,8 +117,8 @@ const HomeScreen = () => {
       const blob = await response.blob();
       const bucketName = 'wines';
       
-      // Create file path with user ID as folder
-      const filePath = `${user.id}/${filename}`;
+      // Create file path with user ID (authenticated or anonymous) as folder
+      const filePath = `${currentUserId}/${filename}`;
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from(bucketName)
