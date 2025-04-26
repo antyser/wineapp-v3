@@ -133,7 +133,7 @@ export type CellarWineUpdate = {
 };
 
 /**
- * Request body for chat API.
+ * Request body for the standard (non-streaming) chat API.
  */
 export type ChatRequest = {
     /**
@@ -144,14 +144,10 @@ export type ChatRequest = {
      * Model to use for the chat
      */
     model?: string;
-    /**
-     * Whether to stream the response
-     */
-    stream?: boolean;
 };
 
 /**
- * Response for chat API.
+ * Response for the standard (non-streaming) chat API.
  */
 export type ChatResponse = {
     /**
@@ -162,6 +158,20 @@ export type ChatResponse = {
      * Generated follow-up questions
      */
     followup_questions?: Array<string>;
+};
+
+/**
+ * Request body for the streaming chat API.
+ */
+export type ChatStreamRequest = {
+    /**
+     * List of conversation messages
+     */
+    messages: Array<Message>;
+    /**
+     * Model to use for the chat
+     */
+    model?: string;
 };
 
 /**
@@ -1505,30 +1515,53 @@ export type RateWineApiV1InteractionsWineWineIdRatePostResponses = {
 
 export type RateWineApiV1InteractionsWineWineIdRatePostResponse = RateWineApiV1InteractionsWineWineIdRatePostResponses[keyof RateWineApiV1InteractionsWineWineIdRatePostResponses];
 
-export type WineChatApiV1ChatWinePostData = {
+export type WineChatStandardApiV1ChatWinePostData = {
     body: ChatRequest;
     path?: never;
     query?: never;
     url: '/api/v1/chat/wine';
 };
 
-export type WineChatApiV1ChatWinePostErrors = {
+export type WineChatStandardApiV1ChatWinePostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type WineChatApiV1ChatWinePostError = WineChatApiV1ChatWinePostErrors[keyof WineChatApiV1ChatWinePostErrors];
+export type WineChatStandardApiV1ChatWinePostError = WineChatStandardApiV1ChatWinePostErrors[keyof WineChatStandardApiV1ChatWinePostErrors];
 
-export type WineChatApiV1ChatWinePostResponses = {
+export type WineChatStandardApiV1ChatWinePostResponses = {
     /**
      * Successful Response
      */
     200: ChatResponse;
 };
 
-export type WineChatApiV1ChatWinePostResponse = WineChatApiV1ChatWinePostResponses[keyof WineChatApiV1ChatWinePostResponses];
+export type WineChatStandardApiV1ChatWinePostResponse = WineChatStandardApiV1ChatWinePostResponses[keyof WineChatStandardApiV1ChatWinePostResponses];
+
+export type WineChatStreamApiV1ChatWineStreamPostData = {
+    body: ChatStreamRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/chat/wine/stream';
+};
+
+export type WineChatStreamApiV1ChatWineStreamPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type WineChatStreamApiV1ChatWineStreamPostError = WineChatStreamApiV1ChatWineStreamPostErrors[keyof WineChatStreamApiV1ChatWineStreamPostErrors];
+
+export type WineChatStreamApiV1ChatWineStreamPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type DeleteMeApiV1AuthMeDeleteData = {
     body?: never;

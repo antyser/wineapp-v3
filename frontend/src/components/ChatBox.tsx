@@ -3,7 +3,7 @@ import { StyleSheet, View, FlatList, ActivityIndicator, KeyboardAvoidingView, Pl
 import { Text, Button, TextInput, MD3Colors, IconButton, Chip } from 'react-native-paper';
 import Markdown from 'react-native-markdown-display';
 import { useAuth } from '../auth/AuthContext';
-import { wineChatApiV1ChatWinePost } from '../api/generated/sdk.gen';
+import { client } from '../api/generated/client.gen'; // Import base client for URL
 import { Message } from '../api/generated/types.gen';
 
 // Default model to use
@@ -50,6 +50,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { getToken } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
 
   // Reset messages when the wine changes or modal becomes visible
   useEffect(() => {
@@ -79,8 +80,19 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     return () => clearTimeout(timer);
   }, [messages]);
 
+  const closeEventStream = useCallback(() => {
+      // This function now primarily manages the isLoading state,
+      // as the fetch stream closes itself or via reader.cancel()
+      // if (eventSourceRef.current) { ... } // Removed EventSource logic
+      console.log("Stream processing ended or cancelled.");
+      setIsLoading(false);
+  }, []);
+
   const sendMessage = useCallback(async (text: string = inputText) => {
     if (!text.trim()) return;
+
+    // Now just resets loading state if somehow a stream was interrupted without finishing
+    closeEventStream(); 
 
     const userMessage: UIMessage = {
       id: Date.now().toString(),
@@ -89,10 +101,18 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       timestamp: new Date(),
     };
 
-    // Add user message to the chat
-    setMessages((prev) => [...prev, userMessage]);
+    const assistantPlaceholderId = (Date.now() + 1).toString();
+    const assistantPlaceholder: UIMessage = {
+      id: assistantPlaceholderId,
+      content: '',
+      role: 'assistant',
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
     setInputText('');
     setIsLoading(true);
+    let reader: ReadableStreamDefaultReader<string> | null = null; // Keep track of the reader to cancel if needed
 
     try {
       const token = await getToken();
@@ -123,66 +143,145 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         content: { text: userMessage.content }
       });
 
-      console.log("Sending messages to API:", apiMessages);
+      console.log("Sending messages to streaming API:", apiMessages);
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000'; 
+      const streamUrl = `${baseUrl}/api/v1/chat/wine/stream`;
+      console.log(`Connecting via fetch SSE: ${streamUrl}`);
 
-      // Use the SDK to make the API call for the response
-      const response = await wineChatApiV1ChatWinePost({
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: {
+      const requestBody = {
           messages: apiMessages,
           model: DEFAULT_MODEL
-        }
+      };
+
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'Authorization': `Bearer ${token}`,
+      };
+
+      console.log("Fetch Request Headers:", requestHeaders); // Log headers
+      console.log("Fetch Request Body:", JSON.stringify(requestBody)); // Log stringified body
+      
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify(requestBody),
       });
 
-      console.log("Full API response:", response);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      if (response.data && response.data.response) {
-        // Get the assistant response and follow-up questions
-        const responseText = response.data.response.text;
+      if (!response.body) {
+          throw new Error('Response body is null');
+      }
+
+      // Use TextDecoderStream for correct SSE parsing
+      const stream = response.body.pipeThrough(new TextDecoderStream());
+      reader = stream.getReader(); // Assign reader here
+      let buffer = '';
+      let shouldBreakOuterLoop = false;
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read(); // Read from the text stream reader
         
-        // Check if followup_questions exists in the response
-        console.log("Response data:", JSON.stringify(response.data));
+        if (done) {
+            console.log('Stream finished.');
+            break;
+        }
+
+        buffer += value; // value is now a string
+        let boundary = buffer.indexOf('\n\n');
         
-        const followup_questions = response.data.followup_questions || [];
-        console.log("Follow-up questions:", followup_questions);
+        while (boundary !== -1) {
+            const message = buffer.substring(0, boundary);
+            buffer = buffer.substring(boundary + 2);
+            
+            let eventType = 'message';
+            let eventData = '';
+
+            const lines = message.split('\n');
+            lines.forEach(line => {
+                if (line.startsWith('event:')) {
+                    eventType = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                    // Handle potential multi-line data field concatenation
+                    eventData += line.substring(5).trim(); 
+                }
+            });
+
+            console.log("Received SSE:", { eventType, eventData });
+
+            if (eventData) {
+                try {
+                    // Only attempt to parse if data is not just whitespace
+                    if (eventData.trim()) { 
+                      const parsedData = JSON.parse(eventData);
+                      
+                      // Process different event types
+                      if (eventType === 'content') {
+                          setMessages((prev) => prev.map((msg) =>
+                              msg.id === assistantPlaceholderId
+                                  ? { ...msg, content: msg.content + (parsedData.text || '') }
+                                  : msg
+                          ));
+                      } else if (eventType === 'followup') {
+                          setMessages((prev) => prev.map((msg) =>
+                              msg.id === assistantPlaceholderId
+                                  ? { ...msg, followup_questions: parsedData.questions || [] }
+                                  : msg
+                          ));
+                      } else if (eventType === 'error') {
+                          console.error('Stream error from backend:', parsedData.error);
+                          setMessages((prev) => prev.map((msg) =>
+                              msg.id === assistantPlaceholderId
+                                  ? { ...msg, content: msg.content + `\n\nError: ${parsedData.error}` }
+                                  : msg
+                          ));
+                          shouldBreakOuterLoop = true;
+                          break; // Exit inner while loop
+                      } else if (eventType === 'end') {
+                          console.log('Received end event.');
+                          shouldBreakOuterLoop = true;
+                          break; // Exit inner while loop
+                      }
+                    }
+                } catch (e) {
+                    console.error('Error parsing SSE data:', e, "Raw Data:", eventData);
+                }
+            }
+            // Find next message boundary
+            boundary = buffer.indexOf('\n\n');
+        } // end while boundary
         
-        // Add the assistant response as a new message with follow-up questions
-        const newMessage = {
-          id: Date.now().toString(),
-          content: responseText,
-          role: 'assistant' as const,
-          timestamp: new Date(),
-          followup_questions: followup_questions.length > 0 ? followup_questions : undefined
-        };
-        
-        console.log("Adding message with followups:", newMessage);
-        
-        setMessages((prev) => [...prev, newMessage]);
-      } else {
-        throw new Error('Invalid response from API');
+        if (shouldBreakOuterLoop) break; // Exit outer while loop
+      } // end while true
+
+    } catch (error) {
+      // Log the specific error object
+      console.error('Detailed error in sendMessage:', error);
+      if (error instanceof Error) {
+          console.error('Error name:', error.name);
+          console.error('Error message:', error.message);
+          console.error('Error stack:', error.stack); 
       }
       
-      setIsLoading(false);
-      
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // Add an error message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: 'Sorry, I encountered an error processing your request. Please try again.',
-          role: 'assistant',
-          timestamp: new Date(),
-        },
-      ]);
-      
-      setIsLoading(false);
+      console.error('Error sending/processing stream message:', error); // Keep original log
+      setMessages((prev) => prev.map((msg) =>
+        msg.id === assistantPlaceholderId
+          ? { ...msg, content: msg.content + '\n\nSorry, I encountered an error. Please try again.' }
+          : msg
+      ));
+    } finally {
+      // Ensure isLoading is set to false regardless of success/error
+      // Reader might be null if fetch failed early
+      if (reader) {
+          reader.releaseLock(); // Release lock on the stream
+      }
+      closeEventStream(); 
     }
-  }, [inputText, getToken, messages, wineName, initialContext]);
+  }, [inputText, getToken, messages, wineName, initialContext, closeEventStream]);
 
   // Handle followup question selection
   const handleFollowupQuestion = (question: string) => {
@@ -226,7 +325,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   return (
     <Modal
       visible={isVisible}
-      onRequestClose={onClose}
+      onRequestClose={() => {
+          // Attempt to cancel the stream if modal is closed prematurely
+          readerRef.current?.cancel('Modal closed by user'); // readerRef needs to be created
+          closeEventStream(); // Ensure loading state is reset
+          onClose();
+        }}
       animationType="slide"
       transparent={false}
     >
@@ -234,7 +338,12 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         <View style={styles.header}>
           <IconButton 
             icon="close" 
-            onPress={onClose} 
+            onPress={() => {
+              // Attempt to cancel the stream if modal is closed prematurely
+              // readerRef.current?.cancel('Modal closed by user'); // readerRef needs to be created
+              closeEventStream(); // Ensure loading state is reset
+              onClose();
+            }} 
             style={styles.closeButton}
           />
           <Text variant="headlineMedium">

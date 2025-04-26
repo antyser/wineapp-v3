@@ -34,10 +34,6 @@ services:
     env_file:
       - ./frontend/.env # Load frontend dev .env
     environment:
-      # Ensure frontend connects to backend using service name
-      EXPO_PUBLIC_API_URL: http://backend:8000
-      # Add SUPABASE_URL and ANON_KEY if needed directly by frontend
-      # These might come from frontend/.env instead
       NODE_ENV: development
       WEB_PORT: 19006
     ports:
