@@ -3,6 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { makeRedirectUri } from 'expo-auth-session';
+import * as QueryParams from 'expo-auth-session/build/QueryParams';
+
+// Ensure compatible AuthSession behavior on web
+WebBrowser.maybeCompleteAuthSession();
 
 // Define user type
 export interface User {
@@ -19,9 +27,12 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   signOut: () => Promise<void>;
-  signInWithEmailAndPassword: (email: string, password: string) => Promise<boolean>;
   getToken: () => Promise<string | null>;
-  signInWithGoogle: () => Promise<boolean>;
+  signInWithGoogle: () => Promise<void>;
+  signInWithApple: () => Promise<void>;
+  signInWithEmailOtp: (email: string) => Promise<void>;
+  signInWithPhoneOtp: (phone: string) => Promise<void>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<boolean>;
 }
 
 // Create context with default values
@@ -34,7 +45,11 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   signInWithEmailAndPassword: async () => false,
   getToken: async () => null,
-  signInWithGoogle: async () => false,
+  signInWithGoogle: async () => {},
+  signInWithApple: async () => {},
+  signInWithEmailOtp: async (email: string) => {},
+  signInWithPhoneOtp: async (phone: string) => {},
+  verifyPhoneOtp: async (phone: string, token: string) => false,
 });
 
 // Helper to convert Supabase user to our User type
@@ -56,6 +71,62 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // --- Helper function to create session from URL ---
+  const createSessionFromUrl = async (url: string): Promise<boolean> => {
+    try {
+      console.log('Attempting to create session from URL:', url);
+      const { params, errorCode } = QueryParams.getQueryParams(url);
+
+      if (errorCode) {
+        throw new Error(`Error extracting params from URL: ${errorCode}`);
+      }
+
+      // Ensure tokens are strings
+      const access_token = typeof params.access_token === 'string' ? params.access_token : undefined;
+      const refresh_token = typeof params.refresh_token === 'string' ? params.refresh_token : undefined;
+
+      if (!access_token || !refresh_token) {
+        // Check if it's an error URL from the provider
+        const errorParam = params.error;
+        const errorDescParam = params.error_description;
+
+        if (errorParam) {
+            // Ensure error parts are strings
+            const errorString = Array.isArray(errorParam) ? errorParam.join(', ') : errorParam;
+            let descriptionString = 'No description';
+            if (errorDescParam) {
+                descriptionString = Array.isArray(errorDescParam) ? errorDescParam.join(', ') : errorDescParam;
+            }
+           throw new Error(`OAuth error from provider: ${errorString} - ${descriptionString}`);
+        }
+        console.warn('URL does not contain required tokens:', params);
+        // Don't throw here, maybe it's not an auth URL
+        return false;
+      }
+
+      console.log('Extracted tokens. Setting session...');
+      const { data, error: sessionError } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (sessionError) {
+        console.error('Error setting session from URL tokens:', sessionError);
+        throw sessionError;
+      }
+
+      console.log('Session successfully set from URL:', data.session?.user.id);
+      // The onAuthStateChange listener should now pick up the new session
+      setSession(data.session);
+      setUser(data.session ? convertUser(data.session.user) : null);
+      return true;
+    } catch (err) {
+      console.error('Failed to create session from URL:', err);
+      setError(err instanceof Error ? err.message : 'Failed to handle auth redirect');
+      return false;
+    }
+  };
 
   // Function to handle anonymous sign-in
   const handleAnonymousSignIn = async (): Promise<boolean> => {
@@ -96,182 +167,270 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
-  // Function to handle email/password sign-in
-  const handleEmailPasswordSignIn = async (email: string, password: string): Promise<boolean> => {
+ 
+
+  // --- Refactored Google Sign-In ---
+  const signInWithGoogle = async (): Promise<void> => { // Return void, handle errors internally
     try {
       setIsLoading(true);
       setError(null);
-      
-      console.log('Attempting email/password sign-in with credentials:', email);
-      
-      // Get Supabase URL from context to display in error messages
-      const supabaseUrlStr = process.env.SUPABASE_URL || 
-                            Constants.expoConfig?.extra?.supabaseUrl || 
-                            'http://127.0.0.1:54321';
-      
-      console.log('Using Supabase URL for auth:', supabaseUrlStr);
-      
-      try {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      console.log('Attempting Google sign-in (React Native pattern)...');
 
-        if (signInError) {
-          console.error('Sign-in error from Supabase:', signInError);
-          throw signInError;
-        }
+      const redirectTo = makeRedirectUri();
 
-        if (!data || !data.session) {
-          console.error('No session returned from sign-in');
-          setError('Login successful but no session was created.');
-          return false;
-        }
+      console.log(`Using redirectTo for ${Platform.OS}: ${redirectTo}`);
 
-        console.log('Email/password sign-in successful. Session expires at:', new Date(data.session.expires_at! * 1000).toISOString());
-        console.log('User authenticated:', data.user?.id);
-        
-        setSession(data.session);
-        setUser(convertUser(data.session.user));
-        return true;
-      } catch (signInErr) {
-        console.error('Email/password sign-in error:', signInErr);
-        
-        // Check if it's a network error
-        if (signInErr instanceof Error && 
-            (signInErr.message.includes('fetch') || 
-             signInErr.message.includes('network') ||
-             signInErr.message.includes('Failed to') ||
-             signInErr.message.includes('ERR_NAME_NOT_RESOLVED'))) {
-          
-          // Check for common issues
-          if (signInErr.message.includes('kong') || signInErr.message.includes('docker')) {
-            setError(`Network error: Cannot connect to Supabase at ${supabaseUrlStr}. 
-            This appears to be a Docker internal URL that isn't accessible from your browser. 
-            Please update your .env file to use http://127.0.0.1:54321 instead.`);
-          } else {
-            setError(`Network error: Cannot connect to Supabase at ${supabaseUrlStr}. 
-            Please check that the Supabase server is running and the URL is correct.`);
-          }
-        } else {
-          // For auth-specific errors, provide more helpful messages
-          const errorMessage = signInErr instanceof Error ? signInErr.message : 'Failed to sign in';
-          if (errorMessage.includes('Email not confirmed')) {
-            setError('Your email address has not been confirmed. Please check your inbox for a confirmation email.');
-          } else if (errorMessage.includes('Invalid login credentials')) {
-            setError('Invalid email or password. Please check your credentials.');
-          } else {
-            setError(errorMessage);
-          }
-        }
-        
-        return false;
-      }
-    } catch (err) {
-      console.error('Email/password sign-in error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign in');
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Function to handle Google Sign-In
-  const signInWithGoogle = async (): Promise<boolean> => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      console.log('Attempting Google sign-in...');
-
-      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+      // 1. Get the Auth URL from Supabase
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // Optional: Add any specific options for Google OAuth
-          // queryParams: { access_type: 'offline', prompt: 'consent' },
-          // redirectTo: 'yourapp://callback' // Ensure this matches your deep link config
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
 
-      if (signInError) {
-        console.error('Google sign-in error from Supabase:', signInError);
-        throw signInError;
+      if (oauthError) {
+        console.error('Supabase signInWithOAuth error:', oauthError);
+        throw oauthError;
       }
 
-      // For OAuth, Supabase handles the redirect and session update automatically
-      // The onAuthStateChange listener should pick up the new session
-      console.log('Google sign-in initiated. Waiting for redirect and session update...');
+      if (!data?.url) {
+        throw new Error('No URL returned from signInWithOAuth');
+      }
 
-      // Note: We don't manually set user/session here for OAuth
-      // The browser/app will redirect, and onAuthStateChange handles the result.
-      // Return true optimistically, or handle potential immediate errors
-      return true;
+      // 2. Open the URL using Expo WebBrowser
+      console.log('Opening auth session with URL:', data.url);
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
+         // preferEphemeralSession: true, // Optional: For iOS, attempts private session
+      });
+
+      console.log('WebBrowser result:', result);
+
+      // 3. Handle the result
+      if (result.type === 'success') {
+        // App was foregrounded with the redirect URL containing tokens
+        await createSessionFromUrl(result.url);
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+         console.log('OAuth flow cancelled or dismissed by user.');
+      } else {
+         console.warn('WebBrowser returned unhandled result type:', result.type);
+      }
 
     } catch (err) {
       console.error('Google sign-in error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign in with Google');
-      return false;
+      // Ensure loading is stopped on error
+      setIsLoading(false);
     } finally {
-      // Keep loading true until the redirect completes and onAuthStateChange fires
-      // Or set it to false if an immediate error occurred
-      if (error) setIsLoading(false);
+      // Consider keeping loading true until onAuthStateChange confirms session?
+      // For now, set to false after the flow attempts completion or errors out.
+      // The session check in useEffect will handle the final loading state.
+      // setIsLoading(false); // Might cause flicker, handled by session check effect instead
+    }
+  };
+
+  // --- Sign in with Apple ---
+  const signInWithApple = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Attempting Apple sign-in (React Native pattern)...');
+
+      const redirectTo = makeRedirectUri();
+
+      console.log(`Using redirectTo for ${Platform.OS}: ${redirectTo}`);
+
+      // 1. Get the Auth URL from Supabase
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'apple', // Changed provider
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (oauthError) {
+        console.error('Supabase signInWithOAuth (Apple) error:', oauthError);
+        throw oauthError;
+      }
+
+      if (!data?.url) {
+        throw new Error('No URL returned from signInWithOAuth (Apple)');
+      }
+
+      // 2. Open the URL using Expo WebBrowser
+      console.log('Opening auth session with URL (Apple):', data.url);
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo, {
+        // preferEphemeralSession: true, // Optional for iOS
+      });
+
+      console.log('WebBrowser result (Apple):', result);
+
+      // 3. Handle the result (same logic as Google)
+      if (result.type === 'success') {
+        await createSessionFromUrl(result.url);
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+         console.log('Apple OAuth flow cancelled or dismissed by user.');
+      } else {
+         console.warn('WebBrowser returned unhandled result type (Apple):', result.type);
+      }
+
+    } catch (err) {
+      console.error('Apple sign-in error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Apple');
+      setIsLoading(false);
+    } finally {
+      // Handled by session check effect
+    }
+  };
+
+  // --- Sign in with Email OTP (Magic Link) ---
+  const signInWithEmailOtp = async (email: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Attempting Email OTP (Magic Link) sign-in for:', email);
+
+      // Define redirect URI for the magic link
+      const redirectTo = makeRedirectUri();
+
+      console.log(`Using emailRedirectTo for ${Platform.OS}: ${redirectTo}`);
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
+
+      if (otpError) {
+        console.error('Supabase signInWithOtp (Email) error:', otpError);
+        throw otpError;
+      }
+
+      console.log('Email OTP (Magic Link) sent successfully to:', email);
+      // Inform the user to check their email
+      // Session will be set when the user clicks the link and the app handles the deep link
+
+    } catch (err) {
+      console.error('Email OTP sign-in error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send email magic link');
+    } finally {
+      setIsLoading(false); // Link sending is complete
+    }
+  };
+
+  // --- Sign in with Phone OTP (Send Code) ---
+  const signInWithPhoneOtp = async (phone: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log('Attempting Phone OTP sign-in for:', phone);
+
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        phone: phone, // Use phone number
+      });
+
+      if (otpError) {
+        console.error('Supabase signInWithOtp (Phone) error:', otpError);
+        throw otpError;
+      }
+
+      console.log('Phone OTP sent successfully to:', phone);
+      // Inform user an SMS was sent. UI should now prompt for the code.
+
+    } catch (err) {
+      console.error('Phone OTP sending error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send phone OTP');
+    } finally {
+      setIsLoading(false); // OTP sending attempt is complete
     }
   };
 
   // Check for existing session on app load and handle auth changes
   useEffect(() => {
+    let isMounted = true; // Prevent state updates on unmounted component
+
+    // --- Handle Deep Linking ---
+    // Define the type for the event parameter explicitly
+    const handleDeepLink = (event: { url: string }) => {
+      if (isMounted) {
+        console.log('Deep link received:', event.url);
+        createSessionFromUrl(event.url);
+      }
+    };
+
+    // Get initial URL if app launched via deep link
+    Linking.getInitialURL().then(url => {
+      if (url && isMounted) {
+        console.log('App launched with initial URL:', url);
+        createSessionFromUrl(url);
+      }
+    });
+
+    // Listen for subsequent deep links
+    const linkingSubscription = Linking.addEventListener('url', handleDeepLink);
+    // --- End Deep Linking Handling ---
+
+
     // Get initial session
     const initAuth = async () => {
-      try {
-        setIsLoading(true);
-        console.log('Auth provider mounted. Checking session...');
-        
-        // Check if we have a session
+       try {
+        // No change needed here, it checks existing persisted session first
+        setIsLoading(true); // Start loading indicator
+        console.log('Auth provider mounted. Checking existing session...');
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('Error getting session:', sessionError);
-          throw sessionError;
-        }
-        
-        if (currentSession) {
-          console.log('Found existing session:', currentSession.user.id);
+        if (sessionError) throw sessionError;
+
+        if (currentSession && isMounted) {
+          console.log('Found existing persisted session:', currentSession.user.id);
           setSession(currentSession);
           setUser(convertUser(currentSession.user));
-        } else {
-          console.log('No active session found. Attempting anonymous sign-in.');
-          // If no session, attempt anonymous sign-in
-          await handleAnonymousSignIn();
+        } else if (isMounted) {
+          console.log('No active session found. Will wait for deep link or manual login.');
+          // We DON'T attempt anonymous sign-in here anymore if deep linking might provide a session
+          // If anonymous is desired as fallback, logic needs adjustment
         }
       } catch (err) {
-        console.error('Auth initialization error:', err);
-        setError(err instanceof Error ? err.message : 'Unknown authentication error');
+         if (isMounted) {
+            console.error('Auth initialization error:', err);
+            setError(err instanceof Error ? err.message : 'Unknown authentication error');
+         }
       } finally {
-        setIsLoading(false);
+         if (isMounted) {
+            // Set loading false only after initial check/deep link attempt
+            setIsLoading(false);
+         }
       }
     };
 
     initAuth();
 
-    // Subscribe to auth changes
+    // Subscribe to auth changes (e.g., after setSession, signOut)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log('Auth state changed:', _event, newSession?.user?.id);
+      if (!isMounted) return; // Avoid state updates if unmounted
+
+      console.log('Auth state changed event:', _event, newSession?.user?.id);
       setSession(newSession);
       setUser(newSession ? convertUser(newSession.user) : null);
-      // If user signs out, we might want to sign them back in anonymously
-      // or handle it based on app logic (e.g., navigate to login)
-      // For now, if signed out completely, re-attempt anonymous login
-      if (_event === 'SIGNED_OUT' && !newSession) {
-          console.log('User signed out. Re-attempting anonymous sign-in.');
-          handleAnonymousSignIn();
-      }
+      setError(null); // Clear previous errors on auth change
+      setIsLoading(false); // Auth state change means loading is complete
+
+      // Re-evaluate anonymous sign-in logic if needed on SIGNED_OUT
+      // if (_event === 'SIGNED_OUT' && !newSession) {
+      //     console.log('User signed out. Re-attempting anonymous sign-in.');
+      //     handleAnonymousSignIn(); // If you want auto anonymous login after sign out
+      // }
     });
 
-    // Cleanup subscription
+    // Cleanup subscription and listener
     return () => {
-      console.log('Unsubscribing from auth changes.');
+      isMounted = false;
+      console.log('Unsubscribing from auth changes and linking events.');
       subscription.unsubscribe();
+      linkingSubscription.remove();
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
 
   // Proper sign out function
   const handleSignOut = async () => {
@@ -323,13 +482,16 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const contextValue: AuthContextType = {
     user,
     session,
+    // isAuthenticated should ideally check session?.access_token expiry too
     isAuthenticated: !!user && !!session,
     isLoading,
     error,
     signOut: handleSignOut,
-    signInWithEmailAndPassword: handleEmailPasswordSignIn,
     getToken,
-    signInWithGoogle,
+    signInWithGoogle, // Provide the refactored function
+    signInWithApple,
+    signInWithEmailOtp,
+    signInWithPhoneOtp,
   };
 
   return (

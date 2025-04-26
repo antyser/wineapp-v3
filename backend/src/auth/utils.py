@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 
 from src.core import get_supabase_client
+from src.core.config import settings
 
 
 class SupabaseAuth(HTTPBearer):
@@ -88,16 +89,14 @@ class SupabaseAuth(HTTPBearer):
             issuer = unverified_payload["iss"]
             logger.info(f"Token issuer: {issuer}")
 
-            # Accept both supabase.co and localhost issuers
-            is_valid_issuer = (
-                issuer.endswith("supabase.co")
-                or "localhost" in issuer
-                or "127.0.0.1" in issuer
-            )
+            # Construct the expected issuer URL from settings
+            expected_issuer = f"{settings.SUPABASE_URL}/auth/v1"
 
+            # Check if the issuer matches the expected Supabase Auth issuer URL
+            is_valid_issuer = issuer == expected_issuer
             if not is_valid_issuer:
                 logger.error(
-                    f"Invalid issuer: {issuer} - not a recognized Supabase issuer"
+                    f"Invalid issuer: {issuer} - Expected: {expected_issuer}"
                 )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,

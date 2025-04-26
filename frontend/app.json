@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "somm",
+    "slug": "somm",
+    "scheme": "app.aisomm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,15 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.antyser.frontend",
-      "buildNumber": "1.0.0"
+      "bundleIdentifier": "app.aisomm.somm"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.antyser.frontend"
+      "package": "app.aisomm.somm"
     },
     "web": {
       "favicon": "./assets/favicon.png"

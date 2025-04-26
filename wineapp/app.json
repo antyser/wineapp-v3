@@ -2,6 +2,7 @@
   "expo": {
     "name": "wineapp",
     "slug": "wineapp",
+    "scheme": "app.aisomm",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,13 +14,15 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.aisomm.somm"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.anonymous.wineapp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
