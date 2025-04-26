@@ -32,7 +32,6 @@ interface AuthContextType {
   signInWithApple: () => Promise<void>;
   signInWithEmailOtp: (email: string) => Promise<void>;
   signInWithPhoneOtp: (phone: string) => Promise<void>;
-  verifyPhoneOtp: (phone: string, token: string) => Promise<boolean>;
 }
 
 // Create context with default values
@@ -43,13 +42,11 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   error: null,
   signOut: async () => {},
-  signInWithEmailAndPassword: async () => false,
   getToken: async () => null,
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
   signInWithEmailOtp: async (email: string) => {},
   signInWithPhoneOtp: async (phone: string) => {},
-  verifyPhoneOtp: async (phone: string, token: string) => false,
 });
 
 // Helper to convert Supabase user to our User type
@@ -488,7 +485,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     error,
     signOut: handleSignOut,
     getToken,
-    signInWithGoogle, // Provide the refactored function
+    signInWithGoogle,
     signInWithApple,
     signInWithEmailOtp,
     signInWithPhoneOtp,
