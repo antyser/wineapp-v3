@@ -1,0 +1,43 @@
+    # Ignore common Python artifacts
+    __pycache__/
+    *.pyc
+    *.pyo
+    *.pyd
+
+    # Ignore virtual environments
+    .venv/
+    venv/
+    env/
+    *.env
+
+
+    # Ignore IDE/editor specific files
+    .idea/
+    .vscode/
+    *.swp
+
+    # Ignore test files and caches
+    tests/
+    *.test.py
+    .pytest_cache/
+    .coverage
+
+    # Ignore Git directory (important!)
+    .git/
+
+    # Ignore node_modules if present (e.g., from linters/formatters)
+    node_modules/
+
+    # --- IMPORTANT: Ignore parent/sibling directories ---
+    # If Vercel is somehow pulling in files from outside 'backend',
+    # explicitly ignore them relative to the 'backend' directory.
+    # For example, if you have a 'frontend' folder at the same level:
+    # ../frontend/
+    # ../.git/ # Ignore root git folder too
+
+    # Add any other large files/directories specific to your project
+    # that are not needed for the backend runtime.
+    # data/
+    # large_models/
+
+    tests/
