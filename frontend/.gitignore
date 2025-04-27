@@ -1,7 +1,7 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
 # Environment variables
-.env
+.env*
 .env.*
 
 # Node modules
@@ -12,6 +12,8 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+/android
+/ios
 
 # Native
 *.orig.*

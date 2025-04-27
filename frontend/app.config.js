@@ -1,11 +1,3 @@
-const path = require('path');
-const dotenv = require('dotenv');
-
-// Load environment variables based on the environment
-const ENV = process.env.ENV || 'dev';
-const envPath = path.resolve(__dirname, `.env.${ENV === 'dev' ? 'development' : 'production'}`);
-dotenv.config({ path: envPath });
-
 export default {
   expo: {
     name: 'wineapp',
@@ -42,11 +34,9 @@ export default {
     scheme: 'wineapp',
     extra: {
       env: process.env.ENV,
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      apiUrl: process.env.EXPO_PUBLIC_API_URL,
     },
     plugins: [
+      'expo-secure-store',
       [
         'expo-image-picker',
         {
