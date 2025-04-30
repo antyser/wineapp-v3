@@ -1,48 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { StyleSheet, View, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Appbar, Divider, Text, Button, useTheme } from 'react-native-paper';
+import { Appbar, Text, Button, useTheme } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineDetailCard from '../components/WineDetailCard';
-import ChatBox from '../components/ChatBox';
-import { Wine } from '../types/wine';
-import { WineSearcherOffer } from '../api/generated/types.gen';
-import { 
-  getOneWineApiV1WinesWineIdGet,
-  getWineForUserApiV1WinesUserWineIdGet,
-  toggleInteractionApiV1InteractionsWineWineIdToggleActionPost,
-  rateWineApiV1InteractionsWineWineIdRatePost,
-  getNotesByWineApiV1NotesWineWineIdGet,
-} from '../api';
+import { useWineDetails } from '../hooks/useWineDetails';
+import { useWineInteractions } from '../hooks/useWineInteractions';
+import { useAuth } from '../auth/AuthContext';
+import { Message } from '../api/generated/types.gen';
+import WineChatView from '../components/wine/WineChatView';
+import { UIMessage } from '../components/wine/WineChatView';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Helper function to convert API wine type to our local Wine type
-const mapApiWineToLocalWine = (apiWine: any): Wine => {
-  return {
-    id: apiWine.id,
-    name: apiWine.name,
-    vintage: apiWine.vintage || undefined,
-    region: apiWine.region || undefined,
-    country: apiWine.country || undefined,
-    winery: apiWine.producer || apiWine.winery || undefined,
-    type: apiWine.wine_type || apiWine.type || undefined,
-    varietal: apiWine.grape_variety || apiWine.varietal || undefined,
-    image_url: apiWine.image_url || undefined,
-    average_price: apiWine.average_price || undefined,
-    description: apiWine.description || undefined,
-    wine_searcher_id: apiWine.wine_searcher_id || undefined,
-    // Add AI fields if available
-    drinking_window: apiWine.drinking_window || undefined,
-    food_pairings: apiWine.food_pairings || undefined,
-    abv: apiWine.abv || undefined,
-    winemaker_notes: apiWine.winemaker_notes || undefined,
-    professional_reviews: apiWine.professional_reviews || undefined,
-    tasting_notes: apiWine.tasting_notes || undefined,
-  };
-};
+const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
 
 const WineDetailScreen = () => {
   const route = useRoute<WineDetailScreenRouteProp>();
@@ -50,337 +23,276 @@ const WineDetailScreen = () => {
   const theme = useTheme();
   const { wineId, wine: routeWine } = route.params;
 
-  const [isChatVisible, setIsChatVisible] = useState(false);
-  const [wine, setWine] = useState<Wine | null>(routeWine || null);
-  const [loading, setLoading] = useState(!routeWine);
-  const [error, setError] = useState('');
-  const [isInWishlist, setIsInWishlist] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
-  const [isTasted, setIsTasted] = useState(false);
-  const [userRating, setUserRating] = useState(0);
-  const [hasExistingNotes, setHasExistingNotes] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [offers, setOffers] = useState<WineSearcherOffer[]>([]);
-  
-  useEffect(() => {
-    // If we already have the wine from route params, use it directly
-    if (routeWine) {
-      console.log('Using wine data from route params:', routeWine.name);
-      setWine(routeWine);
-      // We still need to fetch user interaction data
-      fetchUserInteractions(routeWine.id);
-      // Check for existing notes
-      checkExistingNotes(routeWine.id);
-      setLoading(false);
-      return;
-    }
-    
-    // Otherwise, fetch from API
-    fetchWineDetails();
-  }, [wineId, routeWine, retryCount]);
+  const {
+    wine,
+    offers,
+    isLoading: isLoadingDetails,
+    error: detailsError,
+    retry: retryDetailsFetch,
+    userInteractionData: initialInteractionData,
+  } = useWineDetails(wineId, routeWine);
 
-  const fetchWineDetails = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      console.log(`Fetching wine details for ID: ${wineId}`);
-      
-      // Attempt to get the wine with user data
-      try {
-        const userWineResponse = await getWineForUserApiV1WinesUserWineIdGet({
-          path: { wine_id: wineId }
-        });
-        
-        if (userWineResponse.data) {
-          console.log('Successfully retrieved user wine data');
-          const apiWineData = userWineResponse.data.wine;
-          const interaction = userWineResponse.data.interaction;
-          
-          if (apiWineData) {
-            // Convert API wine to our local Wine type
-            setWine(mapApiWineToLocalWine(apiWineData));
-          }
-          
-          if (interaction) {
-            setIsInWishlist(interaction.wishlist || false);
-            setIsLiked(interaction.liked || false);
-            setIsTasted(interaction.tasted || false);
-            setUserRating(interaction.rating || 0);
-          }
-          
-          // Store offers if available
-          if (userWineResponse.data.offers && userWineResponse.data.offers.length > 0) {
-            setOffers(userWineResponse.data.offers);
-          }
-          
-          // Check for existing notes
-          if (apiWineData) {
-            checkExistingNotes(apiWineData.id);
-          }
-          
-          setLoading(false);
-          return;
-        }
-      } catch (userWineError) {
-        console.warn('Failed to get user wine data, falling back to regular wine fetch', userWineError);
-      }
-      
-      // Fall back to regular wine fetch
-      const response = await getOneWineApiV1WinesWineIdGet({
-        path: { wine_id: wineId }
-      });
-      
-      if (response.data) {
-        console.log('Successfully retrieved wine data:', response.data.name);
-        // Convert the API wine type to our local Wine type
-        setWine(mapApiWineToLocalWine(response.data));
-      } else {
-        throw new Error('No wine data returned from API');
-      }
-    } catch (err) {
-      console.error('Error fetching wine details:', err);
-      setError('Failed to load wine details.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    isInWishlist,
+    isLiked,
+    userRating,
+    hasExistingNotes,
+    interactionError,
+    toggleWishlist,
+    toggleLike,
+    rateWine,
+    clearInteractionError,
+  } = useWineInteractions(wineId, initialInteractionData);
 
-  const fetchUserInteractions = async (wineId: string) => {
-    try {
-      console.log('Fetching user interactions for wine ID:', wineId);
-      
-      const userWineResponse = await getWineForUserApiV1WinesUserWineIdGet({
-        path: { wine_id: wineId }
-      });
-      
-      if (userWineResponse.data && userWineResponse.data.interaction) {
-        const interaction = userWineResponse.data.interaction;
-        console.log('Received interaction data:', interaction);
-        
-        setIsInWishlist(interaction.wishlist || false);
-        setIsLiked(interaction.liked || false);
-        setIsTasted(interaction.tasted || false);
-        setUserRating(interaction.rating || 0);
-        
-        console.log('Updated state - isTasted:', interaction.tasted, 'rating:', interaction.rating);
-      } else {
-        console.log('No interaction data received');
-      }
-    } catch (error) {
-      console.error('Error fetching user interactions:', error);
-    }
-  };
+  const { getToken } = useAuth();
 
-  const checkExistingNotes = async (wineId: string) => {
-    try {
-      const notesResponse = await getNotesByWineApiV1NotesWineWineIdGet({
-        path: { wine_id: wineId }
-      });
-      
-      const hasNotes = !!(notesResponse.data && notesResponse.data.length > 0);
-      setHasExistingNotes(hasNotes);
-    } catch (error) {
-      console.error('Error checking for existing notes:', error);
-      setHasExistingNotes(false);
-    }
-  };
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<UIMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
 
-  const handleRetry = () => {
-    setRetryCount(prevCount => prevCount + 1);
-  };
-
-  const handleAddToWishlist = async () => {
-    if (!wine) return;
-    
-    try {
-      const newWishlistState = !isInWishlist;
-      // Optimistically update UI
-      setIsInWishlist(newWishlistState);
-      
-      // Call API to toggle wishlist state
-      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
-        path: { 
-          wine_id: wine.id,
-          action: 'wishlist'
-        }
-      });
-      
-      console.log('Wishlist toggled:', response.data);
-    } catch (error) {
-      console.error('Error toggling wishlist:', error);
-      // Revert on error
-      setIsInWishlist(!isInWishlist);
-      setError('Failed to update wishlist. Please try again.');
-    }
-  };
-
-  const handleLike = async () => {
-    if (!wine) return;
-    
-    try {
-      const newLikedState = !isLiked;
-      // Optimistically update UI
-      setIsLiked(newLikedState);
-      
-      // Call API to toggle liked state
-      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
-        path: { 
-          wine_id: wine.id,
-          action: 'liked'
-        }
-      });
-      
-      console.log('Like toggled:', response.data);
-    } catch (error) {
-      console.error('Error toggling like:', error);
-      // Revert on error
-      setIsLiked(!isLiked);
-      setError('Failed to update like status. Please try again.');
-    }
-  };
-
-  const handleRateWine = async (rating: number) => {
-    if (!wine) return;
-    
-    try {
-      console.log('Setting wine rating to:', rating);
-      
-      // Optimistically update UI
-      setUserRating(rating);
-      
-      // Call API to set rating (the API already supports decimal ratings)
-      const response = await rateWineApiV1InteractionsWineWineIdRatePost({
-        path: { wine_id: wine.id },
-        query: { rating }
-      });
-      
-      console.log('Wine rated, response:', response.data);
-      
-      // Update from response if available
-      if (response.data && typeof response.data.rating === 'number') {
-        setUserRating(response.data.rating);
-      }
-    } catch (error) {
-      console.error('Error rating wine:', error);
-      setUserRating(0); // Reset on error
-      setError('Failed to rate wine. Please try again.');
-    }
-  };
-
-  const handleAddToCellar = () => {
-    if (!wine) return;
-    
-    // Navigate to the AddBottles screen with the wine
-    navigation.navigate('AddBottles', {
-      wine,
-      onBottlesAdded: () => {
-        // Optional callback when bottles are added successfully
-        console.log('Bottles added successfully');
-        // Could add a success message or refresh data if needed
-      }
-    });
-  };
-
-  const handleAddNote = async () => {
-    if (!wine) return;
-    
-    try {
-      // Check if there are existing notes
-      const notesResponse = await getNotesByWineApiV1NotesWineWineIdGet({
-        path: { wine_id: wine.id }
-      });
-      
-      // If there are notes, get the ID of the first one
-      let firstNoteId = undefined;
-      if (notesResponse.data && notesResponse.data.length > 0) {
-        const firstNote = notesResponse.data[0];
-        if (firstNote && typeof firstNote === 'object' && 'id' in firstNote) {
-          firstNoteId = String(firstNote.id);
-        }
-      }
-      
-      // Navigate to AddTastingNote screen with the note ID if available
-      navigation.navigate('AddTastingNote', { 
-        wineId: wine.id,
-        noteId: firstNoteId 
-      });
-    } catch (error) {
-      console.error('Error handling note:', error);
-      setError('Failed to handle note. Please try again.');
-    }
-  };
-
-  const handleToggleTasted = async () => {
-    if (!wine) return;
-    
-    try {
-      // Toggle tasted status in API
-      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
-        path: { 
-          wine_id: wine.id,
-          action: 'tasted'
-        }
-      });
-      
-      console.log('Tasted status toggled, response:', response.data);
-      
-      // Update state directly from response instead of fetching again
-      if (response.data && typeof response.data.tasted === 'boolean') {
-        setIsTasted(response.data.tasted);
-      } else {
-        // Fallback to toggling the current state
-        setIsTasted(!isTasted);
-      }
-    } catch (error) {
-      console.error('Error toggling tasted status:', error);
-      setError('Failed to update tasted status. Please try again.');
-    }
-  };
-
-  // Prepare context information for the AI
-  const getWineContext = () => {
+  const getFormattedWineName = useCallback(() => {
     if (!wine) return '';
-    
-    return `
-      Wine: ${wine.name || ''}
-      ${wine.vintage ? `Vintage: ${wine.vintage}` : ''}
-      ${wine.region ? `Region: ${wine.region}` : ''}
-      ${wine.country ? `Country: ${wine.country}` : ''}
-      ${wine.varietal ? `Grape Variety: ${wine.varietal}` : ''}
-      ${wine.winery ? `Producer: ${wine.winery}` : ''}
-      ${wine.description ? `Description: ${wine.description}` : ''}
-      ${wine.average_price ? `Price Range: $${wine.average_price}` : ''}
-      ${wine.drinking_window ? `Drinking Window: ${wine.drinking_window}` : ''}
-      ${wine.food_pairings ? `Food Pairings: ${wine.food_pairings}` : ''}
-      ${wine.tasting_notes ? `Tasting Notes: ${wine.tasting_notes}` : ''}
-    `.trim();
-  };
-
-  // Format wine name with vintage if available and not equal to 1
-  const getFormattedWineName = () => {
-    if (!wine) return '';
-    if (wine.vintage && wine.vintage !== '1' && wine.name) {
+    if (wine.vintage && wine.vintage !== 1 && wine.name) {
       return `${wine.vintage} ${wine.name}`;
     }
     return wine.name || '';
+  }, [wine]);
+  
+  useEffect(() => {
+    if (wine) {
+      let aboutText = wine.description ? `${wine.description}\n\n` : '';
+      if (wine.food_pairings) {
+        aboutText += `**Food Pairing:** ${wine.food_pairings}\n`;
+      }
+      if (wine.drinking_window) {
+        aboutText += `**Drinking Window:** ${wine.drinking_window}\n`;
+      }
+      if (wine.abv) {
+        aboutText += `**ABV:** ${wine.abv}\n`;
+      }
+      if (!aboutText.trim()) {
+        aboutText = `Hello! I'm your wine assistant for the ${getFormattedWineName()}.\n`;
+      }
+      
+      const initialMessageContent = `${aboutText.trim()}`;
+
+      const initialFollowUps = [
+        "What food would pair well with this wine?",
+        "Tell me about the winery",
+        "What is the drinking window?"
+      ];
+      
+      setChatMessages([
+        {
+          id: '0',
+          content: initialMessageContent,
+          role: 'assistant',
+          timestamp: new Date(),
+          followup_questions: initialFollowUps,
+        },
+      ]);
+      setFollowUpQuestions(initialFollowUps);
+    } else {
+      setChatMessages([]);
+      setFollowUpQuestions([]);
+    }
+  }, [wine, getFormattedWineName]);
+
+  const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
+  const closeEventStream = useCallback(() => {
+      console.log("Stopping chat stream processing (if active).");
+      if (readerRef.current) {
+          readerRef.current.cancel('Component unmounted or new message sent').catch(e => console.warn('Error cancelling reader:', e));
+          readerRef.current = null;
+      }
+      setIsChatLoading(false);
+  }, []);
+
+  const handleSendMessage = useCallback(async (text: string = chatInput) => {
+    if (!text.trim() || !wine) return;
+
+    closeEventStream();
+
+    const userMessage: UIMessage = {
+      id: Date.now().toString(),
+      content: text.trim(),
+      role: 'user',
+      timestamp: new Date(),
+    };
+
+    const assistantPlaceholderId = (Date.now() + 1).toString();
+    const assistantPlaceholder: UIMessage = {
+      id: assistantPlaceholderId,
+      content: '',
+      role: 'assistant',
+      timestamp: new Date(),
+    };
+
+    setChatMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
+    setChatInput('');
+    setIsChatLoading(true);
+    setFollowUpQuestions([]);
+
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Not authenticated');
+
+      const wineContext = `The user is asking about ${getFormattedWineName()}. Context: Region: ${wine.region || 'N/A'}, Country: ${wine.country || 'N/A'}, Varietal: ${wine.varietal || 'N/A'}, Winery: ${wine.winery || 'N/A'}, Description: ${wine.description || 'N/A'}`;
+
+      let apiMessages: Message[] = [
+        { role: 'assistant', content: { text: wineContext } }
+      ];
+
+      const history = chatMessages
+        .filter(msg => msg.id !== '0' && msg.id !== assistantPlaceholderId)
+        .map(msg => ({ role: msg.role, content: { text: msg.content } } as Message));
+        
+      apiMessages = [...apiMessages, ...history];
+      apiMessages.push({ role: 'user', content: { text: userMessage.content } } as Message);
+
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+      const streamUrl = `${baseUrl}/api/v1/chat/wine/stream`;
+
+      const response = await fetch(streamUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ messages: apiMessages, model: DEFAULT_MODEL }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      if (!response.body) {
+        throw new Error('Response body is null');
+      }
+
+      const stream = response.body.pipeThrough(new TextDecoderStream());
+      const reader = stream.getReader();
+      readerRef.current = reader;
+      let buffer = '';
+      let currentAssistantContent = '';
+      let currentFollowUps: string[] = [];
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        
+        buffer += value;
+        let boundary = buffer.indexOf('\n\n');
+
+        while (boundary !== -1) {
+          const message = buffer.substring(0, boundary);
+          buffer = buffer.substring(boundary + 2);
+          let eventType = 'message';
+          let eventData = '';
+          const lines = message.split('\n');
+
+          lines.forEach(line => {
+            if (line.startsWith('event:')) eventType = line.substring(6).trim();
+            else if (line.startsWith('data:')) eventData += line.substring(5).trim();
+          });
+
+          if (eventData.trim()) {
+            try {
+              const parsedData = JSON.parse(eventData);
+              if (eventType === 'content') {
+                currentAssistantContent += (parsedData.text || '');
+                setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: currentAssistantContent } : msg));
+              } else if (eventType === 'followup') {
+                currentFollowUps = parsedData.questions || [];
+                setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, followup_questions: currentFollowUps } : msg));
+                setFollowUpQuestions(currentFollowUps);
+              } else if (eventType === 'error') {
+                throw new Error(parsedData.error || 'Unknown stream error');
+              } else if (eventType === 'end') {
+                console.log('Received end event from stream.');
+                reader.cancel();
+                readerRef.current = null;
+                setIsChatLoading(false);
+                return;
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e, 'Raw data:', eventData);
+              setIsChatLoading(false);
+              setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: msg.content + '\n\n[Error processing response]' } : msg));
+              reader.cancel();
+              readerRef.current = null;
+              return;
+            }
+          }
+          boundary = buffer.indexOf('\n\n');
+        }
+      }
+      readerRef.current = null;
+
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: `Error: ${error.message}` } : msg));
+    } finally {
+      setIsChatLoading(false);
+      if (readerRef.current) {
+          readerRef.current.cancel().catch(e => console.warn('Error cancelling reader in finally:', e));
+          readerRef.current = null;
+      }
+    }
+  }, [chatInput, wine, getToken, chatMessages, closeEventStream, getFormattedWineName]);
+
+  const handleFollowupQuestion = (question: string) => {
+    handleSendMessage(question);
   };
 
-  // Handle Buy Wine button click
-  const handleBuyWine = () => {
+  const displayError = detailsError || interactionError;
+
+  const handleAddToWishlist = toggleWishlist;
+  const handleLike = toggleLike;
+  const handleRateWine = rateWine;
+
+  const handleAddNote = () => {
     if (!wine) return;
-    
-    if (offers && offers.length > 0) {
-      // Navigate to the WineOffers screen instead of showing a modal
+    navigation.navigate('AddTastingNote', { 
+      wineId: wine.id,
+    });
+  };
+
+  const handleBuyWine = () => {
+    if (!wine || !offers || offers.length === 0) {
+        console.warn('No offers available to buy.');
+        return;
+    }
       navigation.navigate('WineOffers', {
         wineName: getFormattedWineName(),
         offers: offers
       });
-    } else {
-      setError('No offers available for this wine.');
-    }
   };
 
-  if (loading) {
+  const showInteractionErrorBanner = interactionError && wine;
+
+  const renderListHeader = () => (
+    <>
+      {wine && (
+        <WineDetailCard
+          wine={wine}
+          onAddToWishlist={handleAddToWishlist}
+          onLike={handleLike}
+          onAddNote={handleAddNote}
+          onRateWine={handleRateWine}
+          onBuyWine={handleBuyWine}
+          isInWishlist={isInWishlist}
+          isLiked={isLiked}
+          hasExistingNotes={hasExistingNotes}
+          rating={userRating}
+          hasOffers={offers && offers.length > 0}
+        />
+      )}
+    </>
+  );
+
+  if (isLoadingDetails) {
     return (
       <View style={styles.container}>
         <Appbar.Header style={styles.appbar}>
@@ -388,14 +300,14 @@ const WineDetailScreen = () => {
           <Appbar.Content title="Loading Wine Details" />
         </Appbar.Header>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#000000" />
+          <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading wine details...</Text>
         </View>
       </View>
     );
   }
 
-  if (error && !wine) {
+  if (detailsError && !wine) {
     return (
       <View style={styles.container}>
         <Appbar.Header style={styles.appbar}>
@@ -403,11 +315,11 @@ const WineDetailScreen = () => {
           <Appbar.Content title="Error" />
         </Appbar.Header>
         <View style={styles.centered}>
-          <Text variant="bodyLarge" style={styles.errorText}>{error}</Text>
+          <Text variant="bodyLarge" style={styles.errorText}>{detailsError}</Text>
           <View style={styles.buttonRow}>
             <Button
               mode="outlined"
-              onPress={handleRetry}
+              onPress={retryDetailsFetch}
               style={styles.button}
               labelStyle={styles.buttonLabel}
             >
@@ -430,16 +342,16 @@ const WineDetailScreen = () => {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="Wine Details" />
+        <Appbar.BackAction onPress={() => { closeEventStream(); navigation.goBack(); }} />
+        <Appbar.Content title={getFormattedWineName() || "Wine Details"} />
       </Appbar.Header>
 
-      {error && (
+      {showInteractionErrorBanner && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{error}</Text>
+          <Text style={styles.errorBannerText}>{interactionError}</Text>
           <Button
             mode="text"
-            onPress={() => setError('')}
+            onPress={clearInteractionError}
             labelStyle={styles.errorButtonLabel}
             compact
           >
@@ -448,94 +360,17 @@ const WineDetailScreen = () => {
         </View>
       )}
 
-      <ScrollView style={styles.scrollView}>
-        {wine && (
-          <WineDetailCard
-            wine={wine}
-            onAddToWishlist={handleAddToWishlist}
-            onLike={handleLike}
-            onAddToCellar={handleAddToCellar}
-            onAddNote={handleAddNote}
-            onToggleTasted={handleToggleTasted}
-            onRateWine={handleRateWine}
-            onBuyWine={handleBuyWine}
-            isInWishlist={isInWishlist}
-            isLiked={isLiked}
-            isTasted={isTasted}
-            rating={userRating}
-            hasOffers={offers && offers.length > 0}
-          />
-        )}
-
-        {/* About This Wine Section */}
-        <View style={styles.section}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-              About This Wine
-          </Text>
-          <Divider style={styles.divider} />
-          
-          {wine && wine.description && (
-            <Text variant="bodyMedium" style={styles.paragraphText}>{wine.description}</Text>
-          )}
-
-          {wine?.food_pairings && (
-            <View style={styles.insightRow}>
-              <Text variant="bodyMedium" style={styles.insightLabel}>
-                Food Pairing:
-              </Text>
-              <Text variant="bodyMedium" style={styles.insightValue}>
-                {wine.food_pairings}
-              </Text>
-            </View>
-          )}
-
-          {wine?.drinking_window && (
-            <View style={styles.insightRow}>
-              <Text variant="bodyMedium" style={styles.insightLabel}>
-                Drinking Window:
-              </Text>
-              <Text variant="bodyMedium" style={styles.insightValue}>
-                {wine.drinking_window}
-              </Text>
-            </View>
-          )}
-
-          {wine?.abv && (
-            <View style={styles.insightRow}>
-              <Text variant="bodyMedium" style={styles.insightLabel}>
-                ABV:
-              </Text>
-              <Text variant="bodyMedium" style={styles.insightValue}>
-                {wine.abv}
-              </Text>
-            </View>
-          )}
-
-          {!wine?.description && !wine?.food_pairings && !wine?.drinking_window && !wine?.abv && (
-            <Text variant="bodyMedium" style={styles.emptyText}>
-              No information available for this wine.
-            </Text>
-          )}
-          
-          {/* Ask AI Button */}
-          <Button 
-            mode="outlined" 
-            icon="chat-question"
-            style={styles.askAiButton}
-            onPress={() => setIsChatVisible(true)}
-          >
-            Ask AI about this wine
-          </Button>
-        </View>
-      </ScrollView>
-      
-      {/* ChatBox component */}
-      <ChatBox 
-        isVisible={isChatVisible}
-        onClose={() => setIsChatVisible(false)}
-        wineName={getFormattedWineName()}
-        initialContext={getWineContext()}
+      <WineChatView
+        chatMessages={chatMessages}
+        chatInput={chatInput}
+        setChatInput={setChatInput}
+        isChatLoading={isChatLoading}
+        followUpQuestions={followUpQuestions}
+        handleSendMessage={handleSendMessage}
+        handleFollowupQuestion={handleFollowupQuestion}
+        listHeaderComponent={renderListHeader()}
       />
+
     </View>
   );
 };
@@ -547,9 +382,6 @@ const styles = StyleSheet.create({
   },
   appbar: {
     backgroundColor: '#FFFFFF',
-  },
-  scrollView: {
-    flex: 1,
   },
   centered: {
     flex: 1,
@@ -593,45 +425,6 @@ const styles = StyleSheet.create({
   errorButtonLabel: {
     color: '#D32F2F',
   },
-  section: {
-    padding: 16,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    color: '#000000',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  divider: {
-    backgroundColor: '#E0E0E0',
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontStyle: 'italic',
-    color: '#9E9E9E',
-    marginBottom: 16,
-    textAlign: 'center',
-    padding: 16,
-  },
-  insightRow: {
-    marginBottom: 12,
-  },
-  insightLabel: {
-    fontWeight: 'bold',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  insightValue: {
-    color: '#000000',
-  },
-  paragraphText: {
-    marginBottom: 16,
-    lineHeight: 20,
-  },
-  askAiButton: {
-    marginTop: 16,
-    alignSelf: 'flex-start',
-  }
 });
 
 export default WineDetailScreen;

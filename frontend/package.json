@@ -56,7 +56,6 @@
     "@hey-api/client-fetch": "^0.10.0",
     "@hey-api/openapi-ts": "^0.66.4",
     "@react-native-community/cli": "^18.0.0",
-    "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^13.2.0",
     "@types/react": "~18.3.12",
     "@typescript-eslint/eslint-plugin": "^8.29.0",

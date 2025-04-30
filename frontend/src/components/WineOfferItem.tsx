@@ -54,10 +54,19 @@ const WineOfferItem: React.FC<WineOfferItemProps> = ({ offer }) => {
               <Text variant="titleMedium" style={styles.offerPrice}>
                 ${offer.price ? offer.price.toFixed(2) : 'N/A'}
               </Text>
+              {offer.name && (
+                <Text variant="bodySmall" style={styles.offerName} numberOfLines={1}>
+                  {offer.name}
+                </Text>
+              )}
               <Text variant="bodyMedium" style={styles.offerSeller}>
                 {offer.seller_name}
               </Text>
-              
+              {offer.description && (
+                <Text variant="bodySmall" style={styles.offerDescription}>
+                  {offer.description}
+                </Text>
+              )}
               {location && (
                 <Chip icon="map-marker" style={styles.offerChip} textStyle={styles.chipText} compact>
                   {location}
@@ -90,19 +99,30 @@ const styles = StyleSheet.create({
   offerPrice: {
     fontWeight: 'bold',
     fontSize: 18,
-    color: '#000000', // Pure black for price
+    color: '#000000',
+    marginBottom: 2,
+  },
+  offerName: {
+    fontSize: 13,
+    color: '#444444',
+    marginBottom: 4,
   },
   offerSeller: {
-    marginBottom: 8,
-    color: '#222222', // Dark gray for seller name
+    marginBottom: 6,
+    color: '#222222',
     fontWeight: '500',
+  },
+  offerDescription: {
+    fontSize: 13,
+    color: '#555555',
+    marginBottom: 8,
   },
   offerChip: {
     alignSelf: 'flex-start',
-    backgroundColor: '#F0F0F0', // Light gray background for chip
+    backgroundColor: '#F0F0F0',
   },
   chipText: {
-    color: '#222222', // Dark gray for chip text
+    color: '#222222',
   },
 });
 

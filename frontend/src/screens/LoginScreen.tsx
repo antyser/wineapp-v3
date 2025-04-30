@@ -25,8 +25,6 @@ const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
-  const [localLoading, setLocalLoading] = useState(false);
-  const [localError, setLocalError] = useState<string | null>(null);
 
   // If user becomes authenticated, navigate away (e.g., back to Main)
   React.useEffect(() => {
@@ -44,58 +42,39 @@ const LoginScreen = () => {
   }, [isAuthenticated, user, navigation]);
 
   const handleGoogleSignIn = async () => {
-    setLocalLoading(true);
-    setLocalError(null);
     await signInWithGoogle();
     // Auth context handles state update and navigation via useEffect
-    setLocalLoading(false);
   };
 
   const handleAppleSignIn = async () => {
-    setLocalLoading(true);
-    setLocalError(null);
     await signInWithApple();
     // Auth context handles state update and navigation via useEffect
-    setLocalLoading(false);
   };
 
   const handleSendOtp = async () => {
     if (!email) {
-      setLocalError('Please enter your email address.');
       return;
     }
-    setLocalLoading(true);
-    setLocalError(null);
-    const success = await signInWithEmailOtp(email);
-    if (success) {
+    await signInWithEmailOtp(email);
+    
+    if (!error) {
       setOtpSent(true);
-      setLocalError(null);
     } else {
-      setLocalError(error || 'Failed to send OTP. Please check your email address.');
+      setOtpSent(false);
     }
-    setLocalLoading(false);
   };
 
   const handleVerifyOtp = async () => {
     if (!otp) {
-      setLocalError('Please enter the OTP code.');
       return;
     }
-    setLocalLoading(true);
-    setLocalError(null);
-    await verifyEmailOtp(email, otp);
-    // Auth context handles state update and navigation via useEffect
-    setLocalLoading(false);
-     // We rely on the useEffect to navigate away if successful
-    if (!isAuthenticated) {
-       setLocalError(error || 'Invalid or expired OTP code.')
+    const success = await verifyEmailOtp(email, otp);
+    // Auth context handles state update on success
+    if (!success) {
+       // Error state should already be set by the context
     }
   };
   
-  // Combine local and global loading/error states
-  const displayLoading = isLoading || localLoading;
-  const displayError = localError || error;
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
@@ -103,12 +82,12 @@ const LoginScreen = () => {
         <Text variant="bodyMedium" style={styles.subtitle}>Sign in or create an account</Text>
         
         {/* Global Error Display */}       
-        {displayError && (
-           <Text style={styles.errorText}>{displayError}</Text>
+        {error && (
+           <Text style={styles.errorText}>{error}</Text>
         )}
         
         {/* Loading Indicator */} 
-        {displayLoading && (
+        {isLoading && (
           <ActivityIndicator animating={true} size="large" style={styles.loadingIndicator} />
         )}
 
@@ -120,8 +99,8 @@ const LoginScreen = () => {
               onPress={handleGoogleSignIn}
               style={styles.button}
               icon="google"
-              disabled={displayLoading}
-              textColor={theme.colors.onSurface} // Ensure text is visible
+              disabled={isLoading}
+              textColor={theme.colors.onSurface}
               labelStyle={styles.buttonLabel}
             >
               Sign in with Google
@@ -133,7 +112,7 @@ const LoginScreen = () => {
                 onPress={handleAppleSignIn}
                 style={styles.button}
                 icon="apple"
-                disabled={displayLoading}
+                disabled={isLoading}
                 textColor={theme.colors.onSurface}
                 labelStyle={styles.buttonLabel}
               >
@@ -157,13 +136,13 @@ const LoginScreen = () => {
               style={styles.input}
               keyboardType="email-address"
               autoCapitalize="none"
-              disabled={displayLoading}
+              disabled={isLoading}
             />
             <Button
               mode="contained"
               onPress={handleSendOtp}
               style={styles.button}
-              disabled={displayLoading || !email}
+              disabled={isLoading || !email}
               labelStyle={styles.buttonLabel}
             >
               Send Login Code
@@ -183,22 +162,22 @@ const LoginScreen = () => {
               style={styles.input}
               keyboardType="number-pad"
               maxLength={6}
-              disabled={displayLoading}
+              disabled={isLoading}
             />
             <Button
               mode="contained"
               onPress={handleVerifyOtp}
               style={styles.button}
-              disabled={displayLoading || !otp || otp.length !== 6}
+              disabled={isLoading || !otp || otp.length !== 6}
               labelStyle={styles.buttonLabel}
             >
               Verify Code & Sign In
             </Button>
              <Button
               mode="text"
-              onPress={() => { setOtpSent(false); setOtp(''); setLocalError(null); }} 
+              onPress={() => { setOtpSent(false); setOtp(''); }} 
               style={styles.linkButton}
-              disabled={displayLoading}
+              disabled={isLoading}
             >
               Use a different email
             </Button>

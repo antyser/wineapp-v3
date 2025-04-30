@@ -1,41 +1,61 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { Modal, Portal, Text, ActivityIndicator } from 'react-native-paper';
 
 interface LoadingModalProps {
   visible: boolean;
   message?: string;
+  imageUri?: string | null;
 }
 
 const LoadingModal: React.FC<LoadingModalProps> = ({ 
   visible, 
-  message = 'Processing image...' 
+  message = 'Loading...', 
+  imageUri
 }) => {
   return (
     <Portal>
       <Modal
         visible={visible}
         dismissable={false}
-        contentContainerStyle={styles.loadingModal}
+        contentContainerStyle={styles.modalContainer}
       >
-        <ActivityIndicator size="large" color="#000000" />
-        <Text style={styles.loadingText}>{message}</Text>
+        <View style={styles.content}>
+          {imageUri && (
+            <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+          )}
+          <ActivityIndicator animating={true} size="large" style={styles.activityIndicator} />
+          <Text style={styles.messageText}>{message}</Text>
+        </View>
       </Modal>
     </Portal>
   );
 };
 
 const styles = StyleSheet.create({
-  loadingModal: {
+  modalContainer: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: 30,
     margin: 40,
     borderRadius: 8,
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 10,
-    color: '#000000',
+  content: {
+    alignItems: 'center',
+  },
+  activityIndicator: {
+    marginBottom: 16,
+  },
+  messageText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginBottom: 16,
+    resizeMode: 'cover',
   },
 });
 

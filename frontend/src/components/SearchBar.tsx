@@ -1,51 +1,47 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
-import { Searchbar as PaperSearchbar, useTheme } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import { StyleSheet } from 'react-native';
+import { Searchbar as PaperSearchBar } from 'react-native-paper';
 
 interface SearchBarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onSearch: () => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
   searchQuery,
   setSearchQuery,
   onSearch,
-  placeholder = 'Search for wines...'
+  placeholder = 'Search for wines...',
+  disabled = false,
 }) => {
-  const theme = useTheme();
-
-  const handleSubmit = () => {
-    if (searchQuery.trim()) {
-      onSearch();
-    }
-  };
-
   return (
-    <View style={styles.container}>
-      <PaperSearchbar
-        placeholder={placeholder}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        style={styles.searchBar}
-        iconColor={theme.colors.primary}
-        onSubmitEditing={handleSubmit}
-      />
-    </View>
+    <PaperSearchBar
+      placeholder={placeholder}
+      onChangeText={setSearchQuery}
+      value={searchQuery}
+      onIconPress={onSearch}
+      onSubmitEditing={onSearch}
+      style={styles.searchBar}
+      inputStyle={styles.input}
+      iconColor="#888"
+      elevation={1}
+      disabled={disabled}
+    />
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-  },
   searchBar: {
-    borderRadius: 8,
-    elevation: 0,
-    backgroundColor: '#F3F3F3',
+    borderRadius: 25,
+    backgroundColor: '#f0f0f0',
+    marginBottom: 8,
+  },
+  input: {
+    fontSize: 16,
+    paddingLeft: 0,
   },
 });
 

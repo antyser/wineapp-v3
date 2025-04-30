@@ -4,9 +4,10 @@ import { Button } from 'react-native-paper';
 
 interface ActionButtonsProps {
   onScanPress: () => void;
+  disabled?: boolean;
 }
 
-const ActionButtons: React.FC<ActionButtonsProps> = ({ onScanPress }) => {
+const ActionButtons: React.FC<ActionButtonsProps> = ({ onScanPress, disabled = false }) => {
   return (
     <View style={styles.actionsContainer}>
       <Button
@@ -15,6 +16,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({ onScanPress }) => {
         onPress={onScanPress}
         style={styles.actionButton}
         labelStyle={styles.buttonLabel}
+        disabled={disabled}
       >
         Scan Label
       </Button>

@@ -26,14 +26,12 @@ interface WineDetailCardProps {
   wine: Wine;
   onAddToWishlist?: () => void;
   onLike?: () => void;
-  onAddToCellar?: () => void;
   onAddNote?: () => void;
-  onToggleTasted?: () => void;
   onRateWine?: (rating: number) => void;
   onBuyWine?: () => void;
   isInWishlist?: boolean;
   isLiked?: boolean;
-  isTasted?: boolean;
+  hasExistingNotes?: boolean;
   rating?: number;
   hasOffers?: boolean;
 }
@@ -42,14 +40,12 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
   wine,
   onAddToWishlist,
   onLike,
-  onAddToCellar,
   onAddNote,
-  onToggleTasted,
   onRateWine,
   onBuyWine,
   isInWishlist = false,
   isLiked = false,
-  isTasted = false,
+  hasExistingNotes = false,
   rating = 0,
   hasOffers = false,
 }) => {
@@ -220,22 +216,14 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
           <Icon source={isInWishlist ? 'bookmark' : 'bookmark-outline'} size={24} color={isInWishlist ? '#FFFFFF' : '#000000'} />
         </TouchableOpacity>
         
-{/*         <Button
-          mode="outlined"
-          onPress={onAddToCellar}
-          style={styles.textButton}
-          labelStyle={styles.buttonLabel}
-        >
-          Add to Cellar
-        </Button> */}
-        
         <Button
           mode="outlined"
           onPress={onAddNote}
           style={styles.textButton}
           labelStyle={styles.buttonLabel}
+          icon={hasExistingNotes ? "note-edit-outline" : "note-plus-outline"}
         >
-          Tasting Note
+          {hasExistingNotes ? 'View/Edit Note' : 'Add Note'}
         </Button>
         
         <Button
@@ -248,14 +236,6 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
         >
           View Offers
         </Button>
-        
-        {/* <TouchableOpacity 
-          onPress={onToggleTasted}
-          style={[styles.actionButton, isTasted && styles.activeActionButton]}
-          testID="tasted-button"
-        >
-          <Icon source="check" size={24} color={isTasted ? '#FFFFFF' : '#000000'} />
-        </TouchableOpacity> */}
       </View>
     </Card>
   );

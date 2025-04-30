@@ -1,92 +1,64 @@
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
-import MainDrawer from './MainDrawer';
-
-// Import the screens we've created
-import CellarDetailScreen from '../screens/CellarDetailScreen';
-import CellarFormScreen from '../screens/CellarFormScreen';
-import CellarStatsScreen from '../screens/CellarStatsScreen';
-import WineDetailScreen from '../screens/WineDetailScreen';
-import WineSearchScreen from '../screens/WineSearchScreen';
-import AddWineScreen from '../screens/AddWineScreen';
-import AddBottlesScreen from '../screens/AddBottlesScreen';
-import SearchResultsScreen from '../screens/SearchResultsScreen';
+import MainTabs from './MainTabs'; // Assuming MainTabs handles Home, MyWines, Chat, Profile
 import LoginScreen from '../screens/LoginScreen';
-import NoteScreen from '../screens/TastingNoteScreen';
+import WineDetailScreen from '../screens/WineDetailScreen';
+import SearchResultsScreen from '../screens/SearchResultsScreen';
+import TastingNoteScreen from '../screens/TastingNoteScreen';
 import WineOffersScreen from '../screens/WineOffersScreen';
+import WineSearchScreen from '../screens/WineSearchScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function RootNavigator() {
+const RootNavigator = () => {
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        initialRouteName="Main"
-        screenOptions={{
-          headerShown: false, // We'll use our own headers with Appbar.Header
-        }}
+      <Stack.Navigator 
+        initialRouteName="Main" // Start with the main tab navigator
+        screenOptions={{ headerShown: false }} // Hide header globally for the root stack
       >
-        <Stack.Screen
-          name="Main"
-          component={MainDrawer}
-          options={{ headerShown: false }}
+        {/* Main application flow with bottom tabs */}
+        <Stack.Screen 
+          name="Main" 
+          component={MainTabs} 
         />
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
+
+        {/* Screens presented modally or pushing over tabs */}
+        <Stack.Screen 
+          name="Login" 
+          component={LoginScreen} 
+          options={{ presentation: 'modal' }} // Example: Login as a modal
         />
-        <Stack.Screen
-          name="WineDetails"
-          component={WineDetailScreen}
+         <Stack.Screen 
+          name="WineDetail" 
+          component={WineDetailScreen} 
+          options={{ headerShown: false }} // Disable stack header, rely on screen's Appbar
         />
-        <Stack.Screen
-          name="WineDetail"
-          component={WineDetailScreen}
+         <Stack.Screen 
+          name="SearchResults" 
+          component={SearchResultsScreen} 
+          options={{ headerShown: false }} // Handled by Appbar inside screen
         />
-        <Stack.Screen
-          name="AddWine"
-          component={AddWineScreen}
-        />
-        <Stack.Screen
-          name="AddTastingNote"
-          component={NoteScreen}
-        />
-        <Stack.Screen
+        <Stack.Screen 
           name="WineSearch"
           component={WineSearchScreen}
+          options={{ presentation: 'modal', headerShown: true, title: 'Search Wines'}}
         />
-
-        {/* Cellar screens */}
-        <Stack.Screen
-          name="CellarDetail"
-          component={CellarDetailScreen}
+        <Stack.Screen 
+          name="AddTastingNote"
+          component={TastingNoteScreen}
+          options={{ presentation: 'modal', headerShown: true, title: 'Add Tasting Note' }}
         />
-        <Stack.Screen
-          name="CellarForm"
-          component={CellarFormScreen}
-          options={{ title: 'Edit Cellar' }}
-        />
-        <Stack.Screen
-          name="CellarStats"
-          component={CellarStatsScreen}
-        />
-
-        <Stack.Screen
-          name="AddBottles"
-          component={AddBottlesScreen}
-        />
-
-        <Stack.Screen
-          name="SearchResults"
-          component={SearchResultsScreen}
-        />
-
-        <Stack.Screen
+        <Stack.Screen 
           name="WineOffers"
           component={WineOffersScreen}
+          options={{ presentation: 'modal', headerShown: false }} // Disable stack header
         />
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+};
+
+export default RootNavigator;

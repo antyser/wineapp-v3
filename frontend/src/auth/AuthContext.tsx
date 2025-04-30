@@ -32,6 +32,8 @@ interface AuthContextType {
   signInWithApple: () => Promise<void>;
   signInWithEmailOtp: (email: string) => Promise<void>;
   signInWithPhoneOtp: (phone: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<boolean>;
+  signInAnonymously: () => Promise<boolean>;
 }
 
 // Create context with default values
@@ -47,6 +49,8 @@ const AuthContext = createContext<AuthContextType>({
   signInWithApple: async () => {},
   signInWithEmailOtp: async (email: string) => {},
   signInWithPhoneOtp: async (phone: string) => {},
+  verifyEmailOtp: async (email: string, token: string) => false,
+  signInAnonymously: async () => false,
 });
 
 // Helper to convert Supabase user to our User type
@@ -344,6 +348,48 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
+  // --- Verify Email OTP ---
+  const verifyEmailOtp = async (email: string, token: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      console.log(`Attempting to verify OTP for ${email}...`);
+
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      });
+
+      if (verifyError) {
+        console.error('Supabase verifyOtp error:', verifyError);
+        throw verifyError;
+      }
+
+      // verifyOtp returns session data on success
+      if (data.session) {
+        console.log('OTP verified successfully, session obtained.');
+        setSession(data.session);
+        setUser(convertUser(data.session.user));
+        setError(null);
+        return true; // Indicate success
+      } else {
+        // This case might happen if the OTP is wrong but doesn't throw an error, or if the session isn't returned for some reason.
+        console.warn('verifyOtp succeeded but did not return a session.');
+        setError('Invalid or expired OTP code.');
+        return false; // Indicate failure
+      }
+    } catch (err) {
+      console.error('Error verifying email OTP:', err);
+      setError(err instanceof Error ? err.message : 'Failed to verify OTP');
+      // Ensure state reflects failed attempt
+      // Don't clear session/user here as they might be valid from a previous login method
+      return false; // Indicate failure
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Check for existing session on app load and handle auth changes
   useEffect(() => {
     let isMounted = true; // Prevent state updates on unmounted component
@@ -489,6 +535,8 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     signInWithApple,
     signInWithEmailOtp,
     signInWithPhoneOtp,
+    verifyEmailOtp,
+    signInAnonymously: handleAnonymousSignIn,
   };
 
   return (
