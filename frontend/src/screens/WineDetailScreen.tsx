@@ -11,6 +11,8 @@ import { useAuth } from '../auth/AuthContext';
 import { Message } from '../api/generated/types.gen';
 import WineChatView from '../components/wine/WineChatView';
 import { UIMessage } from '../components/wine/WineChatView';
+import { apiFetch } from '../lib/apiClient';
+import { getBaseUrl, getAuthHeaders } from '../lib/apiClient';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -135,37 +137,41 @@ const WineDetailScreen = () => {
     setFollowUpQuestions([]);
 
     try {
-      const token = await getToken();
-      if (!token) throw new Error('Not authenticated');
-
       const wineContext = `The user is asking about ${getFormattedWineName()}. Context: Region: ${wine.region || 'N/A'}, Country: ${wine.country || 'N/A'}, Varietal: ${wine.varietal || 'N/A'}, Winery: ${wine.winery || 'N/A'}, Description: ${wine.description || 'N/A'}`;
-
       let apiMessages: Message[] = [
         { role: 'assistant', content: { text: wineContext } }
       ];
-
       const history = chatMessages
         .filter(msg => msg.id !== '0' && msg.id !== assistantPlaceholderId)
         .map(msg => ({ role: msg.role, content: { text: msg.content } } as Message));
-        
       apiMessages = [...apiMessages, ...history];
       apiMessages.push({ role: 'user', content: { text: userMessage.content } } as Message);
 
-      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+      const baseUrl = getBaseUrl();
       const streamUrl = `${baseUrl}/api/v1/chat/wine/stream`;
 
+      const headers = await getAuthHeaders({
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      });
+
+      console.log(`[WineDetailScreen] Fetching stream from: ${streamUrl}`);
+      
       const response = await fetch(streamUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: headers,
         body: JSON.stringify({ messages: apiMessages, model: DEFAULT_MODEL }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorDetails = `HTTP error! status: ${response.status}`;
+        try {
+            const errorJson = await response.json();
+            errorDetails += ` - ${JSON.stringify(errorJson)}`;
+        } catch (e) {
+            // Ignore if body isn't JSON
+        }
+        throw new Error(errorDetails);
       }
       if (!response.body) {
         throw new Error('Response body is null');
@@ -231,7 +237,7 @@ const WineDetailScreen = () => {
       readerRef.current = null;
 
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      console.error('[WineDetailScreen] Error sending message:', error);
       setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: `Error: ${error.message}` } : msg));
     } finally {
       setIsChatLoading(false);
@@ -240,7 +246,7 @@ const WineDetailScreen = () => {
           readerRef.current = null;
       }
     }
-  }, [chatInput, wine, getToken, chatMessages, closeEventStream, getFormattedWineName]);
+  }, [wine, chatMessages, closeEventStream, getFormattedWineName]);
 
   const handleFollowupQuestion = (question: string) => {
     handleSendMessage(question);

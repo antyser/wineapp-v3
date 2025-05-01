@@ -1,11 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import {
-  getWineForUserApiV1WinesUserWineIdGet,
-  toggleInteractionApiV1InteractionsWineWineIdToggleActionPost,
-  rateWineApiV1InteractionsWineWineIdRatePost,
-  getNotesByWineApiV1NotesWineWineIdGet,
-} from '../api';
-import { GetWineForUserResponse } from '../api/generated/types.gen';
+import { GetWineForUserResponse, NoteResponse } from '../api/generated/types.gen';
+import { apiFetch } from '../lib/apiClient'; // Import the new fetch utility
 
 interface UseWineInteractionsResult {
   isInWishlist: boolean;
@@ -42,10 +37,12 @@ export const useWineInteractions = (wineId: string, initialInteractionData?: Get
   const checkNotes = useCallback(async () => {
     if (!wineId) return;
     try {
-      const notesResponse = await getNotesByWineApiV1NotesWineWineIdGet({ path: { wine_id: wineId } });
-      setHasExistingNotes(!!(notesResponse.data && notesResponse.data.length > 0));
+      // Use apiFetch to get notes
+      const notesResponse = await apiFetch<NoteResponse[]>(`/api/v1/notes/wine/${wineId}`);
+      // apiFetch returns null for 204/non-JSON, check for array with length
+      setHasExistingNotes(Array.isArray(notesResponse) && notesResponse.length > 0);
     } catch (error) {
-      console.error('Error checking for existing notes:', error);
+      console.error('[useWineInteractions] Error checking for existing notes:', error);
       setHasExistingNotes(false); // Assume no notes on error
     }
   }, [wineId]);
@@ -68,16 +65,21 @@ export const useWineInteractions = (wineId: string, initialInteractionData?: Get
     stateUpdater(optimisticState); // Optimistic update
 
     try {
-      const response = await toggleInteractionApiV1InteractionsWineWineIdToggleActionPost({
-        path: { wine_id: wineId, action },
-      });
-      console.log(`${action} toggled:`, response.data);
+      // Use apiFetch to toggle interaction
+      const response = await apiFetch<{ status: string, action: string, value: boolean }>( // Adjust expected response type if needed
+        `/api/v1/interactions/wine/${wineId}/toggle/${action}`,
+        { method: 'POST' }
+      );
+      console.log(`[useWineInteractions] ${action} toggled:`, response);
       // Optional: Update state from response if it differs from optimistic update
-      // For boolean toggles, it's usually safe to rely on the optimistic update.
-    } catch (error) {
-      console.error(`Error toggling ${action}:`, error);
+      if (response && typeof response.value === 'boolean' && response.value !== optimisticState) {
+         console.warn(`[useWineInteractions] Optimistic update for ${action} mismatch. Reverting to server state.`);
+         stateUpdater(response.value);
+      }
+    } catch (error: any) {
+      console.error(`[useWineInteractions] Error toggling ${action}:`, error);
       stateUpdater(currentState); // Revert on error
-      setInteractionError(`Failed to update ${action}. Please try again.`);
+      setInteractionError(error.message || `Failed to update ${action}. Please try again.`);
     }
   }, [wineId, isInWishlist, isLiked]);
 
@@ -92,19 +94,21 @@ export const useWineInteractions = (wineId: string, initialInteractionData?: Get
     setUserRating(rating); // Optimistic update
 
     try {
-      const response = await rateWineApiV1InteractionsWineWineIdRatePost({
-        path: { wine_id: wineId },
-        query: { rating },
-      });
-      console.log('Wine rated:', response.data);
+       // Use apiFetch to rate wine - note query parameters need to be added to URL
+      const response = await apiFetch<{ status: string, rating: number }>( // Adjust expected response type if needed
+          `/api/v1/interactions/wine/${wineId}/rate?rating=${encodeURIComponent(rating)}`,
+          { method: 'POST' }
+      );
+      console.log('[useWineInteractions] Wine rated:', response);
       // Update from response if needed, though optimistic should be fine
-      if (response.data && typeof response.data.rating === 'number') {
-        setUserRating(response.data.rating);
+      if (response && typeof response.rating === 'number' && response.rating !== rating) {
+         console.warn('[useWineInteractions] Optimistic rating update mismatch. Reverting to server state.');
+        setUserRating(response.rating);
       }
-    } catch (error) {
-      console.error('Error rating wine:', error);
+    } catch (error: any) {
+      console.error('[useWineInteractions] Error rating wine:', error);
       setUserRating(previousRating); // Revert on error
-      setInteractionError('Failed to rate wine. Please try again.');
+      setInteractionError(error.message || 'Failed to rate wine. Please try again.');
     }
   }, [wineId, userRating]);
 
@@ -124,4 +128,4 @@ export const useWineInteractions = (wineId: string, initialInteractionData?: Get
     rateWine,
     clearInteractionError,
   };
-}; 
+};

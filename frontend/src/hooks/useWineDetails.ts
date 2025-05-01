@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Wine } from '../types/wine';
 import { WineSearcherOffer, GetWineForUserResponse } from '../api/generated/types.gen';
-import {
-  getOneWineApiV1WinesWineIdGet,
-  getWineForUserApiV1WinesUserWineIdGet,
-} from '../api';
+// Remove imports for generated service functions
+// import {
+//   getOneWineApiV1WinesWineIdGet,
+//   getWineForUserApiV1WinesUserWineIdGet,
+// } from '../api';
+import { apiFetch } from '../lib/apiClient'; // Import the new fetch utility
 
 // Helper function (can be moved to utils/types later)
 const mapApiWineToLocalWine = (apiWine: any): Wine => {
@@ -54,7 +56,7 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
 
     // Skip fetch if we have initial data (but allow retry)
     if (initialWineData && retryCount === 0) {
-        console.log('Using initial wine data from route/props');
+        console.log('[useWineDetails] Using initial wine data from route/props');
         // If initial data is provided, assume offers/interactions need separate fetching
         // Or adjust if initial data might include offers/interactions
         setIsLoading(false);
@@ -65,46 +67,53 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
     setError(null);
     setUserInteractionData(undefined);
     setOffers([]); // Clear previous offers on refetch/retry
-    console.log(`Fetching details for wineId: ${wineId}, Retry: ${retryCount}`);
+    console.log(`[useWineDetails] Fetching details for wineId: ${wineId}, Retry: ${retryCount}`);
 
     try {
       // Prioritize fetching user-specific wine data first
       try {
-        const userWineResponse = await getWineForUserApiV1WinesUserWineIdGet({
-          path: { wine_id: wineId },
-        });
+        // Use apiFetch for user-specific data
+        const userWineResponse = await apiFetch<GetWineForUserResponse>(`/api/v1/wines/user/${wineId}`);
 
-        if (userWineResponse.data?.wine) {
-          console.log('Successfully retrieved user-specific wine data');
-          const mappedWine = mapApiWineToLocalWine(userWineResponse.data.wine);
+        if (userWineResponse?.wine) { // apiFetch returns null for 204/non-JSON
+          console.log('[useWineDetails] Successfully retrieved user-specific wine data');
+          const mappedWine = mapApiWineToLocalWine(userWineResponse.wine);
           setWine(mappedWine);
-          setOffers(userWineResponse.data.offers || []);
-          setUserInteractionData(userWineResponse.data.interaction);
+          setOffers(userWineResponse.offers || []);
+          setUserInteractionData(userWineResponse.interaction);
           setIsLoading(false);
           return; // Success!
+        } else {
+           // If user-specific data returned null or lacked wine, log and proceed to public
+           console.log('[useWineDetails] No user-specific wine data found or response was empty, falling back...');
         }
-      } catch (userError) {
-        console.warn('Failed to get user-specific wine data, falling back...', userError);
+      } catch (userError: any) {
+         // If the user-specific endpoint returns 404 or other error, fall back to public
+        if (userError.message?.includes('404')) {
+            console.warn('[useWineDetails] User-specific endpoint returned 404, falling back to public.');
+        } else {
+            console.warn('[useWineDetails] Failed to get user-specific wine data, falling back...', userError?.message || userError);
+        }
         // Don't throw here, proceed to public fetch
       }
 
       // Fallback: Fetch public wine data
-      console.log('Fetching public wine data as fallback...');
-      const publicWineResponse = await getOneWineApiV1WinesWineIdGet({
-        path: { wine_id: wineId },
-      });
+      console.log('[useWineDetails] Fetching public wine data as fallback...');
+      // Use apiFetch for public data
+      // Assuming the public endpoint returns data directly matching the Wine type structure (adjust if not)
+      const publicWineResponse = await apiFetch<Wine>(`/api/v1/wines/${wineId}`);
 
-      if (publicWineResponse.data) {
-        const mappedWine = mapApiWineToLocalWine(publicWineResponse.data);
+      if (publicWineResponse) { // apiFetch returns null for 204/non-JSON
+        const mappedWine = mapApiWineToLocalWine(publicWineResponse);
         setWine(mappedWine);
         // Offers and interactions might not be available in public data
-        setOffers([]); 
+        setOffers([]);
         setUserInteractionData(undefined);
       } else {
-        throw new Error('No wine data found.');
+        throw new Error('No public wine data found or response was empty.');
       }
-    } catch (err) {
-      console.error('Error in useWineDetails fetch:', err);
+    } catch (err: any) {
+      console.error('[useWineDetails] Error fetching details:', err);
       setError(err instanceof Error ? err.message : 'Failed to load wine details.');
       setWine(null); // Clear wine data on error
     } finally {

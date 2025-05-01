@@ -12,10 +12,10 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "generate-api": "node scripts/update-api.js",
-    "expo": "dotenv -e .env -- npx expo"
+    "expo": "dotenv -e .env -- npx expo",
+    "generate-client": "openapi-ts --input http://localhost:8000/api/v1/openapi.json --output ./src/api/generated --plugins @hey-api/typescript"
   },
   "dependencies": {
-    "@clerk/clerk-expo": "^2.9.10",
     "@expo/metro-runtime": "~4.0.1",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-async-storage/async-storage": "1.23.1",
@@ -53,8 +53,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@hey-api/client-fetch": "^0.10.0",
     "@hey-api/openapi-ts": "^0.66.4",
+    "@hey-api/typescript": "^0.67.0",
     "@react-native-community/cli": "^18.0.0",
     "@testing-library/react-native": "^13.2.0",
     "@types/react": "~18.3.12",

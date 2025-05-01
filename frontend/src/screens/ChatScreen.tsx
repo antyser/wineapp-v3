@@ -4,8 +4,8 @@ import { Text, Button, TextInput, MD3Colors, Chip } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
 import { useAuth } from '../auth/AuthContext';
-import { wineChatApiV1ChatWinePost } from '../api/generated/sdk.gen';
 import { Message, MessageContent } from '../api/generated/types.gen';
+import { apiFetch } from '../lib/apiClient';
 
 // Default model to use
 const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
@@ -17,6 +17,14 @@ interface UIMessage {
   role: 'user' | 'assistant';
   timestamp: Date;
   followup_questions?: string[];
+}
+
+// Define the expected response structure from the backend chat endpoint
+interface ChatApiResponse {
+    response: {
+        text: string;
+    };
+    followup_questions?: string[];
 }
 
 const ChatScreen = () => {
@@ -64,79 +72,70 @@ const ChatScreen = () => {
     setInputText('');
     setIsLoading(true);
 
+    // Convert UI messages to the API message format for context
+    // Exclude the initial greeting message (id '0') from history if desired
+    const apiMessages: Message[] = messages
+        .filter(msg => msg.id !== '0') // Filter out the initial message
+        .map(msg => ({
+            role: msg.role,
+            content: { text: msg.content } as MessageContent // Assert type if necessary
+    }));
+    
+    // Add the new user message to the API messages array
+    apiMessages.push({
+      role: 'user',
+      content: { text: userMessage.content } as MessageContent
+    });
+
+    console.log("[ChatScreen] Sending messages to API:", apiMessages);
+
     try {
-      const token = await getToken();
-      if (!token) throw new Error('Not authenticated');
+      // NOTE: No need to manually get token here, apiFetch handles it.
 
-      // Convert UI messages to the API message format
-      const apiMessages: Message[] = messages.map(msg => ({
-        role: msg.role,
-        content: { text: msg.content }
-      }));
-      
-      // Add the user message to the API messages
-      apiMessages.push({
-        role: 'user',
-        content: { text: userMessage.content }
-      });
-
-      console.log("Sending messages to API:", apiMessages);
-
-      // Use the SDK to make the API call
-      const response = await wineChatApiV1ChatWinePost({
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        body: {
+      // Use apiFetch to make the API call
+      const response = await apiFetch<ChatApiResponse>('/api/v1/chat/wine', {
+        method: 'POST',
+        body: JSON.stringify({
           messages: apiMessages,
           model: DEFAULT_MODEL
-        }
+        })
       });
 
-      console.log("Full API response:", response);
+      console.log("[ChatScreen] Full API response:", response);
 
-      if (response.data && response.data.response) {
-        // Get the assistant response and follow-up questions
-        const responseText = response.data.response.text;
-        
-        // Check if followup_questions exists in the response
-        console.log("Response data:", JSON.stringify(response.data));
-        
-        const followup_questions = response.data.followup_questions || [];
-        console.log("Follow-up questions:", followup_questions);
-        
-        // Add the assistant response as a new message with follow-up questions
-        const newMessage = {
-          id: Date.now().toString(),
+      if (response?.response?.text) { // Check if response and nested properties exist
+        const responseText = response.response.text;
+        const followup_questions = response.followup_questions || [];
+
+        console.log("[ChatScreen] Follow-up questions:", followup_questions);
+
+        const assistantMessage: UIMessage = {
+          id: Date.now().toString() + '-assistant', // Ensure unique ID
           content: responseText,
-          role: 'assistant' as const,
+          role: 'assistant',
           timestamp: new Date(),
           followup_questions: followup_questions.length > 0 ? followup_questions : undefined
         };
-        
-        console.log("Adding message with followups:", newMessage);
-        
-        setMessages((prev) => [...prev, newMessage]);
+
+        console.log("[ChatScreen] Adding assistant message with followups:", assistantMessage);
+        setMessages((prev) => [...prev, assistantMessage]);
       } else {
-        throw new Error('Invalid response from API');
+        // Handle cases where response is null or structure is unexpected
+        console.error("[ChatScreen] Invalid or empty response from API:", response);
+        throw new Error('Received an invalid response from the assistant.');
       }
-      
-      setIsLoading(false);
-      
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // Add an error message
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: 'Sorry, I encountered an error processing your request. Please try again.',
-          role: 'assistant',
-          timestamp: new Date(),
-        },
-      ]);
-      
+
+    } catch (error: any) {
+      console.error('[ChatScreen] Error sending message:', error);
+
+      const errorMessage = {
+        id: Date.now().toString() + '-error',
+        content: error.message || 'Sorry, I encountered an error. Please try again.',
+        role: 'assistant' as const,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
     }
   }, [inputText, getToken, messages]);

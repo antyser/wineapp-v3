@@ -1629,5 +1629,5 @@ export type TestSupabaseApiV1TestSupabaseGetResponses = {
 };
 
 export type ClientOptions = {
-    baseUrl: `${string}://src` | (string & {});
+    baseUrl: 'http://localhost:8000' | (string & {});
 };

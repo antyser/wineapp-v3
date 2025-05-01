@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { deleteMeApiV1AuthMeDelete } from '../api/generated/sdk.gen';
+import { apiFetch } from '../lib/apiClient';
 
 const ProfileScreen = () => {
   const { user, isAuthenticated, signOut } = useAuth();
@@ -41,17 +41,18 @@ const ProfileScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('Attempting to delete account...');
-              const response = await deleteMeApiV1AuthMeDelete();
-              // Assuming the SDK throws an error on failure or the response indicates success
-              // Check response status if necessary, but 204 No Content is typical
-              console.log('Account deletion successful, signing out...');
-              await signOut();
-              // Optionally navigate to a specific screen after deletion
-              // navigation.navigate('Login'); 
-            } catch (error) {
-              console.error('Error deleting account:', error);
-              Alert.alert('Error', 'Could not delete account. Please try again.');
+              console.log('[ProfileScreen] Attempting to delete account...');
+              // Use apiFetch to call the DELETE endpoint
+              // apiFetch handles authentication internally
+              // Expecting a 204 No Content or similar successful response
+              await apiFetch<void>('/api/v1/auth/me', { method: 'DELETE' }); 
+
+              console.log('[ProfileScreen] Account deletion successful via API, signing out...');
+              await signOut(); // Sign out after successful deletion
+              
+            } catch (error: any) {
+              console.error('[ProfileScreen] Error deleting account:', error);
+              Alert.alert('Error', error.message || 'Could not delete account. Please try again.');
             }
           },
         },
