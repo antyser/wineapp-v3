@@ -127,12 +127,42 @@ async def get_note_by_id(note_id: UUID) -> Optional[Note]:
         return None
 
 
+async def get_note_by_id_and_user(note_id: UUID, user_id: UUID) -> Optional[Note]:
+    """
+    Get a note by its ID only if it belongs to the specified user.
+
+    Args:
+        note_id: UUID of the note
+        user_id: UUID of the user who must own the note
+
+    Returns:
+        Note object if found and owned by the user, None otherwise
+    """
+    try:
+        supabase = get_supabase_client()
+        response = (
+            supabase.table("notes")
+            .select("*")
+            .eq("id", str(note_id))
+            .eq("user_id", str(user_id))
+            .limit(1)
+            .execute()
+        )
+
+        return Note.model_validate(response.data[0]) if response.data else None
+    except Exception as e:
+        # Log the error here if needed
+        print(f"Error in get_note_by_id_and_user: {e}")
+        return None
+
+
 async def upsert_note(note_data: NoteUpsertPayload, user_id: UUID) -> Optional[Note]:
     """
     Upsert a note (create if it doesn't exist or update if it exists).
+    Prioritizes update if note_id is provided and valid for the user.
 
     Args:
-        note_data: Note data to upsert
+        note_data: Note data to upsert, potentially including note_id
         user_id: UUID of the user
 
     Returns:
@@ -140,35 +170,49 @@ async def upsert_note(note_data: NoteUpsertPayload, user_id: UUID) -> Optional[N
     """
     try:
         supabase = get_supabase_client()
+        note_to_create = None
+        note_to_update_id = None
 
-        # Check if a note from this user for this wine already exists
-        existing_notes = await get_notes_by_user_wine(user_id, UUID(note_data.wine_id))
-
-        if existing_notes and len(existing_notes) > 0:
-            # Update existing note - use the first one found
-            existing_note_id = existing_notes[0].id
-
-            # Create update object with only the fields from the payload
-            update_data = NoteUpdate(
-                note_text=note_data.note_text, tasting_date=note_data.tasting_date
-            )
-
-            # Update the note
-            updated_note = await update_note(UUID(existing_note_id), update_data)
-            return updated_note
+        if note_data.note_id:
+            existing_note = await get_note_by_id_and_user(note_data.note_id, user_id)
+            if existing_note:
+                note_to_update_id = existing_note.id
+            else:
+                note_to_create = NoteCreate(
+                    id=note_data.note_id, 
+                    user_id=user_id,
+                    wine_id=note_data.wine_id,
+                    note_text=note_data.note_text,
+                    tasting_date=note_data.tasting_date,
+                )
         else:
-            # Create new note
-            new_note = NoteCreate(
+             note_to_create = NoteCreate(
                 user_id=user_id,
-                wine_id=UUID(note_data.wine_id),
+                wine_id=note_data.wine_id,
                 note_text=note_data.note_text,
                 tasting_date=note_data.tasting_date,
             )
 
-            created_note = await create_note(new_note)
-            return created_note
+        if note_to_update_id:
+            # Perform update
+            print(f"Upserting: Updating note {note_to_update_id}")
+            update_payload = NoteUpdate(
+                note_text=note_data.note_text, tasting_date=note_data.tasting_date
+            )
+            updated_note = await update_note(note_to_update_id, update_payload)
+            return updated_note
+        elif note_to_create:
+             # Perform create
+             if hasattr(note_to_create, 'id') and note_to_create.id:
+                 print(f"Upserting: Creating new note (ID: {note_to_create.id})")
+             else:
+                 print(f"Upserting: Creating new note (ID: Auto)")
+             created_note = await create_note(note_to_create)
+             return created_note
+        else:
+             print("Upsert logic error: Neither update nor create path taken.")
+             return None
 
     except Exception as e:
-        # Log the error here if needed
         print(f"Error in upsert_note: {e}")
         return None

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
@@ -24,6 +24,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAuthenticated: boolean;
+  isAnonymous: boolean;
   isLoading: boolean;
   error: string | null;
   signOut: () => Promise<void>;
@@ -41,6 +42,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isAuthenticated: false,
+  isAnonymous: false,
   isLoading: true,
   error: null,
   signOut: async () => {},
@@ -67,9 +69,10 @@ const convertUser = (supabaseUser: SupabaseUser): User => {
 };
 
 // Auth provider component
-export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +124,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       // The onAuthStateChange listener should now pick up the new session
       setSession(data.session);
       setUser(data.session ? convertUser(data.session.user) : null);
+      setIsAnonymous(data.session?.user?.is_anonymous ?? false);
       return true;
     } catch (err) {
       console.error('Failed to create session from URL:', err);
@@ -151,6 +155,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
         console.log('Anonymous sign-in successful.');
         setSession(data.session);
         setUser(convertUser(data.session.user));
+        setIsAnonymous(true);
         return true;
       } else {
         console.warn('Anonymous sign-in did not return a session.');
@@ -162,6 +167,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
       // Ensure state reflects failed attempt
       setSession(null);
       setUser(null);
+      setIsAnonymous(false);
       return false;
     } finally {
       setIsLoading(false);
@@ -371,6 +377,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
         console.log('OTP verified successfully, session obtained.');
         setSession(data.session);
         setUser(convertUser(data.session.user));
+        setIsAnonymous(data.session.user.is_anonymous ?? false);
         setError(null);
         return true; // Indicate success
       } else {
@@ -418,52 +425,64 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
     // Get initial session
     const initAuth = async () => {
+       let didSignInAnonymously = false;
        try {
-        // No change needed here, it checks existing persisted session first
-        setIsLoading(true); // Start loading indicator
-        console.log('Auth provider mounted. Checking existing session...');
+        setIsLoading(true); // START loading indicator for initAuth
+        console.log('[AuthContext] initAuth: Checking existing session...');
         const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
 
         if (currentSession && isMounted) {
-          console.log('Found existing persisted session:', currentSession.user.id);
+          console.log('[AuthContext] initAuth: Found existing persisted session:', currentSession.user.id);
           setSession(currentSession);
           setUser(convertUser(currentSession.user));
+          setIsAnonymous(currentSession.user.is_anonymous ?? false);
+          // Found session, set loading false ONLY if listener hasn't already
+          if (isLoading) setIsLoading(false);
         } else if (isMounted) {
-          console.log('No active session found. Will wait for deep link or manual login.');
-          // We DON'T attempt anonymous sign-in here anymore if deep linking might provide a session
-          // If anonymous is desired as fallback, logic needs adjustment
+          console.log('[AuthContext] initAuth: No active session found. Attempting anonymous sign-in...');
+          // await handleAnonymousSignIn(); // handleAnonymousSignIn manages its own loading state
+          didSignInAnonymously = await handleAnonymousSignIn(); // Call and await, check result
+          // Loading state will be set by handleAnonymousSignIn
+        } else {
+          console.log('[AuthContext] initAuth: Component unmounted during session check.');
         }
       } catch (err) {
          if (isMounted) {
-            console.error('Auth initialization error:', err);
+            console.error('[AuthContext] initAuth: Error:', err);
             setError(err instanceof Error ? err.message : 'Unknown authentication error');
+            // Ensure loading stops on error if anonymous sign-in wasn't attempted/failed
+             if (!didSignInAnonymously && isLoading) setIsLoading(false); 
          }
       } finally {
-         if (isMounted) {
-            // Set loading false only after initial check/deep link attempt
-            setIsLoading(false);
+         // If we found a session initially OR anonymous sign-in was NOT attempted,
+         // AND we are still loading, set loading false.
+         // handleAnonymousSignIn sets its own loading state, so don't interfere if it ran.
+         if (isMounted && !didSignInAnonymously && isLoading) {
+             console.log('[AuthContext] initAuth finally: Setting loading false (no anon attempt or found session initially)');
+             setIsLoading(false);
          }
       }
     };
 
     initAuth();
 
-    // Subscribe to auth changes (e.g., after setSession, signOut)
+    // Subscribe to auth changes 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      if (!isMounted) return; // Avoid state updates if unmounted
+       if (!isMounted) return; // Avoid state updates if unmounted
 
-      console.log('Auth state changed event:', _event, newSession?.user?.id);
-      setSession(newSession);
-      setUser(newSession ? convertUser(newSession.user) : null);
-      setError(null); // Clear previous errors on auth change
-      setIsLoading(false); // Auth state change means loading is complete
+       console.log('Auth state changed event:', _event, newSession?.user?.id);
+       setSession(newSession);
+       setUser(newSession ? convertUser(newSession.user) : null);
+       setIsAnonymous(newSession?.user?.is_anonymous ?? false);
+       setError(null); // Clear previous errors on auth change
+       if (isLoading) setIsLoading(false); // Ensure loading is false after any auth state update, might be redundant but safe.
 
-      // Re-evaluate anonymous sign-in logic if needed on SIGNED_OUT
-      // if (_event === 'SIGNED_OUT' && !newSession) {
-      //     console.log('User signed out. Re-attempting anonymous sign-in.');
-      //     handleAnonymousSignIn(); // If you want auto anonymous login after sign out
-      // }
+       // Re-evaluate anonymous sign-in logic if needed on SIGNED_OUT
+       // if (_event === 'SIGNED_OUT' && !newSession) {
+       //     console.log('User signed out. Re-attempting anonymous sign-in.');
+       //     handleAnonymousSignIn(); // If you want auto anonymous login after sign out
+       // }
     });
 
     // Cleanup subscription and listener
@@ -527,6 +546,7 @@ export const AuthProvider: React.FC<{children: React.ReactNode}> = ({ children }
     session,
     // isAuthenticated should ideally check session?.access_token expiry too
     isAuthenticated: !!user && !!session,
+    isAnonymous,
     isLoading,
     error,
     signOut: handleSignOut,

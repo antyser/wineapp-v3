@@ -1,150 +1,87 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-
-// Force development mode for testing
-const isDevelopment = true;
-const isWeb = Platform.OS === 'web';
+import { supabase } from '../lib/supabase';
 
 // Log environment setup
 console.log('[API Client] Environment setup:', {
-  isDevelopment,
   platform: Platform.OS,
-  isWeb,
+  isWeb: Platform.OS === 'web',
   nodeEnv: process.env.NODE_ENV,
-  expoReleaseChannel: Constants.expoConfig?.releaseChannel,
+  // expoReleaseChannel: Constants.expoConfig?.releaseChannel, // Property might not exist
 });
 
-// Configure baseURL based on environment
-let baseURL = 'https://api.wineapp.com';
+// Import the configured apiClient from apiClient.ts
+import apiClientInstance from './apiClient';
 
-if (isDevelopment) {
-  if (isWeb) {
-    // For web in development - use localhost
-    baseURL = 'http://localhost:8000/api/v1';
-    console.log('[API Client] Using web development URL:', baseURL);
-  } else if (Platform.OS === 'android') {
-    // For Android emulator
-    baseURL = 'http://10.0.2.2:8000/api/v1';
-    console.log('[API Client] Using Android emulator URL:', baseURL);
-  } else {
-    // For iOS simulator or other platforms
-    baseURL = 'http://localhost:8000/api/v1';
-    console.log('[API Client] Using iOS/other development URL:', baseURL);
-  }
-} else {
-  // Production URL
-  console.log('[API Client] Using production URL:', baseURL);
-}
+// Re-export the apiClient instance
+export const apiClient = apiClientInstance;
 
-// Create Axios instance
-export const apiClient = axios.create({
-  baseURL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// === USE AXIOS CLIENT DIRECTLY WITH GENERATED TYPES ===
 
-// Log the configured axios instance
-console.log('[API Client] API client created with baseURL:', apiClient.defaults.baseURL);
-
-// Add request interceptor for logging
-apiClient.interceptors.request.use(
-  (config) => {
-    console.log(`[API Client] 🚀 API Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`, {
-      params: config.params,
-      data: config.data,
-      headers: config.headers,
-      fullUrl: `${config.baseURL}${config.url}`
-    });
-    return config;
-  },
-  (error) => {
-    console.error('[API Client] ❌ Request error:', error);
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor for logging
-apiClient.interceptors.response.use(
-  (response) => {
-    console.log(`[API Client] ✅ Response: ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`, {
-      data: response.data,
-      fullUrl: `${response.config.baseURL}${response.config.url}`
-    });
-    return response;
-  },
-  (error) => {
-    if (error.response) {
-      // The request was made and the server responded with a status code outside of 2xx
-      console.error(`[API Client] ❌ Response error: ${error.response.status} ${error.config?.method?.toUpperCase() || 'UNKNOWN'} ${error.config?.url || 'UNKNOWN_URL'}`, {
-        data: error.response.data,
-        headers: error.response.headers,
-        fullUrl: error.config ? `${error.config.baseURL}${error.config.url}` : 'UNKNOWN_FULL_URL'
-      });
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error('[API Client] ❌ No response received:', {
-        request: error.request,
-        config: error.config,
-        fullUrl: error.config ? `${error.config.baseURL}${error.config.url}` : 'UNKNOWN_FULL_URL'
-      });
-    } else {
-      // Something happened in setting up the request
-      console.error('[API Client] ❌ Request setup error:', error.message);
-    }
-    return Promise.reject(error);
-  }
-);
-
-// === GENERATED API CLIENT (PREFERRED) ===
-// Export the generated API client and its configuration
-export { 
-  default as api,
-  client 
-} from './generatedClient';
-
-// Export all functions from the generated SDK
-export * from './generated/sdk.gen';
-
-// Export all types from the generated client
+// Export only the types from the generated files
 export * from './generated/types.gen';
 
-// === DEPRECATED/REMOVED SERVICES ===
-// The wineService has been removed. Please use the functions from the generated SDK instead.
-// For example, use searchWinesEndpointApiV1SearchPost instead of wineService.searchWines
+// The generated client/sdk exports are removed.
+// Use the `apiClient` (Axios instance) defined above for requests.
 
-// Re-export the legacy API client for backward compatibility
-export { default as apiClient } from './apiClient';
+// REMOVED: export { api, client } from './generated/client.gen';
+// REMOVED: export * from './generated/sdk.gen';
+
+// === DEPRECATED/REMOVED SERVICES ===
+// The wineService has been removed. Please use the apiClient (Axios) directly.
+
+// REMOVED: Re-export of legacy apiClient to avoid redeclaration
+// REMOVED: export { default as apiClient } from './apiClient';
 
 /**
  * API Access Guide:
  * 
- * Preferred approach (using generated client):
+ * Use the `apiClient` (Axios instance) defined in this file 
+ * along with the exported types from `./generated/types.gen`.
+ * 
+ * Example: Search for wines
+ * ```typescript
+ * import { apiClient, WineSearchResult, SearchWinesRequest } from 'src/api';
+ * 
+ * const searchPayload: SearchWinesRequest = {
+ *   text_input: 'cabernet',
+ *   image_url: null
+ * };
+ * 
+ * try {
+ *   const response = await apiClient.post<WineSearchResult[]>('/search', searchPayload); 
+ *   const wines = response.data; 
+ *   // Handle wines data
+ * } catch (error) {
+ *   // Handle error
+ * }
  * ```
- * import { searchWinesEndpointApiV1SearchPost } from 'src/api';
  * 
- * // Example: Search for wines
- * const { data: wines } = await searchWinesEndpointApiV1SearchPost({
- *   body: {
- *     text_input: 'cabernet',
- *     image_url: null
- *   }
- * });
+ * Example: Get all cellars
+ * ```typescript
+ * import { apiClient, Cellar } from 'src/api'; // Assuming Cellar type exists
+ * 
+ * try {
+ *   const response = await apiClient.get<{ items: Cellar[] }>('/cellars'); 
+ *   const cellars = response.data.items;
+ *   // Handle cellars data
+ * } catch (error) {
+ *   // Handle error
+ * }
  * ```
  * 
- * Cellar operations:
- * ```
- * import { listCellarsApiV1CellarsGet, getCellarApiV1CellarsCellarIdGet } from 'src/api';
+ * Example: Get cellar by ID
+ * ```typescript
+ * import { apiClient, Cellar } from 'src/api'; // Assuming Cellar type exists
  * 
- * // Example: Get all cellars
- * const { data } = await listCellarsApiV1CellarsGet();
- * const cellars = data.items;
- * 
- * // Example: Get cellar by ID
- * const { data: cellar } = await getCellarApiV1CellarsCellarIdGet({
- *   path: { cellar_id: 'your-cellar-id' }
- * });
+ * const cellarId = 'your-cellar-id';
+ * try {
+ *   const response = await apiClient.get<Cellar>(`/cellars/${cellarId}`);
+ *   const cellar = response.data;
+ *   // Handle cellar data
+ * } catch (error) {
+ *   // Handle error
+ * }
  * ```
  */

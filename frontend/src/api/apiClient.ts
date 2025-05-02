@@ -48,6 +48,24 @@ export const apiClient = axios.create({
   },
 });
 
+// Helper function to get only the Authorization header value
+export const getAuthorizationHeader = async (): Promise<string | null> => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('[API Client] Error getting session for header:', error);
+      return null;
+    }
+    if (session?.access_token) {
+      return `Bearer ${session.access_token}`;
+    }
+    return null;
+  } catch (authError) {
+    console.error('[API Client] Exception getting auth token for header:', authError);
+    return null;
+  }
+};
+
 // Log the configured axios instance
 console.log('[API Client] API client created with baseURL:', apiClient.defaults.baseURL);
 

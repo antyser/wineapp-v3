@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, TouchableOpacity, Image, Text } from 'react-native';
 import { Card, Badge } from 'react-native-paper';
-import { Wine } from '../types/wine';
+import { Wine } from '../api';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
 
 /**

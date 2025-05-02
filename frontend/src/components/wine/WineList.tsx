@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, FlatList, View, TouchableOpacity } from 'react-native';
 import { Text, Card, ActivityIndicator, Chip, useTheme } from 'react-native-paper';
-import { Wine } from '../../types/wine';
+import { Wine } from '../../api';
+import WineListItem from '../WineListItem';
 
 interface WineListProps {
   wines: Wine[];
@@ -10,63 +11,9 @@ interface WineListProps {
   onWinePress: (wine: Wine) => void;
   onEndReached?: () => void;
   hasMore?: boolean;
+  ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null;
+  onEndReachedThreshold?: number;
 }
-
-const WineListItem: React.FC<{ wine: Wine; onPress: () => void }> = ({ wine, onPress }) => {
-  const theme = useTheme();
-
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.itemContainer}>
-      <Card style={styles.card}>
-        <Card.Content>
-          <View style={styles.titleRow}>
-            <Text variant="titleMedium" style={styles.vintage}>
-              {wine.vintage}
-            </Text>
-            <Text variant="titleMedium" numberOfLines={1} style={styles.name}>
-              {wine.name}
-            </Text>
-          </View>
-
-          {wine.producer && (
-            <Text variant="bodyMedium" style={styles.producer}>
-              {wine.producer}
-            </Text>
-          )}
-
-          <View style={styles.detailsRow}>
-            {wine.region && (
-              <Chip
-                icon="map-marker"
-                style={styles.chip}
-                textStyle={styles.chipText}
-                compact
-              >
-                {wine.region}
-              </Chip>
-            )}
-            {wine.wine_type && (
-              <Chip
-                icon="glass-wine"
-                style={styles.chip}
-                textStyle={styles.chipText}
-                compact
-              >
-                {wine.wine_type}
-              </Chip>
-            )}
-          </View>
-
-          {wine.average_price && (
-            <Text variant="bodyMedium" style={styles.price}>
-              ${wine.average_price.toFixed(2)}
-            </Text>
-          )}
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
-  );
-};
 
 const WineList: React.FC<WineListProps> = ({
   wines,
@@ -75,6 +22,8 @@ const WineList: React.FC<WineListProps> = ({
   onWinePress,
   onEndReached,
   hasMore = false,
+  ListHeaderComponent,
+  onEndReachedThreshold = 0.5
 }) => {
   if (loading && wines.length === 0) {
     return (
@@ -101,7 +50,7 @@ const WineList: React.FC<WineListProps> = ({
       )}
       contentContainerStyle={styles.list}
       onEndReached={onEndReached}
-      onEndReachedThreshold={0.5}
+      onEndReachedThreshold={onEndReachedThreshold}
       testID="wine-flat-list"
       ListFooterComponent={
         loading && hasMore ? (
@@ -113,6 +62,7 @@ const WineList: React.FC<WineListProps> = ({
           <Text variant="bodyLarge" style={styles.emptyText}>No wines found</Text>
         </View>
       }
+      ListHeaderComponent={ListHeaderComponent}
     />
   );
 };

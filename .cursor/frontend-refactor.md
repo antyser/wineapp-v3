@@ -1,81 +1,58 @@
-# Frontend Refactoring Plan
+# Frontend Refactor Plan: Optimistic UI Updates
 
-**1. Goals:**
+## Goal
+Improve perceived performance and responsiveness by implementing optimistic UI updates for key user interactions in `HomeScreen`, `WineDetailScreen`, and `TastingNoteScreen`.
 
-*   Separate UI, styling, API logic, and state management concerns *within each screen*.
-*   Improve code readability and maintainability.
-*   Remove unused code (pending confirmation for Cellar*).
-*   Leverage custom hooks for complex/reusable logic identified *during screen refactoring*.
-*   Utilize the generated API client consistently.
+## Strategy
+For designated actions (liking, wishlisting, rating, saving notes, sending chat messages, updating search history):
+1.  **Immediate Local Update:** Update the component's or global state immediately upon user action to reflect the expected outcome.
+2.  **Background Sync:** Initiate the API call asynchronously to persist the change on the server.
+3.  **Subtle Feedback:** Provide non-blocking visual cues (e.g., faded icons, small spinners, status text like "saving...") to indicate syncing status.
+4.  **Success Handling:** On successful API response, remove feedback indicators. Update local state with server-generated data (like IDs, timestamps) if necessary.
+5.  **Failure Handling:** On API error:
+    *   Revert local state to its previous value (before the optimistic update).
+    *   Clearly notify the user of the failure (e.g., Snackbar, Alert, error icon).
+    *   Provide a retry mechanism where appropriate.
 
-**2. Analysis:**
+## Implementation Plan
 
-*   **Screens to Refactor (Initial Focus):** `LoginScreen`, `HomeScreen`, `SearchResultsScreen`.
-*   **Other Screens (Potential Future Focus):** `WineDetailScreen`, `ProfileScreen`, `WineOffersScreen`, `ChatScreen`, `MyWinesScreen`, `AddBottlesScreen`, `TastingNoteScreen`, `WineSearchScreen`, `AddWineScreen`.
-*   **Potentially Unused Screens:** `CellarFormScreen`, `CellarDetailScreen`, `CellarStatsScreen`.
-*   **Components:** `SearchHistoryList`, `ImagePickerModal`, `LoadingModal`, `SearchBar`, `ActionButtons`, `ChatBox`, `WineDetailCard`, `WineOfferItem`, `WineCard`, `WineListItem`, `WineSection`, `WineRecognitionView`, `wine/*`.
-*   **Potentially Unused Components:** `cellar/*`.
-*   **API Usage:** Primarily through the generated `searchWinesEndpointApiV1SearchPost` and direct Supabase calls (`supabase.auth`, `supabase.storage`).
-*   **Styling:** Uses `StyleSheet.create` per component, which is acceptable. `react-native-paper` theme is used.
-*   **State:** Mix of `useState`, `useAuth` context.
+1.  **Refactor `useWineInteractions` (`WineDetailScreen` interactions):**
+    *   Modify `triggerSave` to store the previous state (`isInWishlist`, `isLiked`, `userRating`) before applying optimistic updates.
+    *   Implement state rollback logic within the `catch` block of `triggerSave` using the stored previous state.
+    *   Review and potentially adjust the `isSaving` visual feedback to be less intrusive (e.g., subtle icon changes).
 
-**3. Refactoring Strategy:** Screen-by-Screen
+2.  **Refactor `TastingNoteScreen` (Note Saving):**
+    *   Enhance the debounced auto-save logic:
+        *   Introduce an explicit sync status state (e.g., `isSynced: boolean`, `syncStatus: 'idle' | 'saving' | 'synced' | 'error'`).
+        *   Update `syncStatus` to 'saving' immediately when changes trigger the debounce timer.
+        *   Modify `saveNoteAsync`:
+            *   Store the *pre-save* `noteText` and `noteDate` values.
+            *   On API success: Update `syncStatus` to 'synced', update `lastSavedNoteText`/`lastSavedNoteDate`.
+            *   On API failure: Revert `noteText`/`noteDate` to the stored pre-save values, set `syncStatus` to 'error', notify the user clearly.
+        *   Ensure the UI reflects the `syncStatus` (e.g., "Saving...", "Saved", "Error saving").
 
-We will tackle one screen at a time, applying the following principles:
+3.  **Refactor `HomeScreen` (Search History - *if applicable*):**
+    *   Identify/Create the logic for managing local search history state.
+    *   When a search completes successfully, optimistically update the local history list.
+    *   Trigger a background function to persist the history update.
+    *   Handle persistence failure: Revert the local list change and notify the user.
 
-*   **Isolate Logic:** Move API calls, complex state manipulations, and business logic out of the main screen component into custom hooks (e.g., `useAuthActions`, `useImageSearch`) or service files (e.g., `supabaseService.ts`).
-*   **Clean UI Components:** Ensure components rendered by the screen are primarily presentational, receiving data and callbacks via props.
-*   **Consistent API Usage:** Replace direct API/Supabase calls with functions from hooks or services. Use the generated API client (`frontend/src/api.ts`).
-*   **Simplify State:** Consolidate and streamline local `useState` and context-derived state where possible.
-*   **Fix Lint Errors:** Address any linter errors encountered during the refactor.
+4.  **Testing:**
+    *   Verify successful optimistic updates across all affected components.
+    *   Simulate network/API errors to test state rollback and error notification logic thoroughly.
+    *   Test edge cases like rapid repeated actions (e.g., fast liking/unliking) and offline scenarios.
 
-**4. Refactoring Tasks by Screen:**
+---
 
-*   **`LoginScreen.tsx`:**
-    *   [ ] **Fix Linter Error 1:** Investigate and fix `Property 'verifyEmailOtp' does not exist on type 'AuthContextType'`. This likely requires checking/updating `AuthContext.tsx`.
-    *   [ ] **Fix Linter Error 2:** Correct the logic checking the result of `signInWithEmailOtp`. Assume it returns `void` or handle its actual return type appropriately instead of checking truthiness.
-    *   [ ] **Refactor State:** Simplify the combination of `localLoading`/`isLoading` and `localError`/`error`. Aim for a single source of truth for loading/error status, likely derived from `useAuth`.
-    *   [ ] **Refactor Logic (Optional):** Consider moving OTP flow logic (sending code, verifying code) into dedicated functions within `AuthContext` or a specific `useAuthActions` hook if complexity warrants it.
-    *   [ ] **API Calls:** Confirm all authentication actions are correctly channeled through `useAuth`.
-    *   [ ] **UI/Styling:** Review for clarity, no major changes expected.
+## Todo List
 
-*   **`HomeScreen.tsx`:**
-    *   [ ] **Create Hook `useImageSearch`:**
-        *   [ ] Move image picking logic (`handleImagePick`) including permission checks.
-        *   [ ] Move image upload and search logic (`handleImageSearch`) including Supabase Storage interaction and API call.
-        *   [ ] Hook should expose: `searchWithImage(useCamera: boolean)`, `isLoading`, `error`.
-    *   [ ] **Refactor Text Search:**
-        *   [ ] Move text search submission logic (`handleSearchSubmit`) into a reusable function or a `useTextSearch` hook.
-        *   [ ] Function/hook should handle calling the API (`searchWinesEndpointApiV1SearchPost`) and managing navigation based on results.
-        *   [ ] Function/hook should expose: `searchWithText(query: string)`, `isLoading`, `error`.
-    *   [ ] **Create Service `supabaseService.ts`:**
-        *   [ ] Add wrapper functions for Supabase Storage operations (`upload`, `getPublicUrl`).
-        *   [ ] Update `useImageSearch` hook (or logic within `HomeScreen` if hook isn't created first) to use these wrappers.
-    *   [ ] **Refactor State:** Replace the local `loading` state with state exposed by the new hooks (`useImageSearch`, `useTextSearch`).
-    *   [ ] **Refactor Auth:** Ensure anonymous sign-in logic uses `useAuth` context methods instead of direct `supabase.auth.signInAnonymously` calls. Update `AuthContext` if needed.
-    *   [ ] **UI/Styling:** Ensure child components (`SearchBar`, `ActionButtons`, etc.) receive necessary props and callbacks.
-
-*   **`SearchResultsScreen.tsx`:**
-    *   [ ] **UI/Styling:** Verify `WineListItem` is presentational and receives data/callbacks via props.
-    *   [ ] **Logic:** Confirm navigation logic (`handleWinePress`) is contained within the screen.
-    *   [ ] **API Calls:** Confirm no direct API calls are made here.
-    *   [ ] **State:** Confirm minimal local state is used.
-
-*   **`AuthContext.tsx` (Supporting Role):**
-    *   [ ] **Add `verifyEmailOtp`:** Implement and expose `verifyEmailOtp` if it's missing (related to `LoginScreen` task).
-    *   [ ] **Add Anonymous Sign-In:** Expose a function for anonymous sign-in if not already present (related to `HomeScreen` task).
-    *   [ ] **Review Exports:** Ensure all necessary functions and state (`isLoading`, `error`, `user`, `isAuthenticated`, etc.) are correctly exposed in `AuthContextType`.
-
-**5. Code Cleanup (Pending Confirmation):**
-
-*   If confirmed unused:
-    *   [ ] Delete `frontend/src/screens/CellarFormScreen.tsx`
-    *   [ ] Delete `frontend/src/screens/CellarDetailScreen.tsx`
-    *   [ ] Delete `frontend/src/screens/CellarStatsScreen.tsx`
-    *   [ ] Delete `frontend/src/components/cellar/` directory.
-    *   [ ] Remove corresponding imports and navigation entries from `frontend/src/navigation/RootNavigator.tsx`.
-    *   [ ] Remove any other dead code identified during refactoring.
-
-**6. Linting/Formatting:**
-
-*   [ ] Ensure code adheres to configured ESLint/Prettier rules after refactoring each screen.
+-   [x] **`useWineInteractions`:** Implement state rollback on error.
+-   [x] **`useWineInteractions`:** Store previous state before optimistic updates.
+-   [ ] **`TastingNoteScreen`:** Introduce `syncStatus` state.
+-   [ ] **`TastingNoteScreen`:** Implement optimistic save (`saveNoteAsync`) with state rollback on error.
+-   [ ] **`TastingNoteScreen`:** Update UI to reflect `syncStatus`.
+-   [ ] **`HomeScreen`:** Implement optimistic UI for Search History updates (*conditional on feature existence/priority*).
+-   [ ] **UI:** Add/Refine subtle "syncing/error" indicators for optimistic actions where needed.
+-   [ ] **Testing:** Test success paths for all optimistic updates.
+-   [ ] **Testing:** Test failure paths (network/API errors) and verify rollback/notification.
+-   [ ] **Testing:** Test rapid interaction edge cases.

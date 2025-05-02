@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, TouchableOpacity, FlatList, Alert, ActivityIndicator, Keyboard } from 'react-native';
 import { Appbar, Searchbar, Text, Button, Chip } from 'react-native-paper';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineList from '../components/wine/WineList';
-import { Wine } from '../types/wine';
-import { searchWinesEndpointApiV1SearchPost } from '../api';
+import { SearchRequest, Wine } from '../api';
 import { supabase } from '../lib/supabase';
-import { apiClient } from '../api/apiClient';
+import { searchWines } from '../api/services/searchService';
+import WineListItem from '../components/WineListItem';
 
 type WineSearchScreenRouteProp = RouteProp<RootStackParamList, 'WineSearch'>;
 type WineSearchScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -35,6 +35,7 @@ const WineSearchScreen = () => {
     region?: string;
   }>({});
   const [noResults, setNoResults] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Perform initial search if initialQuery is provided
   useEffect(() => {
@@ -43,58 +44,47 @@ const WineSearchScreen = () => {
     }
   }, []);
 
-  const performSearch = async (newSearch = true) => {
-    try {
-      if (newSearch) {
-        setLoading(true);
-        setPage(1);
-      }
-
-      // Make sure we have a search query
-      if (!searchQuery.trim()) {
-        setError('Please enter a search term');
-        setLoading(false);
-        return;
-      }
-
-      setError('');
-      
-      try {
-        // Use the SDK to search for wines
-        const { data: wines } = await searchWinesEndpointApiV1SearchPost({
-          body: {
-            text_input: searchQuery,
-            image_url: null
-          }
-        });
-        
-        // Navigate appropriately based on results
-        if (wines && wines.length > 0) {
-          // If exactly one wine is found, go directly to wine detail
-          if (wines.length === 1) {
-            navigation.navigate('WineDetail', { wineId: wines[0].id });
-          } else {
-            // Otherwise show search results
-            navigation.navigate('SearchResults', {
-              wines,
-              title: `Results for "${searchQuery}"`,
-              source: 'search'
-            });
-          }
-        } else {
-          setNoResults(true);
-        }
-      } catch (error) {
-        console.error('Error searching wines:', error);
-        setError('Failed to search for wines. Please try again.');
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-      setError('Failed to search for wines. Please try again.');
-    } finally {
-      setLoading(false);
+  const performSearch = useCallback(async (newSearch = true) => {
+    if (!searchQuery.trim() || isLoading) {
+      return;
     }
-  };
+    Keyboard.dismiss();
+    setIsLoading(true);
+    if(newSearch) setPage(1);
+    setError('');
+    setNoResults(false);
+    try {
+      const searchPayload: SearchRequest = {
+        text_input: searchQuery,
+        image_url: null,
+      };
+      const foundWines = await searchWines(searchPayload);
+
+      setSearchResults(foundWines || []);
+      if (!foundWines || foundWines.length === 0) {
+        setNoResults(true);
+      } else {
+        if (newSearch && foundWines.length === 1) {
+          navigation.navigate('WineDetail', { wineId: foundWines[0].id });
+        } else if (newSearch && foundWines.length > 1) {
+          // For multiple results, maybe navigate to SearchResultsScreen?
+          // Or just display them in this screen?
+          // Current code displays them here, let's keep that for now.
+          // navigation.navigate('SearchResults', {
+          //   wines: foundWines,
+          //   title: `Results for "${searchQuery}"`,
+          //   source: 'search'
+          // });
+        }
+      }
+    } catch (err: any) {
+      console.error('Error performing search:', err);
+      setError('Search failed. Please try again.');
+      Alert.alert('Search Error', err.message || 'Could not connect to server.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading, searchQuery, navigation]);
 
   // Handle search submission
   const handleSearch = () => {

@@ -226,18 +226,6 @@ export type Interaction = {
 };
 
 /**
- * Fields required to create a new interaction
- */
-export type InteractionCreate = {
-    user_id: string;
-    wine_id: string;
-    liked?: boolean | null;
-    wishlist?: boolean | null;
-    rating?: number | null;
-    tasted?: boolean | null;
-};
-
-/**
  * Fields that can be updated for an interaction
  */
 export type InteractionUpdate = {
@@ -305,6 +293,7 @@ export type NoteUpdate = {
  */
 export type NoteUpsertPayload = {
     wine_id: string;
+    note_id?: string | null;
     tasting_date?: string | null;
     note_text: string;
 };
@@ -1165,7 +1154,7 @@ export type GetNotesByWineApiV1NotesWineWineIdGetResponses = {
 
 export type GetNotesByWineApiV1NotesWineWineIdGetResponse = GetNotesByWineApiV1NotesWineWineIdGetResponses[keyof GetNotesByWineApiV1NotesWineWineIdGetResponses];
 
-export type DeleteNoteApiV1NotesNoteIdDeleteData = {
+export type DeleteNoteEndpointApiV1NotesNoteIdDeleteData = {
     body?: never;
     path: {
         note_id: string;
@@ -1174,16 +1163,16 @@ export type DeleteNoteApiV1NotesNoteIdDeleteData = {
     url: '/api/v1/notes/{note_id}';
 };
 
-export type DeleteNoteApiV1NotesNoteIdDeleteErrors = {
+export type DeleteNoteEndpointApiV1NotesNoteIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DeleteNoteApiV1NotesNoteIdDeleteError = DeleteNoteApiV1NotesNoteIdDeleteErrors[keyof DeleteNoteApiV1NotesNoteIdDeleteErrors];
+export type DeleteNoteEndpointApiV1NotesNoteIdDeleteError = DeleteNoteEndpointApiV1NotesNoteIdDeleteErrors[keyof DeleteNoteEndpointApiV1NotesNoteIdDeleteErrors];
 
-export type DeleteNoteApiV1NotesNoteIdDeleteResponses = {
+export type DeleteNoteEndpointApiV1NotesNoteIdDeleteResponses = {
     /**
      * Successful Response
      */
@@ -1192,7 +1181,7 @@ export type DeleteNoteApiV1NotesNoteIdDeleteResponses = {
     };
 };
 
-export type DeleteNoteApiV1NotesNoteIdDeleteResponse = DeleteNoteApiV1NotesNoteIdDeleteResponses[keyof DeleteNoteApiV1NotesNoteIdDeleteResponses];
+export type DeleteNoteEndpointApiV1NotesNoteIdDeleteResponse = DeleteNoteEndpointApiV1NotesNoteIdDeleteResponses[keyof DeleteNoteEndpointApiV1NotesNoteIdDeleteResponses];
 
 export type GetNoteByIdApiV1NotesNoteIdGetData = {
     body?: never;
@@ -1224,7 +1213,7 @@ export type GetNoteByIdApiV1NotesNoteIdGetResponses = {
 
 export type GetNoteByIdApiV1NotesNoteIdGetResponse = GetNoteByIdApiV1NotesNoteIdGetResponses[keyof GetNoteByIdApiV1NotesNoteIdGetResponses];
 
-export type UpdateNoteApiV1NotesNoteIdPatchData = {
+export type UpdateNoteEndpointApiV1NotesNoteIdPatchData = {
     body: NoteUpdate;
     path: {
         note_id: string;
@@ -1233,23 +1222,23 @@ export type UpdateNoteApiV1NotesNoteIdPatchData = {
     url: '/api/v1/notes/{note_id}';
 };
 
-export type UpdateNoteApiV1NotesNoteIdPatchErrors = {
+export type UpdateNoteEndpointApiV1NotesNoteIdPatchErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type UpdateNoteApiV1NotesNoteIdPatchError = UpdateNoteApiV1NotesNoteIdPatchErrors[keyof UpdateNoteApiV1NotesNoteIdPatchErrors];
+export type UpdateNoteEndpointApiV1NotesNoteIdPatchError = UpdateNoteEndpointApiV1NotesNoteIdPatchErrors[keyof UpdateNoteEndpointApiV1NotesNoteIdPatchErrors];
 
-export type UpdateNoteApiV1NotesNoteIdPatchResponses = {
+export type UpdateNoteEndpointApiV1NotesNoteIdPatchResponses = {
     /**
      * Successful Response
      */
     200: Note;
 };
 
-export type UpdateNoteApiV1NotesNoteIdPatchResponse = UpdateNoteApiV1NotesNoteIdPatchResponses[keyof UpdateNoteApiV1NotesNoteIdPatchResponses];
+export type UpdateNoteEndpointApiV1NotesNoteIdPatchResponse = UpdateNoteEndpointApiV1NotesNoteIdPatchResponses[keyof UpdateNoteEndpointApiV1NotesNoteIdPatchResponses];
 
 export type UpsertNoteEndpointApiV1NotesUpsertPostData = {
     body: NoteUpsertPayload;
@@ -1264,7 +1253,11 @@ export type UpsertNoteEndpointApiV1NotesUpsertPostErrors = {
      */
     401: unknown;
     /**
-     * Not Found
+     * Forbidden (Attempting to update note not owned by user)
+     */
+    403: unknown;
+    /**
+     * Not Found (Should not happen with upsert logic)
      */
     404: unknown;
     /**
@@ -1275,245 +1268,43 @@ export type UpsertNoteEndpointApiV1NotesUpsertPostErrors = {
 
 export type UpsertNoteEndpointApiV1NotesUpsertPostResponses = {
     /**
-     * Successful Response
+     * Note upserted successfully
      */
     200: Note;
+    /**
+     * Note created successfully
+     */
+    201: unknown;
 };
 
 export type UpsertNoteEndpointApiV1NotesUpsertPostResponse = UpsertNoteEndpointApiV1NotesUpsertPostResponses[keyof UpsertNoteEndpointApiV1NotesUpsertPostResponses];
 
-export type CreateInteractionApiV1InteractionsPostData = {
-    body: InteractionCreate;
-    path?: never;
-    query?: never;
-    url: '/api/v1/interactions/';
-};
-
-export type CreateInteractionApiV1InteractionsPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CreateInteractionApiV1InteractionsPostError = CreateInteractionApiV1InteractionsPostErrors[keyof CreateInteractionApiV1InteractionsPostErrors];
-
-export type CreateInteractionApiV1InteractionsPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type CreateInteractionApiV1InteractionsPostResponse = CreateInteractionApiV1InteractionsPostResponses[keyof CreateInteractionApiV1InteractionsPostResponses];
-
-export type DeleteInteractionApiV1InteractionsInteractionIdDeleteData = {
-    body?: never;
-    path: {
-        interaction_id: string;
-    };
-    query?: never;
-    url: '/api/v1/interactions/{interaction_id}';
-};
-
-export type DeleteInteractionApiV1InteractionsInteractionIdDeleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type DeleteInteractionApiV1InteractionsInteractionIdDeleteError = DeleteInteractionApiV1InteractionsInteractionIdDeleteErrors[keyof DeleteInteractionApiV1InteractionsInteractionIdDeleteErrors];
-
-export type DeleteInteractionApiV1InteractionsInteractionIdDeleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type DeleteInteractionApiV1InteractionsInteractionIdDeleteResponse = DeleteInteractionApiV1InteractionsInteractionIdDeleteResponses[keyof DeleteInteractionApiV1InteractionsInteractionIdDeleteResponses];
-
-export type GetInteractionApiV1InteractionsInteractionIdGetData = {
-    body?: never;
-    path: {
-        interaction_id: string;
-    };
-    query?: never;
-    url: '/api/v1/interactions/{interaction_id}';
-};
-
-export type GetInteractionApiV1InteractionsInteractionIdGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetInteractionApiV1InteractionsInteractionIdGetError = GetInteractionApiV1InteractionsInteractionIdGetErrors[keyof GetInteractionApiV1InteractionsInteractionIdGetErrors];
-
-export type GetInteractionApiV1InteractionsInteractionIdGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type GetInteractionApiV1InteractionsInteractionIdGetResponse = GetInteractionApiV1InteractionsInteractionIdGetResponses[keyof GetInteractionApiV1InteractionsInteractionIdGetResponses];
-
-export type UpdateInteractionApiV1InteractionsInteractionIdPatchData = {
+export type UpsertUserWineInteractionApiV1InteractionsUserWineIdPostData = {
     body: InteractionUpdate;
     path: {
-        interaction_id: string;
-    };
-    query?: never;
-    url: '/api/v1/interactions/{interaction_id}';
-};
-
-export type UpdateInteractionApiV1InteractionsInteractionIdPatchErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type UpdateInteractionApiV1InteractionsInteractionIdPatchError = UpdateInteractionApiV1InteractionsInteractionIdPatchErrors[keyof UpdateInteractionApiV1InteractionsInteractionIdPatchErrors];
-
-export type UpdateInteractionApiV1InteractionsInteractionIdPatchResponses = {
-    /**
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type UpdateInteractionApiV1InteractionsInteractionIdPatchResponse = UpdateInteractionApiV1InteractionsInteractionIdPatchResponses[keyof UpdateInteractionApiV1InteractionsInteractionIdPatchResponses];
-
-export type GetInteractionsByUserApiV1InteractionsUserUserIdGetData = {
-    body?: never;
-    path: {
-        user_id: string;
-    };
-    query?: never;
-    url: '/api/v1/interactions/user/{user_id}';
-};
-
-export type GetInteractionsByUserApiV1InteractionsUserUserIdGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetInteractionsByUserApiV1InteractionsUserUserIdGetError = GetInteractionsByUserApiV1InteractionsUserUserIdGetErrors[keyof GetInteractionsByUserApiV1InteractionsUserUserIdGetErrors];
-
-export type GetInteractionsByUserApiV1InteractionsUserUserIdGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: Array<{
-        [key: string]: unknown;
-    }>;
-};
-
-export type GetInteractionsByUserApiV1InteractionsUserUserIdGetResponse = GetInteractionsByUserApiV1InteractionsUserUserIdGetResponses[keyof GetInteractionsByUserApiV1InteractionsUserUserIdGetResponses];
-
-export type GetInteractionByWineApiV1InteractionsWineWineIdGetData = {
-    body?: never;
-    path: {
         wine_id: string;
     };
     query?: never;
-    url: '/api/v1/interactions/wine/{wine_id}';
+    url: '/api/v1/interactions/user/{wine_id}';
 };
 
-export type GetInteractionByWineApiV1InteractionsWineWineIdGetErrors = {
+export type UpsertUserWineInteractionApiV1InteractionsUserWineIdPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetInteractionByWineApiV1InteractionsWineWineIdGetError = GetInteractionByWineApiV1InteractionsWineWineIdGetErrors[keyof GetInteractionByWineApiV1InteractionsWineWineIdGetErrors];
+export type UpsertUserWineInteractionApiV1InteractionsUserWineIdPostError = UpsertUserWineInteractionApiV1InteractionsUserWineIdPostErrors[keyof UpsertUserWineInteractionApiV1InteractionsUserWineIdPostErrors];
 
-export type GetInteractionByWineApiV1InteractionsWineWineIdGetResponses = {
+export type UpsertUserWineInteractionApiV1InteractionsUserWineIdPostResponses = {
     /**
      * Successful Response
      */
-    200: {
-        [key: string]: unknown;
-    };
+    200: Interaction;
 };
 
-export type GetInteractionByWineApiV1InteractionsWineWineIdGetResponse = GetInteractionByWineApiV1InteractionsWineWineIdGetResponses[keyof GetInteractionByWineApiV1InteractionsWineWineIdGetResponses];
-
-export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostData = {
-    body?: never;
-    path: {
-        wine_id: string;
-        action: string;
-    };
-    query?: never;
-    url: '/api/v1/interactions/wine/{wine_id}/toggle/{action}';
-};
-
-export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostError = ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostErrors[keyof ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostErrors];
-
-export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponse = ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponses[keyof ToggleInteractionApiV1InteractionsWineWineIdToggleActionPostResponses];
-
-export type RateWineApiV1InteractionsWineWineIdRatePostData = {
-    body?: never;
-    path: {
-        wine_id: string;
-    };
-    query: {
-        rating: number;
-    };
-    url: '/api/v1/interactions/wine/{wine_id}/rate';
-};
-
-export type RateWineApiV1InteractionsWineWineIdRatePostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RateWineApiV1InteractionsWineWineIdRatePostError = RateWineApiV1InteractionsWineWineIdRatePostErrors[keyof RateWineApiV1InteractionsWineWineIdRatePostErrors];
-
-export type RateWineApiV1InteractionsWineWineIdRatePostResponses = {
-    /**
-     * Successful Response
-     */
-    200: {
-        [key: string]: unknown;
-    };
-};
-
-export type RateWineApiV1InteractionsWineWineIdRatePostResponse = RateWineApiV1InteractionsWineWineIdRatePostResponses[keyof RateWineApiV1InteractionsWineWineIdRatePostResponses];
+export type UpsertUserWineInteractionApiV1InteractionsUserWineIdPostResponse = UpsertUserWineInteractionApiV1InteractionsUserWineIdPostResponses[keyof UpsertUserWineInteractionApiV1InteractionsUserWineIdPostResponses];
 
 export type WineChatStandardApiV1ChatWinePostData = {
     body: ChatRequest;
@@ -1629,5 +1420,5 @@ export type TestSupabaseApiV1TestSupabaseGetResponses = {
 };
 
 export type ClientOptions = {
-    baseUrl: 'http://localhost:8000' | (string & {});
+    baseUrl: `${string}://src` | (string & {});
 };

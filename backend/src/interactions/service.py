@@ -10,30 +10,6 @@ from src.core import get_supabase_client
 from src.interactions.schemas import InteractionCreate, InteractionUpdate
 
 
-async def create_interaction(interaction: InteractionCreate) -> Optional[dict]:
-    """Create a new interaction"""
-    supabase = get_supabase_client()
-
-    # Convert UUIDs to strings before sending
-    interaction_data = jsonable_encoder(interaction)
-
-    query = supabase.table("interactions").insert(interaction_data)
-    try:
-        response = query.execute()
-        return response.data[0] if response.data else None
-    except APIError as e:
-        logger.error(f"Error creating interaction: {e}")
-        return None
-
-
-async def get_interaction(interaction_id: UUID):
-    """Get an interaction by ID"""
-    supabase = get_supabase_client()
-    query = supabase.table("interactions").select("*").eq("id", str(interaction_id))
-
-    response = query.execute()
-    return response.data[0] if response.data else None
-
 
 async def get_interaction_by_user_wine(
     user_id: UUID, wine_id: UUID, client: Optional[Client] = None
@@ -73,41 +49,60 @@ async def get_interaction_by_user_wine(
         raise
 
 
-async def get_interactions_by_user(user_id: UUID):
-    """Get all interactions for a user"""
-    supabase = get_supabase_client()
-    query = supabase.table("interactions").select("*").eq("user_id", str(user_id))
+async def upsert_interaction(
+    user_id: UUID,
+    wine_id: UUID,
+    payload: InteractionUpdate,
+    client: Optional[Client] = None
+) -> Optional[dict]:
+    """Upsert an interaction based on user_id and wine_id."""
+    if client is None:
+        client = get_supabase_client()
 
-    response = query.execute()
-    return response.data
+    # Convert payload to dict, excluding unset fields to allow partial updates
+    update_data = payload.dict(exclude_unset=True)
+    
+    # Add user_id and wine_id for the upsert operation
+    # Supabase upsert needs the primary key or unique constraint columns
+    # Assuming (user_id, wine_id) is a unique constraint
+    upsert_record = {
+        **update_data,
+        "user_id": str(user_id),
+        "wine_id": str(wine_id),
+    }
 
+    logger.debug(f"Attempting upsert for user {user_id}, wine {wine_id} with data: {upsert_record}")
 
-async def get_interactions_by_wine(wine_id: UUID):
-    """Get all interactions for a wine"""
-    supabase = get_supabase_client()
-    query = supabase.table("interactions").select("*").eq("wine_id", str(wine_id))
+    try:
+        # Use upsert() method
+        query = client.table("interactions").upsert(upsert_record, on_conflict="user_id, wine_id")
+        # Request returning the upserted record
+        # response = query.execute(returning="representation") 
+        response = query.execute() # Supabase py v1 may not support returning='representation' directly in upsert easily?
+        # response = await query.execute()
 
-    response = query.execute()
-    return response.data
+        # After upsert, we might need to fetch the record again if upsert doesn't return it
+        # This assumes upsert doesn't reliably return the data in Supabase v1
+        if response.data:
+            logger.info(f"Upsert response data: {response.data}") # Log raw response
+            # Try to refetch to get the full current state
+            fetched_interaction = await get_interaction_by_user_wine(user_id, wine_id, client)
+            return fetched_interaction
+        else:
+             # Even if response.data is empty, the upsert might have succeeded.
+             # Refetch the interaction to confirm and return its state.
+            logger.warning("Upsert response data empty, refetching...")
+            fetched_interaction = await get_interaction_by_user_wine(user_id, wine_id, client)
+            if fetched_interaction:
+                logger.info("Refetch successful after upsert.")
+                return fetched_interaction
+            else:
+                 logger.error("Upsert reported success but failed to refetch interaction.")
+                 return None
 
-
-async def update_interaction(interaction_id: UUID, interaction: InteractionUpdate):
-    """Update an interaction"""
-    supabase = get_supabase_client()
-    query = (
-        supabase.table("interactions")
-        .update(interaction.dict(exclude_unset=True))
-        .eq("id", str(interaction_id))
-    )
-
-    response = query.execute()
-    return response.data[0] if response.data else None
-
-
-async def delete_interaction(interaction_id: UUID):
-    """Delete an interaction"""
-    supabase = get_supabase_client()
-    query = supabase.table("interactions").delete().eq("id", str(interaction_id))
-
-    response = query.execute()
-    return response.data[0] if response.data else None
+    except APIError as e:
+        logger.error(f"Error upserting interaction for user {user_id}, wine {wine_id}: {e}")
+        return None
+    except Exception as e:
+        logger.exception(f"Unexpected error during interaction upsert: {e}")
+        return None

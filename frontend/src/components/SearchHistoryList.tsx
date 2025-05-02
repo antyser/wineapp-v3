@@ -1,25 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
 import { Text, Divider, Card } from 'react-native-paper';
-import { getUserSearchHistoryApiV1SearchHistoryGet } from '../api';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Wine } from '../types/wine';
+import { Wine, SearchHistoryItemResponse } from '../api';
 import WineListItem from './WineListItem';
 import { formatTimeAgo } from '../utils/dateUtils';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
-
-// Define the interface for search history item
-interface SearchHistoryItem {
-  id: string;
-  user_id: string;
-  search_type: 'text' | 'image';
-  search_query: string | null;
-  result_wine_ids: string[] | null;
-  created_at: string;
-  wines: Wine[] | null;
-}
+import { getSearchHistory } from '../api/services/searchService';
+import { useAuth } from '../auth/AuthContext';
 
 interface SearchHistoryListProps {
   onSearchPress?: (query: string) => void;
@@ -32,36 +22,36 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
   onSearchPress,
   maxItems = 10
 }) => {
-  const [history, setHistory] = useState<SearchHistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<SearchHistoryItemResponse[]>([]);
+  const [componentLoading, setComponentLoading] = useState(true);
   const [error, setError] = useState('');
   const navigation = useNavigation<NavigationProp>();
+  const { isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    fetchSearchHistory();
-  }, []);
+    if (!isAuthLoading && isAuthenticated) {
+      fetchSearchHistory();
+    } else if (!isAuthLoading && !isAuthenticated) {
+      setError('Authentication required to view history.');
+      setComponentLoading(false);
+    }
+  }, [isAuthLoading, isAuthenticated, maxItems]);
 
   const fetchSearchHistory = async () => {
+    setComponentLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      const { data } = await getUserSearchHistoryApiV1SearchHistoryGet({
-        query: { limit: maxItems, offset: 0 }
-      });
-      
-      if (data && data.items) {
-        setHistory(data.items);
-      } else {
-        setHistory([]);
-      }
+      const historyItems = await getSearchHistory(maxItems, 0);
+      setHistory(historyItems);
     } catch (err) {
       console.error('Error fetching search history:', err);
       setError('Failed to load search history');
     } finally {
-      setLoading(false);
+      setComponentLoading(false);
     }
   };
 
-  const handleSearchItemPress = (item: SearchHistoryItem) => {
+  const handleSearchItemPress = (item: SearchHistoryItemResponse) => {
     const wines = item.wines;
 
     if (wines && wines.length > 0) {
@@ -84,7 +74,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     }
   };
 
-  const renderTextSearchItem = (item: SearchHistoryItem) => {
+  const renderTextSearchItem = (item: SearchHistoryItemResponse) => {
     const firstWine = item.wines?.[0];
     
     if (!firstWine) {
@@ -107,7 +97,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     );
   }
 
-  const renderImageSearchItem = (item: SearchHistoryItem) => {
+  const renderImageSearchItem = (item: SearchHistoryItemResponse) => {
     const firstWine = item.wines?.[0];
     
     // Use scan file URL if available, otherwise check if first wine has an image
@@ -161,7 +151,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     );
   }
 
-  const renderSearchItem = ({ item }: { item: SearchHistoryItem }) => {
+  const renderSearchItem = ({ item }: { item: SearchHistoryItemResponse }) => {
     if (item.search_type === 'text') {
       return renderTextSearchItem(item);
     } else { // image search
@@ -169,7 +159,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     }
   };
 
-  if (loading) {
+  if (componentLoading || isAuthLoading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" />

@@ -1,133 +1,199 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wine } from '../types/wine';
-import { WineSearcherOffer, GetWineForUserResponse } from '../api/generated/types.gen';
-// Remove imports for generated service functions
-// import {
-//   getOneWineApiV1WinesWineIdGet,
-//   getWineForUserApiV1WinesUserWineIdGet,
-// } from '../api';
-import { apiFetch } from '../lib/apiClient'; // Import the new fetch utility
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+    Wine, 
+    Interaction, 
+    Note, 
+    // Offer type isn't exported directly, use WineSearcherOffer 
+    WineSearcherOffer 
+} from '../api/generated/types.gen'; // Adjust path if needed
+// Import the correct service function
+import { getUserWineDetails } from '../api/services/wineService'; 
 
-// Helper function (can be moved to utils/types later)
-const mapApiWineToLocalWine = (apiWine: any): Wine => {
-  return {
-    id: apiWine.id,
-    name: apiWine.name,
-    vintage: apiWine.vintage || undefined,
-    region: apiWine.region || undefined,
-    country: apiWine.country || undefined,
-    winery: apiWine.producer || apiWine.winery || undefined,
-    type: apiWine.wine_type || apiWine.type || undefined,
-    varietal: apiWine.grape_variety || apiWine.varietal || undefined,
-    image_url: apiWine.image_url || undefined,
-    average_price: apiWine.average_price || undefined,
-    description: apiWine.description || undefined,
-    wine_searcher_id: apiWine.wine_searcher_id || undefined,
-    // Add AI fields if available
-    drinking_window: apiWine.drinking_window || undefined,
-    food_pairings: apiWine.food_pairings || undefined,
-    abv: apiWine.abv || undefined,
-    winemaker_notes: apiWine.winemaker_notes || undefined,
-    professional_reviews: apiWine.professional_reviews || undefined,
-    tasting_notes: apiWine.tasting_notes || undefined,
-  };
+// REMOVE the mapping helper function
+/*
+const mapApiWineToLocalWine = (apiWine: any): Wine => { ... };
+*/
+
+// --- Cache Configuration ---
+const ASYNC_STORAGE_WINE_CACHE_PREFIX = 'wine_cache_';
+const CACHE_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+// --- Cached Data Structure ---
+// Export the interface
+export interface CachedWineData {
+    data: Wine;
+    expiresAt: number;
+    offers?: WineSearcherOffer[];
+    interaction?: Interaction | null;
+    notes?: Note[];
+}
+
+// --- AsyncStorage Helpers ---
+const getWineCacheKey = (wineId: string) => `${ASYNC_STORAGE_WINE_CACHE_PREFIX}${wineId}`;
+
+// Export the helper
+export const saveWineToCache = async (wineId: string, cacheData: {
+    data: Wine;
+    offers?: WineSearcherOffer[] | null;
+    interaction?: Interaction | null;
+    notes?: Note[] | null;
+}) => {
+    const key = getWineCacheKey(wineId);
+    const dataToStore: CachedWineData = {
+        data: cacheData.data,
+        offers: cacheData.offers || undefined,
+        interaction: cacheData.interaction === undefined ? undefined : cacheData.interaction,
+        notes: cacheData.notes || undefined,
+        expiresAt: Date.now() + CACHE_DURATION_MS,
+    };
+    try {
+        await AsyncStorage.setItem(key, JSON.stringify(dataToStore));
+        console.log(`[useWineDetails] Saved wine ${wineId} to cache. Expires at: ${new Date(dataToStore.expiresAt).toISOString()}`);
+    } catch (error) {
+        console.error(`[useWineDetails] Error saving wine ${wineId} to cache:`, error);
+    }
 };
 
+// Export the helper
+export const loadWineFromCache = async (wineId: string): Promise<CachedWineData | null> => {
+    const key = getWineCacheKey(wineId);
+    try {
+        const dataString = await AsyncStorage.getItem(key);
+        if (!dataString) {
+            console.log(`[useWineDetails] Cache miss for wine ${wineId}.`);
+            return null;
+        }
+
+        const cachedData = JSON.parse(dataString) as CachedWineData;
+
+        if (!cachedData || !cachedData.data || typeof cachedData.expiresAt !== 'number') {
+             console.warn(`[useWineDetails] Invalid cache data format for wine ${wineId}. Removing.`);
+             await AsyncStorage.removeItem(key).catch(e => console.error("Failed to remove invalid cache item:", e));
+             return null;
+        }
+
+        if (Date.now() >= cachedData.expiresAt) {
+            console.log(`[useWineDetails] Cache expired for wine ${wineId}. Removing.`);
+            await AsyncStorage.removeItem(key).catch(e => console.error("Failed to remove expired cache item:", e)); 
+            return null;
+        }
+
+        console.log(`[useWineDetails] Cache hit for wine ${wineId}. Using cached data.`);
+        return {
+           ...cachedData,
+           interaction: cachedData.interaction === undefined ? undefined : cachedData.interaction
+        };
+    } catch (error) {
+        console.error(`[useWineDetails] Error loading wine ${wineId} from cache:`, error);
+         await AsyncStorage.removeItem(key).catch(e => console.error("Failed to remove corrupted cache item:", e));
+        return null;
+    }
+};
+
+// --- Hook Logic ---
+// Define return type for clarity
 interface UseWineDetailsResult {
-  wine: Wine | null;
-  offers: WineSearcherOffer[];
-  isLoading: boolean;
-  error: string | null;
-  retry: () => void;
-  userInteractionData?: GetWineForUserResponse['interaction']; // Pass interaction data if fetched here
+    wine: Wine | null;
+    offers: WineSearcherOffer[];
+    notes: Note[] | null;
+    userInteractionData: Interaction | null | undefined;
+    isLoading: boolean;
+    error: string;
+    retry: () => void;
 }
 
 export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineDetailsResult => {
-  const [wine, setWine] = useState<Wine | null>(initialWineData || null);
-  const [offers, setOffers] = useState<WineSearcherOffer[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(!initialWineData);
-  const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
-  // Store interaction data fetched along with user-specific wine data
-  const [userInteractionData, setUserInteractionData] = useState<GetWineForUserResponse['interaction'] | undefined>(undefined);
+    const [wine, setWine] = useState<Wine | null>(initialWineData || null);
+    const [offers, setOffers] = useState<WineSearcherOffer[]>([]); 
+    const [userInteractionData, setUserInteractionData] = useState<Interaction | null | undefined>(undefined);
+    const [notes, setNotes] = useState<Note[] | null>(null);
+    const [isLoading, setIsLoading] = useState(!initialWineData); 
+    const [error, setError] = useState<string>('');
 
-  const fetchDetails = useCallback(async () => {
-    if (!wineId) return;
-
-    // Skip fetch if we have initial data (but allow retry)
-    if (initialWineData && retryCount === 0) {
-        console.log('[useWineDetails] Using initial wine data from route/props');
-        // If initial data is provided, assume offers/interactions need separate fetching
-        // Or adjust if initial data might include offers/interactions
-        setIsLoading(false);
-        return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    setUserInteractionData(undefined);
-    setOffers([]); // Clear previous offers on refetch/retry
-    console.log(`[useWineDetails] Fetching details for wineId: ${wineId}, Retry: ${retryCount}`);
-
-    try {
-      // Prioritize fetching user-specific wine data first
-      try {
-        // Use apiFetch for user-specific data
-        const userWineResponse = await apiFetch<GetWineForUserResponse>(`/api/v1/wines/user/${wineId}`);
-
-        if (userWineResponse?.wine) { // apiFetch returns null for 204/non-JSON
-          console.log('[useWineDetails] Successfully retrieved user-specific wine data');
-          const mappedWine = mapApiWineToLocalWine(userWineResponse.wine);
-          setWine(mappedWine);
-          setOffers(userWineResponse.offers || []);
-          setUserInteractionData(userWineResponse.interaction);
-          setIsLoading(false);
-          return; // Success!
-        } else {
-           // If user-specific data returned null or lacked wine, log and proceed to public
-           console.log('[useWineDetails] No user-specific wine data found or response was empty, falling back...');
+    const fetchData = useCallback(async () => {
+        if (!wineId) {
+            setError('No Wine ID provided');
+            setIsLoading(false);
+            return;
         }
-      } catch (userError: any) {
-         // If the user-specific endpoint returns 404 or other error, fall back to public
-        if (userError.message?.includes('404')) {
-            console.warn('[useWineDetails] User-specific endpoint returned 404, falling back to public.');
-        } else {
-            console.warn('[useWineDetails] Failed to get user-specific wine data, falling back...', userError?.message || userError);
+
+        console.log(`[useWineDetails] Initiating fetch sequence for wine: ${wineId}`);
+        setIsLoading(true);
+        setError('');
+
+        // 1. Try loading from cache
+        const cachedData = await loadWineFromCache(wineId);
+
+        if (cachedData) {
+            setWine(cachedData.data);
+            setOffers(cachedData.offers || []); 
+            setUserInteractionData(cachedData.interaction); 
+            setNotes(cachedData.notes || null);
+            setIsLoading(false);
+            console.log(`[useWineDetails] Applied cached data for wine: ${wineId}`);
+            return; 
         }
-        // Don't throw here, proceed to public fetch
-      }
 
-      // Fallback: Fetch public wine data
-      console.log('[useWineDetails] Fetching public wine data as fallback...');
-      // Use apiFetch for public data
-      // Assuming the public endpoint returns data directly matching the Wine type structure (adjust if not)
-      const publicWineResponse = await apiFetch<Wine>(`/api/v1/wines/${wineId}`);
+        // 2. If cache miss or expired, fetch from API
+        console.log(`[useWineDetails] Cache miss/expired for ${wineId}. Fetching from API...`);
+        try {
+            // Use the correct service function: getUserWineDetails
+            const result = await getUserWineDetails(wineId);
+            
+            // The result is UserWineResponse which contains the fields
+            if (result && result.wine) { 
+                const fetchedWine = result.wine;
+                const fetchedOffers = result.offers || [];
+                const fetchedInteraction = result.interaction; 
+                const fetchedNotes = result.notes || null; 
 
-      if (publicWineResponse) { // apiFetch returns null for 204/non-JSON
-        const mappedWine = mapApiWineToLocalWine(publicWineResponse);
-        setWine(mappedWine);
-        // Offers and interactions might not be available in public data
-        setOffers([]);
-        setUserInteractionData(undefined);
-      } else {
-        throw new Error('No public wine data found or response was empty.');
-      }
-    } catch (err: any) {
-      console.error('[useWineDetails] Error fetching details:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load wine details.');
-      setWine(null); // Clear wine data on error
-    } finally {
-      setIsLoading(false);
-    }
-  }, [wineId, initialWineData, retryCount]);
+                setWine(fetchedWine);
+                setOffers(fetchedOffers);
+                setUserInteractionData(fetchedInteraction);
+                setNotes(fetchedNotes);
 
-  useEffect(() => {
-    fetchDetails();
-  }, [fetchDetails]); // Rerun when wineId or retryCount changes
+                await saveWineToCache(wineId, {
+                    data: fetchedWine,
+                    offers: fetchedOffers,
+                    interaction: fetchedInteraction,
+                    notes: fetchedNotes,
+                });
+            } else {
+                console.warn(`[useWineDetails] API did not return valid wine details for ${wineId}.`);
+                setError('Wine details not found or invalid response from server.');
+                setWine(null);
+                setOffers([]);
+                setUserInteractionData(undefined);
+                setNotes(null);
+            }
+        } catch (err: any) {
+            console.error(`[useWineDetails] Error fetching details for wine ${wineId}:`, err);
+            setError(err.message || 'Failed to fetch wine details.');
+            setWine(null);
+            setOffers([]);
+            setUserInteractionData(undefined);
+            setNotes(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [wineId]);
 
-  const retry = useCallback(() => {
-    setRetryCount(count => count + 1);
-  }, []);
+    useEffect(() => {
+        if (!initialWineData) {
+           fetchData();
+        } else {
+           console.log("[useWineDetails] Using initialWineData, skipping initial fetch.")
+        }
+    }, [fetchData, initialWineData]);
 
-  return { wine, offers, isLoading, error, retry, userInteractionData };
+    return {
+        wine,
+        offers,
+        notes,
+        userInteractionData,
+        isLoading,
+        error,
+        retry: fetchData,
+    };
 }; 

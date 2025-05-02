@@ -1,60 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Keyboard, Platform } from 'react-native';
 import { Text, Button, Card, Searchbar, ActivityIndicator, Portal, Modal } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Wine } from '../types/wine';
+import { SearchRequest, Wine } from '../api';
 import SearchBar from '../components/SearchBar';
 import ActionButtons from '../components/ActionButtons';
 import ImagePickerModal from '../components/ImagePickerModal';
 import LoadingModal from '../components/LoadingModal';
 import { useAuth } from '../auth/AuthContext';
-import { searchWinesEndpointApiV1SearchPost } from '../api';
 import SearchHistoryList from '../components/SearchHistoryList';
 import { useImageSearch } from '../hooks/useImageSearch';
+import { searchWines } from '../api/services/searchService';
 
 // --- Helper function for Text Search Logic ---
-async function performTextSearch(
+const performTextSearch = async (
   query: string,
   setLoading: (loading: boolean) => void,
-  navigation: HomeScreenNavigationProp // Pass navigation prop
-) {
-  if (!query.trim()) return;
-
+  navigation: HomeScreenNavigationProp,
+  setError: (error: string) => void
+) => {
+  if (!query.trim()) {
+    return;
+  }
+  Keyboard.dismiss();
   setLoading(true);
+  setError('');
   try {
-    const { data: wines } = await searchWinesEndpointApiV1SearchPost({
-      body: {
-        text_input: query,
-        image_url: null,
-      },
-    });
+    const searchPayload: SearchRequest = {
+      text_input: query,
+      image_url: null 
+    };
+    const wines = await searchWines(searchPayload);
+    
+    console.log('Search successful:', wines);
 
     if (wines && wines.length > 0) {
       if (wines.length === 1) {
         navigation.navigate('WineDetail', { wineId: wines[0].id });
       } else {
-        navigation.navigate('SearchResults', {
-          wines,
+        navigation.navigate('SearchResults', { 
+          wines: wines, 
           title: `Results for "${query}"`,
-          source: 'search',
+          source: 'search'
         });
       }
     } else {
-      // If no results, navigate to the dedicated search screen
-      navigation.navigate('WineSearch', { initialQuery: query });
+      Alert.alert('No Results', 'No wines found matching your search.');
     }
   } catch (error) {
     console.error('Search error:', error);
-    Alert.alert('Search Failed', 'Could not perform search. Please try again.');
-    // Optionally navigate to search screen on error too
-    // navigation.navigate('WineSearch', { initialQuery: query });
+    setError('Could not perform search. Please try again.');
+    Alert.alert('Search Failed', 'Could not perform search. Please check your connection and try again.');
   } finally {
     setLoading(false);
   }
-}
+};
 // --- End Helper Function ---
 
 type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -74,6 +77,7 @@ const HomeScreen = () => {
   const [showSignInModal, setShowSignInModal] = useState(false);
 
   const [isTextSearchLoading, setIsTextSearchLoading] = useState(false);
+  const [errorTextSearch, setErrorTextSearch] = useState('');
 
   const handleSignIn = () => {
     setShowSignInModal(false);
@@ -95,7 +99,7 @@ const HomeScreen = () => {
   };
 
   const handleSearchSubmit = () => {
-    performTextSearch(searchQuery, setIsTextSearchLoading, navigation);
+    performTextSearch(searchQuery, setIsTextSearchLoading, navigation, setErrorTextSearch);
   };
 
   const displayLoading = isImageSearchLoading || isTextSearchLoading;

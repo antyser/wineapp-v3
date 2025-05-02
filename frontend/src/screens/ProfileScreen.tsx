@@ -6,7 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { apiFetch } from '../lib/apiClient';
+import { deleteCurrentUser } from '../api/services/authService'; // Import service
 
 const ProfileScreen = () => {
   const { user, isAuthenticated, signOut } = useAuth();
@@ -42,10 +42,8 @@ const ProfileScreen = () => {
           onPress: async () => {
             try {
               console.log('[ProfileScreen] Attempting to delete account...');
-              // Use apiFetch to call the DELETE endpoint
-              // apiFetch handles authentication internally
-              // Expecting a 204 No Content or similar successful response
-              await apiFetch<void>('/api/v1/auth/me', { method: 'DELETE' }); 
+              // Use the authService function
+              await deleteCurrentUser(); 
 
               console.log('[ProfileScreen] Account deletion successful via API, signing out...');
               await signOut(); // Sign out after successful deletion

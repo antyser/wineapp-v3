@@ -8,16 +8,24 @@ import WineDetailCard from '../components/WineDetailCard';
 import { useWineDetails } from '../hooks/useWineDetails';
 import { useWineInteractions } from '../hooks/useWineInteractions';
 import { useAuth } from '../auth/AuthContext';
-import { Message } from '../api/generated/types.gen';
+import { Message, Note } from '../api/generated/types.gen';
 import WineChatView from '../components/wine/WineChatView';
 import { UIMessage } from '../components/wine/WineChatView';
-import { apiFetch } from '../lib/apiClient';
-import { getBaseUrl, getAuthHeaders } from '../lib/apiClient';
+import { apiClient } from '../api';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
+
+// Define the expected response structure from the backend chat endpoint
+// (This might already exist in a service file or types, ensure consistency)
+interface ChatApiResponse {
+    response: {
+        text: string;
+    };
+    followup_questions?: string[];
+}
 
 const WineDetailScreen = () => {
   const route = useRoute<WineDetailScreenRouteProp>();
@@ -32,6 +40,7 @@ const WineDetailScreen = () => {
     error: detailsError,
     retry: retryDetailsFetch,
     userInteractionData: initialInteractionData,
+    notes,
   } = useWineDetails(wineId, routeWine);
 
   const {
@@ -39,12 +48,12 @@ const WineDetailScreen = () => {
     isLiked,
     userRating,
     hasExistingNotes,
+    latestNoteId,
     interactionError,
     toggleWishlist,
     toggleLike,
     rateWine,
-    clearInteractionError,
-  } = useWineInteractions(wineId, initialInteractionData);
+  } = useWineInteractions(wineId, initialInteractionData, notes);
 
   const { getToken } = useAuth();
 
@@ -101,20 +110,8 @@ const WineDetailScreen = () => {
     }
   }, [wine, getFormattedWineName]);
 
-  const readerRef = useRef<ReadableStreamDefaultReader<string> | null>(null);
-  const closeEventStream = useCallback(() => {
-      console.log("Stopping chat stream processing (if active).");
-      if (readerRef.current) {
-          readerRef.current.cancel('Component unmounted or new message sent').catch(e => console.warn('Error cancelling reader:', e));
-          readerRef.current = null;
-      }
-      setIsChatLoading(false);
-  }, []);
-
   const handleSendMessage = useCallback(async (text: string = chatInput) => {
     if (!text.trim() || !wine) return;
-
-    closeEventStream();
 
     const userMessage: UIMessage = {
       id: Date.now().toString(),
@@ -123,15 +120,7 @@ const WineDetailScreen = () => {
       timestamp: new Date(),
     };
 
-    const assistantPlaceholderId = (Date.now() + 1).toString();
-    const assistantPlaceholder: UIMessage = {
-      id: assistantPlaceholderId,
-      content: '',
-      role: 'assistant',
-      timestamp: new Date(),
-    };
-
-    setChatMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
+    setChatMessages((prev) => [...prev, userMessage]);
     setChatInput('');
     setIsChatLoading(true);
     setFollowUpQuestions([]);
@@ -142,111 +131,50 @@ const WineDetailScreen = () => {
         { role: 'assistant', content: { text: wineContext } }
       ];
       const history = chatMessages
-        .filter(msg => msg.id !== '0' && msg.id !== assistantPlaceholderId)
+        .filter(msg => msg.id !== '0')
         .map(msg => ({ role: msg.role, content: { text: msg.content } } as Message));
-      apiMessages = [...apiMessages, ...history];
-      apiMessages.push({ role: 'user', content: { text: userMessage.content } } as Message);
+      apiMessages = [...apiMessages, ...history, { role: 'user', content: { text: userMessage.content } } as Message];
 
-      const baseUrl = getBaseUrl();
-      const streamUrl = `${baseUrl}/api/v1/chat/wine/stream`;
-
-      const headers = await getAuthHeaders({
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
+      const response = await apiClient.post<ChatApiResponse>('/api/v1/chat/wine', {
+          messages: apiMessages,
+          model: DEFAULT_MODEL
       });
 
-      console.log(`[WineDetailScreen] Fetching stream from: ${streamUrl}`);
-      
-      const response = await fetch(streamUrl, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify({ messages: apiMessages, model: DEFAULT_MODEL }),
-      });
+      const chatApiResponse = response.data;
 
-      if (!response.ok) {
-        let errorDetails = `HTTP error! status: ${response.status}`;
-        try {
-            const errorJson = await response.json();
-            errorDetails += ` - ${JSON.stringify(errorJson)}`;
-        } catch (e) {
-            // Ignore if body isn't JSON
-        }
-        throw new Error(errorDetails);
+      console.log("[WineDetailScreen] Full API response:", chatApiResponse);
+
+      if (chatApiResponse?.response?.text) {
+        const responseText = chatApiResponse.response.text;
+        const followup_questions = chatApiResponse.followup_questions || [];
+
+        const assistantMessage: UIMessage = {
+          id: Date.now().toString() + '-assistant',
+          content: responseText,
+          role: 'assistant',
+          timestamp: new Date(),
+          followup_questions: followup_questions.length > 0 ? followup_questions : undefined
+        };
+        setChatMessages((prev) => [...prev, assistantMessage]);
+        setFollowUpQuestions(followup_questions);
+      } else {
+        console.error("[WineDetailScreen] Invalid or empty response from API:", chatApiResponse);
+        throw new Error('Received an invalid response from the assistant.');
       }
-      if (!response.body) {
-        throw new Error('Response body is null');
-      }
-
-      const stream = response.body.pipeThrough(new TextDecoderStream());
-      const reader = stream.getReader();
-      readerRef.current = reader;
-      let buffer = '';
-      let currentAssistantContent = '';
-      let currentFollowUps: string[] = [];
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        
-        buffer += value;
-        let boundary = buffer.indexOf('\n\n');
-
-        while (boundary !== -1) {
-          const message = buffer.substring(0, boundary);
-          buffer = buffer.substring(boundary + 2);
-          let eventType = 'message';
-          let eventData = '';
-          const lines = message.split('\n');
-
-          lines.forEach(line => {
-            if (line.startsWith('event:')) eventType = line.substring(6).trim();
-            else if (line.startsWith('data:')) eventData += line.substring(5).trim();
-          });
-
-          if (eventData.trim()) {
-            try {
-              const parsedData = JSON.parse(eventData);
-              if (eventType === 'content') {
-                currentAssistantContent += (parsedData.text || '');
-                setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: currentAssistantContent } : msg));
-              } else if (eventType === 'followup') {
-                currentFollowUps = parsedData.questions || [];
-                setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, followup_questions: currentFollowUps } : msg));
-                setFollowUpQuestions(currentFollowUps);
-              } else if (eventType === 'error') {
-                throw new Error(parsedData.error || 'Unknown stream error');
-              } else if (eventType === 'end') {
-                console.log('Received end event from stream.');
-                reader.cancel();
-                readerRef.current = null;
-                setIsChatLoading(false);
-                return;
-              }
-            } catch (e) {
-              console.error('Error parsing SSE data:', e, 'Raw data:', eventData);
-              setIsChatLoading(false);
-              setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: msg.content + '\n\n[Error processing response]' } : msg));
-              reader.cancel();
-              readerRef.current = null;
-              return;
-            }
-          }
-          boundary = buffer.indexOf('\n\n');
-        }
-      }
-      readerRef.current = null;
 
     } catch (error: any) {
       console.error('[WineDetailScreen] Error sending message:', error);
-      setChatMessages(prev => prev.map(msg => msg.id === assistantPlaceholderId ? { ...msg, content: `Error: ${error.message}` } : msg));
+      const errorMessage: UIMessage = {
+          id: Date.now().toString() + '-error',
+          content: error.response?.data?.detail || error.message || 'Sorry, I encountered an error.',
+          role: 'assistant',
+          timestamp: new Date(),
+      };
+      setChatMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsChatLoading(false);
-      if (readerRef.current) {
-          readerRef.current.cancel().catch(e => console.warn('Error cancelling reader in finally:', e));
-          readerRef.current = null;
-      }
     }
-  }, [wine, chatMessages, closeEventStream, getFormattedWineName]);
+  }, [chatInput, chatMessages, wine, getFormattedWineName]);
 
   const handleFollowupQuestion = (question: string) => {
     handleSendMessage(question);
@@ -260,8 +188,12 @@ const WineDetailScreen = () => {
 
   const handleAddNote = () => {
     if (!wine) return;
+    const noteToPass = notes?.find(n => n.id === latestNoteId);
+    
     navigation.navigate('AddTastingNote', { 
       wineId: wine.id,
+      wine: wine,
+      note: noteToPass
     });
   };
 
@@ -348,21 +280,13 @@ const WineDetailScreen = () => {
   return (
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => { closeEventStream(); navigation.goBack(); }} />
+        <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={getFormattedWineName() || "Wine Details"} />
       </Appbar.Header>
 
       {showInteractionErrorBanner && (
         <View style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{interactionError}</Text>
-          <Button
-            mode="text"
-            onPress={clearInteractionError}
-            labelStyle={styles.errorButtonLabel}
-            compact
-          >
-            Dismiss
-          </Button>
         </View>
       )}
 

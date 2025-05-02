@@ -27,12 +27,12 @@ interface WineDetailCardProps {
   onAddToWishlist?: () => void;
   onLike?: () => void;
   onAddNote?: () => void;
-  onRateWine?: (rating: number) => void;
+  onRateWine?: (rating: number | null) => void;
   onBuyWine?: () => void;
   isInWishlist?: boolean;
   isLiked?: boolean;
   hasExistingNotes?: boolean;
-  rating?: number;
+  rating?: number | null;
   hasOffers?: boolean;
 }
 
@@ -46,16 +46,17 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
   isInWishlist = false,
   isLiked = false,
   hasExistingNotes = false,
-  rating = 0,
+  rating = null,
   hasOffers = false,
 }) => {
   const theme = useTheme();
 
   // Helper function to determine which star icon to use
-  const getStarIcon = (position: number, rating: number): string => {
-    if (rating >= position) {
+  const getStarIcon = (position: number, currentRating: number | null): string => {
+    const r = currentRating ?? 0; // Treat null as 0 for calculation
+    if (r >= position) {
       return 'star'; // Full star
-    } else if (rating >= position - 0.5) {
+    } else if (r >= position - 0.5) {
       return 'star-half-full'; // Half star
     } else {
       return 'star-outline'; // Empty star
@@ -63,38 +64,40 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
   };
 
   // Helper function to format rating display
-  const formatRating = (rating: number): string => {
-    // If it's a whole number, don't show decimal places
-    return Number.isInteger(rating) ? rating.toString() : rating.toFixed(1);
+  const formatRating = (currentRating: number | null): string => {
+    const r = currentRating ?? 0; // Treat null as 0
+    if (r === 0) return ''; // Don't display (0)
+    return Number.isInteger(r) ? r.toString() : r.toFixed(1);
   };
 
   // Function to render star rating
   const renderRating = () => {
     const stars = [];
     const maxRating = 5;
+    const currentRatingValue = rating ?? 0; // Use 0 if rating is null
     
     for (let i = 1; i <= maxRating; i++) {
       stars.push(
         <IconButton
           key={i}
-          icon={getStarIcon(i, rating)}
+          icon={getStarIcon(i, rating)} // Pass original rating (null included)
           iconColor={'#FFD700'}
           size={24}
           onPress={() => {
-            // If clicking on a star that's already full or half, give a more precise rating
-            if (i === Math.ceil(rating) && rating % 1 !== 0) {
-              // Clicking on a half star makes it full
-              console.log(`Clicked on half-star position ${i}, updating to full star: ${Math.floor(rating) + 1}`);
-              onRateWine && onRateWine(Math.floor(rating) + 1);
-            } else if (i === Math.floor(rating) && rating % 1 === 0) {
-              // Clicking on a full star makes it half
-              console.log(`Clicked on full star position ${i}, updating to half star: ${i - 0.5}`);
-              onRateWine && onRateWine(i - 0.5);
+            let newRating: number | null = null;
+            if (i === Math.ceil(currentRatingValue) && currentRatingValue % 1 !== 0) {
+              newRating = Math.floor(currentRatingValue) + 1;
+            } else if (i === Math.floor(currentRatingValue) && currentRatingValue % 1 === 0) {
+              newRating = i - 0.5;
             } else {
-              // Normal case - full star
-              console.log(`Setting new rating to: ${i}`);
-              onRateWine && onRateWine(i);
+              newRating = i;
             }
+            // Allow setting rating back to null? 
+            // Currently, clicking an empty star sets it to 1, 
+            // clicking half sets to full, clicking full sets to half.
+            // Consider if clicking star 1 (when rating is 1) should set to 0.5 or null.
+            // For now, onRateWine expects number | null
+            onRateWine && onRateWine(newRating); 
           }}
           style={styles.starIcon}
           testID={`star-${i}`}
@@ -189,7 +192,7 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
               <View style={styles.starContainer}>
                 {renderRating().map(star => star)}
               </View>
-              {rating > 0 && (
+              {rating !== null && rating > 0 && (
                 <Text variant="bodyMedium" style={styles.ratingText}>
                   ({formatRating(rating)})
                 </Text>

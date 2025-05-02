@@ -33,6 +33,7 @@ class NoteUpsertPayload(BaseModel):
     """Payload for upserting a note (create if not exists, update if exists)"""
 
     wine_id: UUID
+    note_id: Optional[UUID] = None
     tasting_date: Optional[date] = None
     note_text: str
 

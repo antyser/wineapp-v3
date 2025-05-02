@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
 import { useAuth } from '../auth/AuthContext';
 import { Message, MessageContent } from '../api/generated/types.gen';
-import { apiFetch } from '../lib/apiClient';
+import { sendChatMessage } from '../api/services/chatService';
 
 // Default model to use
 const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
@@ -90,22 +90,14 @@ const ChatScreen = () => {
     console.log("[ChatScreen] Sending messages to API:", apiMessages);
 
     try {
-      // NOTE: No need to manually get token here, apiFetch handles it.
+      // Use the service function
+      const chatApiResponse = await sendChatMessage(apiMessages, DEFAULT_MODEL); // Call service
 
-      // Use apiFetch to make the API call
-      const response = await apiFetch<ChatApiResponse>('/api/v1/chat/wine', {
-        method: 'POST',
-        body: JSON.stringify({
-          messages: apiMessages,
-          model: DEFAULT_MODEL
-        })
-      });
+      console.log("[ChatScreen] Full API response:", chatApiResponse);
 
-      console.log("[ChatScreen] Full API response:", response);
-
-      if (response?.response?.text) { // Check if response and nested properties exist
-        const responseText = response.response.text;
-        const followup_questions = response.followup_questions || [];
+      if (chatApiResponse?.response?.text) { // Check if response and nested properties exist
+        const responseText = chatApiResponse.response.text;
+        const followup_questions = chatApiResponse.followup_questions || [];
 
         console.log("[ChatScreen] Follow-up questions:", followup_questions);
 
@@ -121,7 +113,7 @@ const ChatScreen = () => {
         setMessages((prev) => [...prev, assistantMessage]);
       } else {
         // Handle cases where response is null or structure is unexpected
-        console.error("[ChatScreen] Invalid or empty response from API:", response);
+        console.error("[ChatScreen] Invalid or empty response from API:", chatApiResponse);
         throw new Error('Received an invalid response from the assistant.');
       }
 
@@ -138,7 +130,7 @@ const ChatScreen = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [inputText, getToken, messages]);
+  }, [inputText, messages]);
 
   const handleFollowupQuestion = (question: string) => {
     sendMessage(question);
