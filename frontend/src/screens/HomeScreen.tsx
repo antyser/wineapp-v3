@@ -125,9 +125,9 @@ const HomeScreen = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['right', 'bottom', 'left']}>
       <Appbar.Header style={styles.appbar}>
-        <Appbar.Content title="Wine App" />
+        <Appbar.Content title="Winebook" />
         <Appbar.Action icon="account" onPress={handleProfilePress} />
       </Appbar.Header>
 

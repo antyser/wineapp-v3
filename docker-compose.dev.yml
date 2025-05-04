@@ -50,7 +50,7 @@ services:
       # Add supabase_network ONLY if frontend talks DIRECTLY to local Supabase
       # - supabase_network
     restart: unless-stopped
-    command: yarn web
+    command: yarn start
 
 networks:
   default: # Define the default network for inter-service communication

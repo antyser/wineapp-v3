@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Markdown from 'react-native-markdown-display';
 import { useAuth } from '../auth/AuthContext';
 import { Message, MessageContent } from '../api/generated/types.gen';
-import { sendChatMessage } from '../api/services/chatService';
+import { sendChatMessage, streamChatMessage } from '../api/services/chatService';
 
 // Default model to use
 const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
@@ -45,6 +45,10 @@ const ChatScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { getToken } = useAuth();
   const flatListRef = useRef<FlatList>(null);
+  // Reference to keep track of the current stream abort function
+  const abortStreamRef = useRef<(() => void) | null>(null);
+  // Reference to track if a streaming response is in progress
+  const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     // Delay scrolling slightly to ensure the list is fully rendered
@@ -57,8 +61,25 @@ const ChatScreen = () => {
     return () => clearTimeout(timer);
   }, [messages]);
 
+  // Cleanup function to abort any ongoing streams when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortStreamRef.current) {
+        abortStreamRef.current();
+        abortStreamRef.current = null;
+      }
+    };
+  }, []);
+
   const sendMessage = useCallback(async (text: string = inputText) => {
     if (!text.trim()) return;
+
+    // Abort any active stream before starting a new one
+    if (abortStreamRef.current) {
+      abortStreamRef.current();
+      abortStreamRef.current = null;
+      setCurrentStreamingMessageId(null);
+    }
 
     const userMessage: UIMessage = {
       id: Date.now().toString(),
@@ -90,35 +111,90 @@ const ChatScreen = () => {
     console.log("[ChatScreen] Sending messages to API:", apiMessages);
 
     try {
-      // Use the service function
-      const chatApiResponse = await sendChatMessage(apiMessages, DEFAULT_MODEL); // Call service
+      // Create a placeholder message for the assistant's response that will be streamed
+      const assistantMessageId = Date.now().toString() + '-assistant';
+      const initialAssistantMessage: UIMessage = {
+        id: assistantMessageId,
+        content: '', // Empty initially, will be populated as content streams in
+        role: 'assistant',
+        timestamp: new Date(),
+      };
 
-      console.log("[ChatScreen] Full API response:", chatApiResponse);
+      // Add the initial empty assistant message
+      setMessages(prev => [...prev, initialAssistantMessage]);
+      // Set the current streaming message ID
+      setCurrentStreamingMessageId(assistantMessageId);
 
-      if (chatApiResponse?.response?.text) { // Check if response and nested properties exist
-        const responseText = chatApiResponse.response.text;
-        const followup_questions = chatApiResponse.followup_questions || [];
-
-        console.log("[ChatScreen] Follow-up questions:", followup_questions);
-
-        const assistantMessage: UIMessage = {
-          id: Date.now().toString() + '-assistant', // Ensure unique ID
-          content: responseText,
-          role: 'assistant',
-          timestamp: new Date(),
-          followup_questions: followup_questions.length > 0 ? followup_questions : undefined
-        };
-
-        console.log("[ChatScreen] Adding assistant message with followups:", assistantMessage);
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        // Handle cases where response is null or structure is unexpected
-        console.error("[ChatScreen] Invalid or empty response from API:", chatApiResponse);
-        throw new Error('Received an invalid response from the assistant.');
-      }
+      // Use the streaming API
+      abortStreamRef.current = streamChatMessage(
+        apiMessages, 
+        DEFAULT_MODEL,
+        {
+          onStart: () => {
+            console.log("[ChatScreen] Stream started");
+          },
+          onContent: (content) => {
+            // Update the assistant's message content as new tokens arrive
+            setMessages(prev => {
+              const updatedMessages = [...prev];
+              const assistantMessageIndex = updatedMessages.findIndex(
+                msg => msg.id === assistantMessageId
+              );
+              
+              if (assistantMessageIndex !== -1) {
+                // Append the new content to the existing message
+                const currentMessage = updatedMessages[assistantMessageIndex];
+                updatedMessages[assistantMessageIndex] = {
+                  ...currentMessage,
+                  content: currentMessage.content + content
+                };
+              }
+              
+              return updatedMessages;
+            });
+          },
+          onFollowup: (followupQuestions) => {
+            console.log("[ChatScreen] Received followup questions:", followupQuestions);
+            // Update the assistant's message with follow-up questions
+            setMessages(prev => {
+              const updatedMessages = [...prev];
+              const assistantMessageIndex = updatedMessages.findIndex(
+                msg => msg.id === assistantMessageId
+              );
+              
+              if (assistantMessageIndex !== -1) {
+                // Add the followup questions to the message
+                updatedMessages[assistantMessageIndex] = {
+                  ...updatedMessages[assistantMessageIndex],
+                  followup_questions: followupQuestions
+                };
+              }
+              
+              return updatedMessages;
+            });
+          },
+          onError: (error) => {
+            console.error('[ChatScreen] Stream error:', error);
+            // Add an error message to the chat
+            const errorMessage: UIMessage = {
+              id: Date.now().toString() + '-error',
+              content: error || 'Sorry, I encountered an error. Please try again.',
+              role: 'assistant',
+              timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, errorMessage]);
+          },
+          onEnd: () => {
+            console.log("[ChatScreen] Stream ended");
+            setIsLoading(false);
+            setCurrentStreamingMessageId(null);
+            abortStreamRef.current = null;
+          }
+        }
+      );
 
     } catch (error: any) {
-      console.error('[ChatScreen] Error sending message:', error);
+      console.error('[ChatScreen] Error setting up stream:', error);
 
       const errorMessage = {
         id: Date.now().toString() + '-error',
@@ -127,8 +203,8 @@ const ChatScreen = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-    } finally {
       setIsLoading(false);
+      setCurrentStreamingMessageId(null);
     }
   }, [inputText, messages]);
 
@@ -138,6 +214,7 @@ const ChatScreen = () => {
 
   const renderMessage = ({ item }: { item: UIMessage }) => {
     const isUser = item.role === 'user';
+    const isStreaming = item.id === currentStreamingMessageId;
     
     console.log("Rendering message:", item);
     console.log("Has followup questions:", item.followup_questions ? "yes" : "no");
@@ -159,9 +236,14 @@ const ChatScreen = () => {
             <Markdown style={markdownStyles}>{item.content}</Markdown>
           </View>
         ) : (
-          // Assistant message without follow-up questions
+          // Assistant message
           <View style={styles.assistantContent}>
             <Markdown style={markdownStyles}>{item.content}</Markdown>
+            {isStreaming && (
+              <View style={styles.streamingIndicator}>
+                <ActivityIndicator size="small" color={MD3Colors.primary40} />
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -188,7 +270,7 @@ const ChatScreen = () => {
           contentContainerStyle={styles.messageListContent}
         />
 
-        {isLoading && (
+        {isLoading && !currentStreamingMessageId && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={MD3Colors.primary40} />
             <Text style={styles.loadingText}>Thinking...</Text>
@@ -283,6 +365,12 @@ const styles = StyleSheet.create({
   },
   assistantContent: {
     padding: 12,
+    position: 'relative', // For positioning the streaming indicator
+  },
+  streamingIndicator: {
+    position: 'absolute',
+    right: -24,
+    bottom: 12,
   },
   loadingContainer: {
     flexDirection: 'row',

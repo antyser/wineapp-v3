@@ -2,9 +2,9 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from supabase import Client
 
+from src.auth.router import router as auth_router
 from src.cellar import cellar_router
 from src.chat import chat_router
-from src.auth.router import router as auth_router
 from src.core import get_supabase_client, settings
 from src.interactions import interaction_router
 from src.notes import notes_router

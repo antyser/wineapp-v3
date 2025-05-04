@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { UIMessage } from '../components/wine/WineChatView';
 import { cacheService, CachePrefix } from '../api/services/cacheService';
-import { apiClient } from '../api';
 import { Message, Wine } from '../api/generated/types.gen';
+import { streamChatMessage } from '../api/services/chatService';
 
 const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
 
@@ -36,12 +36,21 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
     const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
     const [isInitialized, setIsInitialized] = useState(false);
     const isMounted = useRef(true);
+    // Reference to keep track of the current stream abort function
+    const abortStreamRef = useRef<(() => void) | null>(null);
+    // Reference to track if a streaming response is in progress
+    const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState<string | null>(null);
 
     // Effect for mount/unmount tracking
     useEffect(() => {
         isMounted.current = true;
         return () => {
             isMounted.current = false;
+            // Clean up any active streams
+            if (abortStreamRef.current) {
+                abortStreamRef.current();
+                abortStreamRef.current = null;
+            }
         };
     }, []);
 
@@ -114,6 +123,13 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
     const handleSendMessage = useCallback(async (text: string = chatInput) => {
         if (!text.trim() || !wine || !wineId) return;
 
+        // Abort any active stream before starting a new one
+        if (abortStreamRef.current) {
+            abortStreamRef.current();
+            abortStreamRef.current = null;
+            setCurrentStreamingMessageId(null);
+        }
+
         const userMessage: UIMessage = {
             id: Date.now().toString(),
             content: text.trim(),
@@ -141,39 +157,112 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
 
             console.log("[useWineChat] Sending messages to API:", JSON.stringify(apiMessages, null, 2));
 
-            const response = await apiClient.post<ChatApiResponse>('/api/v1/chat/wine', {
-                messages: apiMessages,
-                model: DEFAULT_MODEL
-            });
+            // Create a placeholder message for the assistant's response that will be streamed
+            const assistantMessageId = Date.now().toString() + '-assistant';
+            const initialAssistantMessage: UIMessage = {
+                id: assistantMessageId,
+                content: '', // Empty initially, will be populated as content streams in
+                role: 'assistant',
+                timestamp: new Date(),
+            };
 
-            const chatApiResponse = response.data;
-            console.log("[useWineChat] Full API response:", chatApiResponse);
+            // Add the initial empty assistant message
+            const updatedMessagesWithAssistant = [...updatedMessagesUser, initialAssistantMessage];
+            setChatMessages(updatedMessagesWithAssistant);
+            // Set the current streaming message ID
+            setCurrentStreamingMessageId(assistantMessageId);
 
-            if (chatApiResponse?.response?.text) {
-                const responseText = chatApiResponse.response.text;
-                const followup_questions = chatApiResponse.followup_questions || [];
-                const assistantMessage: UIMessage = {
-                    id: Date.now().toString() + '-assistant',
-                    content: responseText,
-                    role: 'assistant',
-                    timestamp: new Date(),
-                    followup_questions: followup_questions.length > 0 ? followup_questions : undefined
-                };
-
-                if (!isMounted.current) return;
-                const updatedMessagesAssistant = [...updatedMessagesUser, assistantMessage];
-                setChatMessages(updatedMessagesAssistant);
-                saveChatToCache(updatedMessagesAssistant);
-                setFollowUpQuestions(followup_questions);
-
-            } else {
-                console.error("[useWineChat] Invalid or empty response from API:", chatApiResponse);
-                throw new Error('Received an invalid response from the assistant.');
-            }
+            // Use the streaming API
+            abortStreamRef.current = streamChatMessage(
+                apiMessages, 
+                DEFAULT_MODEL,
+                {
+                    onStart: () => {
+                        console.log("[useWineChat] Stream started");
+                    },
+                    onContent: (content) => {
+                        if (!isMounted.current) return;
+                        
+                        // Update the assistant's message content as new tokens arrive
+                        setChatMessages(prev => {
+                            const updatedMessages = [...prev];
+                            const assistantMessageIndex = updatedMessages.findIndex(
+                                msg => msg.id === assistantMessageId
+                            );
+                            
+                            if (assistantMessageIndex !== -1) {
+                                // Append the new content to the existing message
+                                const currentMessage = updatedMessages[assistantMessageIndex];
+                                updatedMessages[assistantMessageIndex] = {
+                                    ...currentMessage,
+                                    content: currentMessage.content + content
+                                };
+                                // Save to cache with each update so we don't lose progress if the component unmounts
+                                saveChatToCache(updatedMessages);
+                            }
+                            
+                            return updatedMessages;
+                        });
+                    },
+                    onFollowup: (followupQuestions) => {
+                        if (!isMounted.current) return;
+                        
+                        console.log("[useWineChat] Received followup questions:", followupQuestions);
+                        setFollowUpQuestions(followupQuestions);
+                        
+                        // Update the assistant's message with follow-up questions
+                        setChatMessages(prev => {
+                            const updatedMessages = [...prev];
+                            const assistantMessageIndex = updatedMessages.findIndex(
+                                msg => msg.id === assistantMessageId
+                            );
+                            
+                            if (assistantMessageIndex !== -1) {
+                                // Add the followup questions to the message
+                                updatedMessages[assistantMessageIndex] = {
+                                    ...updatedMessages[assistantMessageIndex],
+                                    followup_questions: followupQuestions
+                                };
+                                // Save to cache
+                                saveChatToCache(updatedMessages);
+                            }
+                            
+                            return updatedMessages;
+                        });
+                    },
+                    onError: (error) => {
+                        if (!isMounted.current) return;
+                        
+                        console.error('[useWineChat] Stream error:', error);
+                        // Add an error message to the chat
+                        const errorMessage: UIMessage = {
+                            id: Date.now().toString() + '-error',
+                            content: error || 'Sorry, I encountered an error. Please try again.',
+                            role: 'assistant',
+                            timestamp: new Date(),
+                            isError: true,
+                        };
+                        
+                        const updatedMessagesError = [...updatedMessagesUser, errorMessage];
+                        setChatMessages(updatedMessagesError);
+                        saveChatToCache(updatedMessagesError);
+                    },
+                    onEnd: () => {
+                        if (!isMounted.current) return;
+                        
+                        console.log("[useWineChat] Stream ended");
+                        setIsChatLoading(false);
+                        setCurrentStreamingMessageId(null);
+                        abortStreamRef.current = null;
+                    }
+                }
+            );
 
         } catch (error: any) {
-            console.error('[useWineChat] Error sending message:', error);
-            const errorMessageContent = error.response?.data?.detail || error.message || 'Sorry, I encountered an error.';
+            console.error('[useWineChat] Error setting up stream:', error);
+            if (!isMounted.current) return;
+            
+            const errorMessageContent = error.message || 'Sorry, I encountered an error.';
             const errorMessage: UIMessage = {
                 id: Date.now().toString() + '-error',
                 content: errorMessageContent,
@@ -182,15 +271,11 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
                 isError: true,
             };
 
-            if (!isMounted.current) return;
             const updatedMessagesError = [...updatedMessagesUser, errorMessage];
             setChatMessages(updatedMessagesError);
             saveChatToCache(updatedMessagesError);
-
-        } finally {
-             if (isMounted.current) {
-                setIsChatLoading(false);
-             }
+            setIsChatLoading(false);
+            setCurrentStreamingMessageId(null);
         }
     }, [chatInput, chatMessages, wine, wineId, getFormattedWineName, saveChatToCache]);
 

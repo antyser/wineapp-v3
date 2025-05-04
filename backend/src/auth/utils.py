@@ -213,7 +213,7 @@ def get_optional_user(request: Request) -> Optional[UUID]:
             issuer = unverified_payload["iss"]
             logger.info(f"Token issuer in get_optional_user: {issuer}")
             is_valid_issuer = (
-                issuer.endswith("supabase.co")
+                settings.SUPABASE_URL in issuer
                 or "localhost" in issuer
                 or "127.0.0.1" in issuer
             )

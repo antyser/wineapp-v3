@@ -8,6 +8,7 @@ import { Wine, SearchHistoryItemResponse } from '../api';
 import WineListItem from './WineListItem';
 import { formatTimeAgo } from '../utils/dateUtils';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
+import { getFormattedWineName } from '../utils/wineUtils';
 import { getSearchHistory } from '../api/services/searchService';
 import { useAuth } from '../auth/AuthContext';
 
@@ -125,7 +126,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
               {firstWine ? (
                 <View style={styles.wineFoundContainer}>
                   <Text style={styles.wineFoundName} numberOfLines={2}>
-                    {firstWine.vintage ? `${firstWine.vintage} ` : ""}{firstWine.name}
+                    {getFormattedWineName(firstWine)}
                   </Text>
                   {firstWine.region && (
                     <Text style={styles.wineFoundRegion}>
