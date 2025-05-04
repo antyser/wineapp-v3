@@ -6,7 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../auth/AuthContext';
 import { uploadImage } from '../api/supabaseService';
-import { searchWinesEndpointApiV1SearchPost } from '../api';
+import { searchWines } from '../api/services/searchService';
+import { SearchRequest, UserWineResponse } from '../api';
 
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -107,14 +108,14 @@ export const useImageSearch = (): UseImageSearchResult => {
       const { publicUrl } = await uploadImage(pickedImageAsset, currentUserId);
       console.log('Image uploaded, public URL:', publicUrl);
 
-      // 4. Call Backend API
-      console.log('Calling API for wine recognition...');
-      const { data: wines } = await searchWinesEndpointApiV1SearchPost({
-        body: {
-          text_input: null,
-          image_url: publicUrl,
-        },
-      });
+      // 4. Call Backend API using the service function
+      console.log('Calling API via searchService for wine recognition...');
+      const searchPayload: SearchRequest = {
+          text_input: null, // No text for image search
+          image_url: publicUrl
+      };
+      // Use the imported service function
+      const wines = await searchWines(searchPayload);
 
       // 5. Handle Results
       if (wines && wines.length > 0) {

@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Keyboard, Platform } from 'react-native';
-import { Text, Button, Card, Searchbar, ActivityIndicator, Portal, Modal } from 'react-native-paper';
+import { Text, Button, Card, Searchbar, ActivityIndicator, Portal, Modal, FAB, Appbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { SearchRequest, Wine } from '../api';
 import SearchBar from '../components/SearchBar';
-import ActionButtons from '../components/ActionButtons';
 import ImagePickerModal from '../components/ImagePickerModal';
 import LoadingModal from '../components/LoadingModal';
 import { useAuth } from '../auth/AuthContext';
@@ -102,10 +101,19 @@ const HomeScreen = () => {
     performTextSearch(searchQuery, setIsTextSearchLoading, navigation, setErrorTextSearch);
   };
 
+  const handleProfilePress = () => {
+    navigation.navigate('Profile');
+  };
+
   const displayLoading = isImageSearchLoading || isTextSearchLoading;
 
   return (
     <SafeAreaView style={styles.container}>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.Content title="Wine App" />
+        <Appbar.Action icon="account" onPress={handleProfilePress} />
+      </Appbar.Header>
+
       <View style={styles.header}>
         <SearchBar 
           searchQuery={searchQuery}
@@ -116,11 +124,6 @@ const HomeScreen = () => {
       </View>
 
       <ScrollView style={styles.contentContainer}>
-        <ActionButtons
-          onScanPress={() => setShowImageOptions(true)}
-          disabled={displayLoading}
-        />
-        
         <View style={styles.historySection}>
           <Text style={styles.sectionTitle}>Recent Searches</Text>
           <SearchHistoryList 
@@ -129,6 +132,13 @@ const HomeScreen = () => {
           />
         </View>
       </ScrollView>
+
+      <FAB
+        style={styles.fab}
+        icon="camera"
+        onPress={() => setShowImageOptions(true)}
+        disabled={displayLoading}
+      />
 
       <ImagePickerModal
         visible={showImageOptions}
@@ -179,9 +189,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  appbar: {
+    backgroundColor: '#FFFFFF',
+    elevation: 0,
+  },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   contentContainer: {
@@ -214,6 +228,13 @@ const styles = StyleSheet.create({
   },
   signInButton: {
     marginBottom: 10,
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    alignSelf: 'center',
+    bottom: 0,
+    backgroundColor: '#000000',
   },
 });
 

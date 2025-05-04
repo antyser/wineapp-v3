@@ -10,6 +10,7 @@ export interface UIMessage {
   role: 'user' | 'assistant';
   timestamp: Date;
   followup_questions?: string[];
+  isError?: boolean; // Add optional error flag
 }
 
 interface WineChatViewProps {
@@ -48,7 +49,18 @@ const WineChatView: React.FC<WineChatViewProps> = ({
 
   const renderChatMessage = ({ item }: { item: UIMessage }) => {
     const isUser = item.role === 'user';
-    const cleanContent = item.content.replace(/<\/?questions>/g, '').trim();
+    // Ensure content is a string before calling replace, default to empty string if undefined/null
+    const content = typeof item.content === 'string' ? item.content : '';
+    // Correctly escaped regex
+    const cleanContent = content.replace(/<\/?questions>/g, '').trim(); 
+
+    // Optionally, render nothing or an error message if content was originally invalid
+    if (!item.content && !item.isError) { // Add check for isError flag
+        // Log if content is missing and it's not explicitly an error message
+        // console.warn('Rendering empty message due to undefined content for ID:', item.id);
+        // Return null to render nothing for this item
+        return null; 
+    }
     
     return (
       <View 
@@ -60,9 +72,11 @@ const WineChatView: React.FC<WineChatViewProps> = ({
         ]}
       >
          {isUser ? (
-           <Text style={styles.userMessageText}>{cleanContent}</Text>
+           // Display user message content, or [Error] if flagged
+           <Text style={styles.userMessageText}>{item.isError ? '[Error]' : cleanContent}</Text> 
          ) : (
-           <Markdown style={markdownStyles}>{cleanContent}</Markdown>
+           // Display assistant message content, or an error message if flagged or content is missing
+           cleanContent ? <Markdown style={markdownStyles}>{cleanContent}</Markdown> : <Text>{item.isError ? '[Error processing response]' : ''}</Text>
          )}
       </View>
     );

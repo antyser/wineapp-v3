@@ -30,6 +30,7 @@ export default function MainDrawer() {
         name="Home"
         component={HomeScreen}
         options={{
+          headerShown: false, // Hide the header since we have an Appbar
           drawerIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="home" color={color} size={size} />
           ),

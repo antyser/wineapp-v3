@@ -36,34 +36,6 @@ jest.mock('react-native-paper', () => {
   };
 });
 
-// Mock react-native-reanimated
-jest.mock('react-native-reanimated', () => ({
-  default: {
-    Value: jest.fn(),
-    event: jest.fn(),
-    add: jest.fn(),
-    eq: jest.fn(),
-    set: jest.fn(),
-    cond: jest.fn(),
-    interpolate: jest.fn(),
-    View: 'View',
-    ScrollView: 'ScrollView',
-    createAnimatedComponent: jest.fn(component => component),
-    timing: jest.fn(),
-    decay: jest.fn(),
-    spring: jest.fn(),
-    FadeIn: { duration: jest.fn() },
-    SlideInRight: { duration: jest.fn() },
-    call: jest.fn(),
-  },
-  FadeIn: { duration: jest.fn() },
-  SlideInRight: { duration: jest.fn() },
-  useSharedValue: jest.fn(() => ({ value: 0 })),
-  useAnimatedStyle: jest.fn(() => ({})),
-  withTiming: jest.fn(),
-  withSpring: jest.fn(),
-  withDelay: jest.fn(),
-}));
 
 // Mock react-native-gesture-handler
 jest.mock('react-native-gesture-handler', () => {});

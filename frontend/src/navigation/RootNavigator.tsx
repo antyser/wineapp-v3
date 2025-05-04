@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from './types';
-import MainTabs from './MainTabs'; // Assuming MainTabs handles Home, MyWines, Chat, Profile
+import MainDrawer from './MainDrawer'; // Use MainDrawer instead of MainTabs
 import LoginScreen from '../screens/LoginScreen';
 import WineDetailScreen from '../screens/WineDetailScreen';
 import SearchResultsScreen from '../screens/SearchResultsScreen';
@@ -16,13 +16,13 @@ const RootNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator 
-        initialRouteName="Main" // Start with the main tab navigator
+        initialRouteName="Main" // Start with the main drawer navigator
         screenOptions={{ headerShown: false }} // Hide header globally for the root stack
       >
-        {/* Main application flow with bottom tabs */}
+        {/* Main application flow with drawer navigation */}
         <Stack.Screen 
           name="Main" 
-          component={MainTabs} 
+          component={MainDrawer} 
         />
 
         {/* Screens presented modally or pushing over tabs */}

@@ -423,6 +423,7 @@ const styles = StyleSheet.create({
     },
     appbar: {
         backgroundColor: '#FFFFFF',
+
     },
     content: {
         flex: 1,

@@ -8,24 +8,11 @@ import WineDetailCard from '../components/WineDetailCard';
 import { useWineDetails } from '../hooks/useWineDetails';
 import { useWineInteractions } from '../hooks/useWineInteractions';
 import { useAuth } from '../auth/AuthContext';
-import { Message, Note } from '../api/generated/types.gen';
 import WineChatView from '../components/wine/WineChatView';
-import { UIMessage } from '../components/wine/WineChatView';
-import { apiClient } from '../api';
+import { useWineChat } from '../hooks/useWineChat';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-const DEFAULT_MODEL = "gemini-2.5-flash-preview-04-17";
-
-// Define the expected response structure from the backend chat endpoint
-// (This might already exist in a service file or types, ensure consistency)
-interface ChatApiResponse {
-    response: {
-        text: string;
-    };
-    followup_questions?: string[];
-}
 
 const WineDetailScreen = () => {
   const route = useRoute<WineDetailScreenRouteProp>();
@@ -57,10 +44,15 @@ const WineDetailScreen = () => {
 
   const { getToken } = useAuth();
 
-  const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<UIMessage[]>([]);
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const [followUpQuestions, setFollowUpQuestions] = useState<string[]>([]);
+  const {
+    chatMessages,
+    chatInput,
+    setChatInput,
+    isChatLoading,
+    followUpQuestions,
+    handleSendMessage,
+    handleFollowupQuestion,
+  } = useWineChat({ wineId, wine });
 
   const getFormattedWineName = useCallback(() => {
     if (!wine) return '';
@@ -70,116 +62,6 @@ const WineDetailScreen = () => {
     return wine.name || '';
   }, [wine]);
   
-  useEffect(() => {
-    if (wine) {
-      let aboutText = wine.description ? `${wine.description}\n\n` : '';
-      if (wine.food_pairings) {
-        aboutText += `**Food Pairing:** ${wine.food_pairings}\n`;
-      }
-      if (wine.drinking_window) {
-        aboutText += `**Drinking Window:** ${wine.drinking_window}\n`;
-      }
-      if (wine.abv) {
-        aboutText += `**ABV:** ${wine.abv}\n`;
-      }
-      if (!aboutText.trim()) {
-        aboutText = `Hello! I'm your wine assistant for the ${getFormattedWineName()}.\n`;
-      }
-      
-      const initialMessageContent = `${aboutText.trim()}`;
-
-      const initialFollowUps = [
-        "What food would pair well with this wine?",
-        "Tell me about the winery",
-        "What is the drinking window?"
-      ];
-      
-      setChatMessages([
-        {
-          id: '0',
-          content: initialMessageContent,
-          role: 'assistant',
-          timestamp: new Date(),
-          followup_questions: initialFollowUps,
-        },
-      ]);
-      setFollowUpQuestions(initialFollowUps);
-    } else {
-      setChatMessages([]);
-      setFollowUpQuestions([]);
-    }
-  }, [wine, getFormattedWineName]);
-
-  const handleSendMessage = useCallback(async (text: string = chatInput) => {
-    if (!text.trim() || !wine) return;
-
-    const userMessage: UIMessage = {
-      id: Date.now().toString(),
-      content: text.trim(),
-      role: 'user',
-      timestamp: new Date(),
-    };
-
-    setChatMessages((prev) => [...prev, userMessage]);
-    setChatInput('');
-    setIsChatLoading(true);
-    setFollowUpQuestions([]);
-
-    try {
-      const wineContext = `The user is asking about ${getFormattedWineName()}. Context: Region: ${wine.region || 'N/A'}, Country: ${wine.country || 'N/A'}, Varietal: ${wine.varietal || 'N/A'}, Winery: ${wine.winery || 'N/A'}, Description: ${wine.description || 'N/A'}`;
-      let apiMessages: Message[] = [
-        { role: 'assistant', content: { text: wineContext } }
-      ];
-      const history = chatMessages
-        .filter(msg => msg.id !== '0')
-        .map(msg => ({ role: msg.role, content: { text: msg.content } } as Message));
-      apiMessages = [...apiMessages, ...history, { role: 'user', content: { text: userMessage.content } } as Message];
-
-      const response = await apiClient.post<ChatApiResponse>('/api/v1/chat/wine', {
-          messages: apiMessages,
-          model: DEFAULT_MODEL
-      });
-
-      const chatApiResponse = response.data;
-
-      console.log("[WineDetailScreen] Full API response:", chatApiResponse);
-
-      if (chatApiResponse?.response?.text) {
-        const responseText = chatApiResponse.response.text;
-        const followup_questions = chatApiResponse.followup_questions || [];
-
-        const assistantMessage: UIMessage = {
-          id: Date.now().toString() + '-assistant',
-          content: responseText,
-          role: 'assistant',
-          timestamp: new Date(),
-          followup_questions: followup_questions.length > 0 ? followup_questions : undefined
-        };
-        setChatMessages((prev) => [...prev, assistantMessage]);
-        setFollowUpQuestions(followup_questions);
-      } else {
-        console.error("[WineDetailScreen] Invalid or empty response from API:", chatApiResponse);
-        throw new Error('Received an invalid response from the assistant.');
-      }
-
-    } catch (error: any) {
-      console.error('[WineDetailScreen] Error sending message:', error);
-      const errorMessage: UIMessage = {
-          id: Date.now().toString() + '-error',
-          content: error.response?.data?.detail || error.message || 'Sorry, I encountered an error.',
-          role: 'assistant',
-          timestamp: new Date(),
-      };
-      setChatMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsChatLoading(false);
-    }
-  }, [chatInput, chatMessages, wine, getFormattedWineName]);
-
-  const handleFollowupQuestion = (question: string) => {
-    handleSendMessage(question);
-  };
-
   const displayError = detailsError || interactionError;
 
   const handleAddToWishlist = toggleWishlist;
@@ -189,8 +71,7 @@ const WineDetailScreen = () => {
   const handleAddNote = () => {
     if (!wine) return;
     const noteToPass = notes?.find(n => n.id === latestNoteId);
-    
-    navigation.navigate('AddTastingNote', { 
+    navigation.navigate('AddTastingNote', {
       wineId: wine.id,
       wine: wine,
       note: noteToPass
