@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { ImagePickerAsset } from 'expo-image-picker';
+import { Platform } from 'react-native';
 
 export const uploadImage = async (
   imageAsset: ImagePickerAsset,
@@ -7,18 +8,27 @@ export const uploadImage = async (
   bucketName: string = 'wines'
 ): Promise<{ filePath: string; publicUrl: string }> => {
   try {
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.jpg`;
-    const filePath = `${userId}/${filename}`;
+    const originalFilename = imageAsset.fileName || `${Date.now()}.jpg`;
+    const fileExt = originalFilename.split('.').pop()?.toLowerCase() || 'jpg';
+    const safeFilename = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const filePath = `${userId}/${safeFilename}`;
     const photoUri = imageAsset.uri;
+    const mimeType = imageAsset.mimeType || 'image/jpeg';
 
-    console.log(`Uploading image to Supabase Storage: ${filePath}`);
-    const response = await fetch(photoUri);
-    const blob = await response.blob();
+    console.log(`Preparing FormData for upload: ${filePath}, URI: ${photoUri}, Type: ${mimeType}`);
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: Platform.OS === 'ios' ? photoUri.replace('file://', '') : photoUri,
+      name: safeFilename,
+      type: mimeType,
+    } as any);
+
+    console.log(`Uploading image via Supabase client with FormData: ${filePath}`);
 
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, blob, {
-        contentType: imageAsset.mimeType || 'image/jpeg',
+      .upload(filePath, formData, {
         upsert: false,
       });
 
@@ -28,23 +38,17 @@ export const uploadImage = async (
     }
     console.log('Image uploaded successfully:', uploadData);
 
-    // Get public URL
     const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
 
     if (!urlData || !urlData.publicUrl) {
       console.warn('Could not get public URL for uploaded image immediately.');
-      // Attempt to construct manually as a fallback, though less reliable
-      // const fallbackUrl = `${supabase.storage.url}/object/public/${bucketName}/${filePath}`;
-      // return { filePath, publicUrl: fallbackUrl }; 
-      // For now, let's throw if Supabase doesn't give it back
-       throw new Error('Failed to retrieve public URL after upload.');
+      throw new Error('Failed to retrieve public URL after upload.');
     }
 
     console.log('Retrieved public URL:', urlData.publicUrl);
     return { filePath, publicUrl: urlData.publicUrl };
   } catch (error) {
     console.error('Error during image upload process:', error);
-    // Re-throw the error to be caught by the calling function (e.g., the hook)
     throw error; 
   }
 }; 

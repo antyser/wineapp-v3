@@ -3,6 +3,7 @@ import { StyleSheet, View, TouchableOpacity, Image, Text } from 'react-native';
 import { Card, Badge } from 'react-native-paper';
 import { Wine } from '../api';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
+import { getFormattedWineName } from '../utils/wineUtils';
 
 /**
  * WineListItem Component
@@ -36,8 +37,8 @@ const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress 
   const origin = [region, country].filter(Boolean).join(', ');
   const countryFlag = country ? getCountryFlagEmoji(country) : null;
   
-  // Combine vintage and name if vintage exists
-  const displayName = vintage ? `${vintage} ${name}` : name;
+  // Use the utility function to format the display name
+  const displayName = getFormattedWineName(wine);
 
   return (
     <TouchableOpacity 

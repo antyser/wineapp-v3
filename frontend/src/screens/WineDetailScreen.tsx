@@ -10,6 +10,7 @@ import { useWineInteractions } from '../hooks/useWineInteractions';
 import { useAuth } from '../auth/AuthContext';
 import WineChatView from '../components/wine/WineChatView';
 import { useWineChat } from '../hooks/useWineChat';
+import { getFormattedWineName } from '../utils/wineUtils';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -54,14 +55,6 @@ const WineDetailScreen = () => {
     handleFollowupQuestion,
   } = useWineChat({ wineId, wine });
 
-  const getFormattedWineName = useCallback(() => {
-    if (!wine) return '';
-    if (wine.vintage && wine.vintage !== 1 && wine.name) {
-      return `${wine.vintage} ${wine.name}`;
-    }
-    return wine.name || '';
-  }, [wine]);
-  
   const displayError = detailsError || interactionError;
 
   const handleAddToWishlist = toggleWishlist;
@@ -84,7 +77,7 @@ const WineDetailScreen = () => {
         return;
     }
       navigation.navigate('WineOffers', {
-        wineName: getFormattedWineName(),
+        wineName: getFormattedWineName(wine),
         offers: offers
       });
   };
@@ -162,7 +155,7 @@ const WineDetailScreen = () => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={getFormattedWineName() || "Wine Details"} />
+        <Appbar.Content title={getFormattedWineName(wine) || "Wine Details"} />
       </Appbar.Header>
 
       {showInteractionErrorBanner && (

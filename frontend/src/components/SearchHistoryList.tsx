@@ -14,13 +14,15 @@ import { useAuth } from '../auth/AuthContext';
 interface SearchHistoryListProps {
   onSearchPress?: (query: string) => void;
   maxItems?: number;
+  ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null | undefined;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const SearchHistoryList: React.FC<SearchHistoryListProps> = ({ 
   onSearchPress,
-  maxItems = 10
+  maxItems = 10,
+  ListHeaderComponent
 }) => {
   const [history, setHistory] = useState<SearchHistoryItemResponse[]>([]);
   const [componentLoading, setComponentLoading] = useState(true);
@@ -190,6 +192,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
       keyExtractor={(item) => item.id}
       ItemSeparatorComponent={() => <Divider style={styles.divider}/>}
       contentContainerStyle={styles.listContainer}
+      ListHeaderComponent={ListHeaderComponent}
     />
   );
 };
@@ -199,11 +202,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   listContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingBottom: 8,
   },
   textHistoryItem: {
     paddingVertical: 12,
@@ -220,7 +222,6 @@ const styles = StyleSheet.create({
   },
   divider: {
     marginVertical: 8,
-    backgroundColor: '#eee',
   },
   imageSearchCard: {
     marginVertical: 8,

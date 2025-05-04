@@ -4,8 +4,9 @@ import { Text, Appbar } from 'react-native-paper';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
-import { Wine } from '../types/wine';
+import { Wine } from '../api';
 import WineListItem from '../components/WineListItem';
+import { getFormattedWineName } from '../utils/wineUtils';
 
 type SearchResultsRouteProp = RouteProp<RootStackParamList, 'SearchResults'>;
 

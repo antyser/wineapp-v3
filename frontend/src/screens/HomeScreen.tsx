@@ -107,13 +107,9 @@ const HomeScreen = () => {
 
   const displayLoading = isImageSearchLoading || isTextSearchLoading;
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <Appbar.Header style={styles.appbar}>
-        <Appbar.Content title="Wine App" />
-        <Appbar.Action icon="account" onPress={handleProfilePress} />
-      </Appbar.Header>
-
+  // Component to render the search bar and title, to be passed as header
+  const renderListHeader = () => (
+    <>
       <View style={styles.header}>
         <SearchBar 
           searchQuery={searchQuery}
@@ -122,17 +118,28 @@ const HomeScreen = () => {
           disabled={displayLoading}
         />
       </View>
+      <View style={styles.historyHeader}>
+        <Text style={styles.sectionTitle}>Recent Searches</Text>
+      </View>
+    </>
+  );
 
-      <ScrollView style={styles.contentContainer}>
-        <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>Recent Searches</Text>
-          <SearchHistoryList 
-            onSearchPress={handleSearchPress}
-            maxItems={5}
-          />
-        </View>
-      </ScrollView>
+  return (
+    <SafeAreaView style={styles.container}>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.Content title="Wine App" />
+        <Appbar.Action icon="account" onPress={handleProfilePress} />
+      </Appbar.Header>
 
+      {/* Remove ScrollView, SearchBar View, and History Section View */}
+      {/* Render SearchHistoryList directly and pass header */}
+      <SearchHistoryList 
+        onSearchPress={handleSearchPress}
+        maxItems={5} // You can adjust maxItems as needed
+        ListHeaderComponent={renderListHeader()} // Pass the header component
+      />
+
+      {/* Keep FAB and Modals outside the list */}
       <FAB
         style={styles.fab}
         icon="camera"
@@ -193,17 +200,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     elevation: 0,
   },
-  header: {
+  header: { // Styles for the search bar container (within the header component)
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 8,
   },
-  contentContainer: {
-    flex: 1,
-  },
-  historySection: {
+  historyHeader: { // Styles for the title container (within the header component)
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 16, // Keep padding for the title
+    paddingBottom: 0, // Remove bottom padding as list items will have their own spacing
   },
   sectionTitle: {
     fontSize: 18,

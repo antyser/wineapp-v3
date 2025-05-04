@@ -11,7 +11,6 @@ import { AuthProvider } from './src/auth/AuthContext';
 // Enable screens for better navigation performance
 enableScreens();
 
-console.log('New Architecture Enabled (Runtime Check):', !!global.__IS_NEW_ARCHITECTURE_ENABLED);
 
 export default function App() {
   return (

@@ -20,7 +20,7 @@ export type RootStackParamList = {
   SearchResults: {
     wines: Wine[];
     title: string;
-    source: 'search' | 'recommendation' | 'history';
+    source: 'search' | 'scan' | 'history' | 'recommendation';
   };
   AddTastingNote: { 
     wineId: string; // Keep wineId for context if needed, e.g. creating a new note
