@@ -3,8 +3,9 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 
-// Force development mode for testing
-const isDevelopment = true;
+// Use environment variables to determine mode
+// No longer forcing development mode
+const isDevelopment = process.env.NODE_ENV === 'development';
 const isWeb = Platform.OS === 'web';
 
 // Log environment setup
@@ -18,7 +19,8 @@ console.log('[API Client] Environment setup:', {
 });
 
 // Configure baseURL based on environment
-let baseURL = 'https://api.wineapp.com';
+// Use the URL from environment variables for production
+let baseURL = process.env.EXPO_PUBLIC_API_URL || 'https://wineapp-backend.vercel.app';
 
 if (isDevelopment) {
   if (isWeb) {

@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from src.auth import get_current_user, get_optional_user
 from src.core.storage_utils import download_image
 from src.search.history.schemas import (
-    SearchHistory,
     SearchHistoryCreate,
     SearchHistoryResponse,
 )

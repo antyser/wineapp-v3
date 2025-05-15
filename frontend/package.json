@@ -4,8 +4,11 @@
   "main": "index.ts",
   "scripts": {
     "start": "dotenv -e .env -- npx expo start",
+    "start:prod": "dotenv -e .env.production -- npx expo start",
     "android": "dotenv -e .env -- npx expo run:android",
+    "android:prod": "dotenv -e .env.production -- npx expo run:android",
     "ios": "dotenv -e .env -- npx expo run:ios",
+    "ios:prod": "dotenv -e .env.production -- npx expo run:ios",
     "pod-install": "cd ios && RCT_NEW_ARCH_ENABLED=1 pod install",
     "web": "dotenv -e .env -- npx expo start --web",
     "test": "jest",

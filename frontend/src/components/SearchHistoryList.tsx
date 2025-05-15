@@ -22,12 +22,15 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const SearchHistoryList: React.FC<SearchHistoryListProps> = ({ 
   onSearchPress,
-  maxItems = 10,
+  maxItems = 5,
   ListHeaderComponent,
   containerStyle
 }) => {
   const [history, setHistory] = useState<SearchHistoryItemResponse[]>([]);
   const [componentLoading, setComponentLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
   const navigation = useNavigation<NavigationProp>();
   const { isLoading: isAuthLoading, isAuthenticated } = useAuth();
@@ -39,19 +42,41 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
       setError('Authentication required to view history.');
       setComponentLoading(false);
     }
-  }, [isAuthLoading, isAuthenticated, maxItems]);
+  }, [isAuthLoading, isAuthenticated]);
 
-  const fetchSearchHistory = async () => {
-    setComponentLoading(true);
+  const fetchSearchHistory = async (currentOffset = 0) => {
+    if (currentOffset === 0) {
+      setComponentLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+    
     setError('');
     try {
-      const historyItems = await getSearchHistory(maxItems, 0);
-      setHistory(historyItems);
+      const historyItems = await getSearchHistory(maxItems, currentOffset);
+      
+      if (currentOffset === 0) {
+        setHistory(historyItems);
+      } else {
+        setHistory(prevHistory => [...prevHistory, ...historyItems]);
+      }
+      
+      // If we get fewer items than maxItems, we've reached the end
+      setHasMore(historyItems.length === maxItems);
     } catch (err) {
       console.error('Error fetching search history:', err);
       setError('Failed to load search history');
     } finally {
       setComponentLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      const newOffset = offset + maxItems;
+      setOffset(newOffset);
+      fetchSearchHistory(newOffset);
     }
   };
 
@@ -139,6 +164,16 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     );
   };
 
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    
+    return (
+      <View style={styles.footer}>
+        <ActivityIndicator size="small" />
+      </View>
+    );
+  };
+
   if (componentLoading || isAuthLoading) {
     return (
       <View style={styles.centered}>
@@ -170,6 +205,9 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
       keyExtractor={(item) => item.id}
       style={[styles.list, containerStyle]}
       ListHeaderComponent={ListHeaderComponent}
+      ListFooterComponent={renderFooter}
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.3}
     />
   );
 };
@@ -250,6 +288,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     textAlign: 'left',
+  },
+  footer: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

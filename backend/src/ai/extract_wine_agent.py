@@ -130,7 +130,7 @@ async def extract_wines(
     if text_input:
         content.append(text_input)
     if image_content:
-        content.append(BinaryContent(data=image_content, media_type="image/jpg"))
+        content.append(BinaryContent(data=image_content, media_type="image/jpeg"))
 
     # Run the agent with the prepared content
     result = await agent.run(content)
