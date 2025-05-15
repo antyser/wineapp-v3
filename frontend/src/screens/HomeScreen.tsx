@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, TouchableOpacity, Alert, Keyboard, Platform } from 'react-native';
-import { Text, Button, Card, Searchbar, ActivityIndicator, Portal, Modal, FAB, Appbar } from 'react-native-paper';
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Keyboard,
+  Platform,
+} from 'react-native';
+import {
+  Text,
+  Button,
+  Card,
+  Searchbar,
+  ActivityIndicator,
+  Portal,
+  Modal,
+  FAB,
+  Appbar,
+} from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -19,7 +37,7 @@ const performTextSearch = async (
   query: string,
   setLoading: (loading: boolean) => void,
   navigation: HomeScreenNavigationProp,
-  setError: (error: string) => void
+  setError: (error: string) => void,
 ) => {
   if (!query.trim()) {
     return;
@@ -30,20 +48,20 @@ const performTextSearch = async (
   try {
     const searchPayload: SearchRequest = {
       text_input: query,
-      image_url: null 
+      image_url: null,
     };
     const wines = await searchWines(searchPayload);
-    
+
     console.log('Search successful:', wines);
 
     if (wines && wines.length > 0) {
       if (wines.length === 1) {
         navigation.navigate('WineDetail', { wineId: wines[0].id });
       } else {
-        navigation.navigate('SearchResults', { 
-          wines: wines, 
+        navigation.navigate('SearchResults', {
+          wines: wines,
           title: `Results for "${query}"`,
-          source: 'search'
+          source: 'search',
         });
       }
     } else {
@@ -52,7 +70,10 @@ const performTextSearch = async (
   } catch (error) {
     console.error('Search error:', error);
     setError('Could not perform search. Please try again.');
-    Alert.alert('Search Failed', 'Could not perform search. Please check your connection and try again.');
+    Alert.alert(
+      'Search Failed',
+      'Could not perform search. Please check your connection and try again.',
+    );
   } finally {
     setLoading(false);
   }
@@ -111,7 +132,7 @@ const HomeScreen = () => {
   const renderListHeader = () => (
     <>
       <View style={styles.header}>
-        <SearchBar 
+        <SearchBar
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onSearch={handleSearchSubmit}
@@ -133,7 +154,7 @@ const HomeScreen = () => {
 
       {/* Remove ScrollView, SearchBar View, and History Section View */}
       {/* Render SearchHistoryList directly and pass header */}
-      <SearchHistoryList 
+      <SearchHistoryList
         onSearchPress={handleSearchPress}
         maxItems={5} // You can adjust maxItems as needed
         ListHeaderComponent={renderListHeader()} // Pass the header component
@@ -143,6 +164,7 @@ const HomeScreen = () => {
       <FAB
         style={styles.fab}
         icon="camera"
+        color="white"
         onPress={() => setShowImageOptions(true)}
         disabled={displayLoading}
       />
@@ -155,37 +177,28 @@ const HomeScreen = () => {
       />
 
       <Portal>
-        <Modal 
-          visible={showSignInModal} 
+        <Modal
+          visible={showSignInModal}
           onDismiss={() => setShowSignInModal(false)}
           contentContainerStyle={styles.signInModal}
         >
           <Text style={styles.modalTitle}>Authentication Required</Text>
-          <Text style={styles.modalText}>
-            You need to be signed in to use this feature.
-          </Text>
-          <Button 
-            mode="contained" 
-            onPress={handleSignIn}
-            style={styles.signInButton}
-          >
+          <Text style={styles.modalText}>You need to be signed in to use this feature.</Text>
+          <Button mode="contained" onPress={handleSignIn} style={styles.signInButton}>
             Sign In / Sign Up
           </Button>
-          <Button
-            mode="text"
-            onPress={() => setShowSignInModal(false)}
-          >
+          <Button mode="text" onPress={() => setShowSignInModal(false)}>
             Cancel
           </Button>
         </Modal>
       </Portal>
 
-      <LoadingModal 
-        visible={isImageSearchLoading} 
-        message="Processing Image..." 
-        imageUri={imageUriBeingProcessed} 
+      <LoadingModal
+        visible={isImageSearchLoading}
+        message="Processing Image..."
+        imageUri={imageUriBeingProcessed}
       />
-      
+
       {isTextSearchLoading && <LoadingModal visible={true} message="Searching..." />}
     </SafeAreaView>
   );
@@ -200,12 +213,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     elevation: 0,
   },
-  header: { // Styles for the search bar container (within the header component)
+  header: {
+    // Styles for the search bar container (within the header component)
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 8,
   },
-  historyHeader: { // Styles for the title container (within the header component)
+  historyHeader: {
+    // Styles for the title container (within the header component)
     paddingHorizontal: 16,
     paddingTop: 16, // Keep padding for the title
     paddingBottom: 0, // Remove bottom padding as list items will have their own spacing

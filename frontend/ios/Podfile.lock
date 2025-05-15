@@ -11,7 +11,7 @@ PODS:
   - EXJSONUtils (0.15.0)
   - EXManifests (0.16.4):
     - ExpoModulesCore
-  - Expo (53.0.7):
+  - Expo (53.0.6):
     - DoubleConversion
     - ExpoModulesCore
     - glog
@@ -273,11 +273,11 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - ExpoAsset (11.1.5):
+  - ExpoAsset (11.1.4):
     - ExpoModulesCore
   - ExpoCrypto (14.1.4):
     - ExpoModulesCore
-  - ExpoFileSystem (18.1.9):
+  - ExpoFileSystem (18.1.8):
     - ExpoModulesCore
   - ExpoFont (13.3.1):
     - ExpoModulesCore
@@ -1673,6 +1673,30 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
+  - react-native-pager-view (6.7.1):
+    - DoubleConversion
+    - glog
+    - hermes-engine
+    - RCT-Folly (= 2024.11.18.00)
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - Yoga
   - react-native-safe-area-context (5.4.0):
     - DoubleConversion
     - glog
@@ -2432,6 +2456,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - react-native-mmkv (from `../node_modules/react-native-mmkv`)
+  - react-native-pager-view (from `../node_modules/react-native-pager-view`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
@@ -2598,6 +2623,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   react-native-mmkv:
     :path: "../node_modules/react-native-mmkv"
+  react-native-pager-view:
+    :path: "../node_modules/react-native-pager-view"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-NativeModulesApple:
@@ -2685,14 +2712,14 @@ SPEC CHECKSUMS:
   EXImageLoader: 4d3d3284141f1a45006cc4d0844061c182daf7ee
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
   EXManifests: 030b94fb9b4ce7f3edd2f166842bbd4474f58e40
-  Expo: add141aa1cdd34f2590f1f2a33e304e7f87be2f9
+  Expo: 7b933ea4fe1ead305fe4d90e54a8de9c0d790d1f
   expo-dev-client: 1234efa151154678fa5545d0dbd453edda0e9402
   expo-dev-launcher: c574c489cacbb67f8d3286dc7c3dbb57fc44de58
   expo-dev-menu: 56d5bdee4af7361bcfb6a6ce42419befd81d45ef
   expo-dev-menu-interface: 609c35ae8b97479cdd4c9e23c8cf6adc44beea0e
-  ExpoAsset: 3bc9adb7dbbf27ae82c18ca97eb988a3ae7e73b1
+  ExpoAsset: ecda157f3ef69824d04015fa796dcfbda2304f21
   ExpoCrypto: e5098d184ff5989ac395542d5d41f84e2051bffa
-  ExpoFileSystem: 0f3f466ecd3560f55768cd3f94ac3a17f093b8e6
+  ExpoFileSystem: 47ccd351beaa608f80f82a6f13ac8b0524ef529f
   ExpoFont: abbb91a911eb961652c2b0a22eef801860425ed6
   ExpoImagePicker: 0963da31800c906e01c03e25d7c849f16ebf02a2
   ExpoKeepAwake: bf0811570c8da182bfb879169437d4de298376e7
@@ -2738,6 +2765,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: c3f4b608e4a59dd2f6a416ef4d47a14400194468
   React-microtasksnativemodule: 054f34e9b82f02bd40f09cebd4083828b5b2beb6
   react-native-mmkv: d3cc73d2554fafa20dc5b86386359034d1faf8ff
+  react-native-pager-view: f238ed7fb53458bd03366944a33686f067c83e9a
   react-native-safe-area-context: 562163222d999b79a51577eda2ea8ad2c32b4d06
   React-NativeModulesApple: 2c4377e139522c3d73f5df582e4f051a838ff25e
   React-oscompat: ef5df1c734f19b8003e149317d041b8ce1f7d29c

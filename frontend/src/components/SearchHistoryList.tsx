@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, FlatList, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
-import { Text, Divider, Card } from 'react-native-paper';
+import { Text, Divider, Card, Icon } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Wine, SearchHistoryItemResponse } from '../api';
-import WineListItem from './WineListItem';
 import { formatTimeAgo } from '../utils/dateUtils';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
 import { getFormattedWineName } from '../utils/wineUtils';
@@ -16,6 +15,7 @@ interface SearchHistoryListProps {
   onSearchPress?: (query: string) => void;
   maxItems?: number;
   ListHeaderComponent?: React.ComponentType<any> | React.ReactElement | null | undefined;
+  containerStyle?: object;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -23,7 +23,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SearchHistoryList: React.FC<SearchHistoryListProps> = ({ 
   onSearchPress,
   maxItems = 10,
-  ListHeaderComponent
+  ListHeaderComponent,
+  containerStyle
 }) => {
   const [history, setHistory] = useState<SearchHistoryItemResponse[]>([]);
   const [componentLoading, setComponentLoading] = useState(true);
@@ -71,95 +72,71 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     } else if (item.search_type === 'text' && item.search_query && onSearchPress) {
       onSearchPress(item.search_query);
     } else {
-      if(item.search_type === 'image') {
-        Alert.alert("No Results", "No wines were found for this image search.");
-      }
+      console.log("No actionable result for this history item:", item);
     }
   };
 
-  const renderTextSearchItem = (item: SearchHistoryItemResponse) => {
+  const renderSearchItem = ({ item }: { item: SearchHistoryItemResponse }) => {
     const firstWine = item.wines?.[0];
+    const isImageSearch = item.search_type === 'image';
     
-    if (!firstWine) {
-      return (
-        <TouchableOpacity 
-          style={styles.textHistoryItem}
-          onPress={() => handleSearchItemPress(item)}
-        >
-          <Text style={styles.textQuery}>{item.search_query}</Text>
-          <Text style={styles.textTimestamp}>{formatTimeAgo(item.created_at)}</Text>
-        </TouchableOpacity>
-      );
-    }
-    
-    return (
-      <WineListItem 
-        wine={firstWine}
-        onPress={() => handleSearchItemPress(item)}
-      />
-    );
-  }
+    const imageUrl = isImageSearch ? item.search_query : (firstWine?.image_url || null);
 
-  const renderImageSearchItem = (item: SearchHistoryItemResponse) => {
-    const firstWine = item.wines?.[0];
-    
-    // Use scan file URL if available, otherwise check if first wine has an image
-    const imageUrl = item.search_type === 'image' ? item.search_query : (firstWine?.image_url || null);
-    
     return (
       <TouchableOpacity onPress={() => handleSearchItemPress(item)}>
-        <Card style={styles.imageSearchCard}>
-          <Card.Content style={styles.imageSearchContent}>
-            <View style={styles.scanImageContainer}>
+        <Card style={styles.card}>
+          <Card.Content style={styles.cardContent}>
+            <View style={styles.imageContainer}>
               {imageUrl ? (
                 <Image 
                   source={{ uri: imageUrl }} 
-                  style={styles.scanImage} 
+                  style={styles.image} 
                   resizeMode="cover"
                 />
               ) : (
-                <View style={styles.scanImagePlaceholder} />
+                <View style={[styles.image, styles.imagePlaceholder]}>
+                   <Icon source="text-search" size={30} color="#999" />
+                </View>
               )}
             </View>
             
-            <View style={styles.imageSearchDetails}>
+            <View style={styles.detailsContainer}>
               {firstWine ? (
-                <View style={styles.wineFoundContainer}>
-                  <Text style={styles.wineFoundName} numberOfLines={2}>
+                <View style={styles.infoContainer}>
+                  <Text style={styles.wineName} numberOfLines={2}>
                     {getFormattedWineName(firstWine)}
                   </Text>
-                  {firstWine.region && (
-                    <Text style={styles.wineFoundRegion}>
+                  {(firstWine.region || firstWine.country) && (
+                    <Text style={styles.wineRegion} numberOfLines={1}>
                       {firstWine.country && getCountryFlagEmoji(firstWine.country) + " "}
-                      From {firstWine.region || firstWine.country || "Unknown region"}
+                      {firstWine.region || firstWine.country}
                     </Text>
                   )}
                 </View>
               ) : (
-                <View style={styles.noWineFoundContainer}>
-                  <Text style={styles.noWineFoundText}>
-                    We're not sure about this wine
-                  </Text>
+                <View style={styles.infoContainer}>
+                   <Text style={styles.queryText} numberOfLines={2}>
+                     {isImageSearch ? "Scanned Image" : item.search_query || "Search"}
+                   </Text>
+                   {!isImageSearch && item.search_query && (
+                    <Text style={styles.noWineFoundText}>No specific wine found in history</Text>
+                   )}
+                   {isImageSearch && (
+                     <Text style={styles.noWineFoundText}>We're not sure about this wine</Text>
+                   )}
                 </View>
               )}
               
-              <View style={styles.scannedContainer}>
-                <Text style={styles.scannedText}>Scanned</Text>
-                <Text style={styles.scannedTimestamp}>{formatTimeAgo(item.created_at)}</Text>
+              <View style={styles.timestampContainer}>
+                <Text style={styles.timestampText}>
+                  {isImageSearch ? 'Scanned' : 'Searched'} {formatTimeAgo(item.created_at)}
+                </Text>
               </View>
             </View>
           </Card.Content>
         </Card>
       </TouchableOpacity>
     );
-  }
-
-  const renderSearchItem = ({ item }: { item: SearchHistoryItemResponse }) => {
-    if (item.search_type === 'text') {
-      return renderTextSearchItem(item);
-    } else { // image search
-      return renderImageSearchItem(item);
-    }
   };
 
   if (componentLoading || isAuthLoading) {
@@ -191,8 +168,7 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
       data={history}
       renderItem={renderSearchItem}
       keyExtractor={(item) => item.id}
-      ItemSeparatorComponent={() => <Divider style={styles.divider}/>}
-      contentContainerStyle={styles.listContainer}
+      style={[styles.list, containerStyle]}
       ListHeaderComponent={ListHeaderComponent}
     />
   );
@@ -205,90 +181,76 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
-  listContainer: {
-    paddingBottom: 8,
+  list: {
+    flex: 1,
   },
-  textHistoryItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 4,
+  card: {
+    borderRadius: 0,
+    elevation: 0,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0',
   },
-  textQuery: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  textTimestamp: {
-    fontSize: 13,
-    color: '#666',
-  },
-  divider: {
-    marginVertical: 8,
-  },
-  imageSearchCard: {
-    marginVertical: 8,
-    borderRadius: 8,
-    elevation: 2,
-  },
-  imageSearchContent: {
+  cardContent: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 10,
+    alignItems: 'center',
   },
-  scanImageContainer: {
-    width: 80,
+  imageContainer: {
+    width: 60,
     height: 80,
-    borderRadius: 6,
+    borderRadius: 4,
     overflow: 'hidden',
     marginRight: 12,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  scanImage: {
+  image: {
     width: '100%',
     height: '100%',
   },
-  scanImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#e0e0e0',
+  imagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#e9e9e9',
   },
-  imageSearchDetails: {
+  detailsContainer: {
     flex: 1,
     justifyContent: 'space-between',
+    height: 80,
   },
-  wineFoundContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    marginBottom: 8,
+  infoContainer: {
+     flex: 1,
+     justifyContent: 'center',
+     paddingRight: 5,
   },
-  wineFoundName: {
-    fontSize: 16,
+  wineName: {
+    fontSize: 15,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 3,
   },
-  wineFoundRegion: {
-    fontSize: 14,
-    color: '#666',
+  wineRegion: {
+    fontSize: 13,
+    color: '#555',
   },
-  noWineFoundContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    marginBottom: 8,
+  queryText: {
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 3,
   },
   noWineFoundText: {
-    fontSize: 15,
+    fontSize: 13,
     fontStyle: 'italic',
-    color: '#666',
+    color: '#777',
   },
-  scannedContainer: {
-    marginTop: 6,
+  timestampContainer: {
   },
-  scannedText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  scannedTimestamp: {
+  timestampText: {
     fontSize: 12,
-    color: '#999',
-  }
+    color: '#888',
+    textAlign: 'left',
+  },
 });
 
 export default SearchHistoryList;

@@ -1,16 +1,16 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { StyleSheet, View, ActivityIndicator, Alert } from 'react-native';
+import React, { useCallback, useState, useEffect } from 'react';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Appbar, Text, Button, useTheme } from 'react-native-paper';
+import { Appbar, Text, Button, useTheme, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineDetailCard from '../components/WineDetailCard';
 import { useWineDetails } from '../hooks/useWineDetails';
 import { useWineInteractions } from '../hooks/useWineInteractions';
-import { useAuth } from '../auth/AuthContext';
 import WineChatView from '../components/wine/WineChatView';
 import { useWineChat } from '../hooks/useWineChat';
 import { getFormattedWineName } from '../utils/wineUtils';
+import { Note } from '../api';
 
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -24,56 +24,80 @@ const WineDetailScreen = () => {
   const {
     wine,
     offers,
+    notesData,
+    interactionData,
     isLoading: isLoadingDetails,
     error: detailsError,
     retry: retryDetailsFetch,
-    userInteractionData: initialInteractionData,
-    notes,
+    onInteractionUpdate,
+    onNoteChange,
   } = useWineDetails(wineId, routeWine);
 
   const {
     isInWishlist,
     isLiked,
     userRating,
-    hasExistingNotes,
-    latestNoteId,
     interactionError,
+    isSaving: isSavingInteraction,
     toggleWishlist,
     toggleLike,
     rateWine,
-  } = useWineInteractions(wineId, initialInteractionData, notes);
-
-  const { getToken } = useAuth();
+  } = useWineInteractions(
+    wineId,
+    interactionData,
+    onInteractionUpdate
+  );
 
   const {
     chatMessages,
     chatInput,
     setChatInput,
-    isChatLoading,
+    isChatLoading: isChatLoadingChat,
     followUpQuestions,
     handleSendMessage,
     handleFollowupQuestion,
   } = useWineChat({ wineId, wine });
 
-  const displayError = detailsError || interactionError;
+  const hasExistingNotes = notesData && notesData.length > 0;
+  const noteToEdit = hasExistingNotes ? notesData![notesData!.length - 1] : undefined;
 
-  const handleAddToWishlist = toggleWishlist;
-  const handleLike = toggleLike;
-  const handleRateWine = rateWine;
+  const [optimisticNoteText, setOptimisticNoteText] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const latestNoteFromHook = notesData && notesData.length > 0 ? notesData[notesData.length - 1] : undefined;
+    setOptimisticNoteText(latestNoteFromHook?.note_text);
+  }, [notesData]);
+
+  const displayError = detailsError || interactionError;
+  const isDataAvailable = !!wine;
+
+  const handleNoteTextCommittedByChild = (committedNote: Note) => {
+    console.log("[WineDetailScreen] Note text committed by child (useNote successful save). Note:", committedNote);
+    setOptimisticNoteText(committedNote.note_text);
+
+    if (onNoteChange) {
+      onNoteChange({ 
+        type: 'updated', 
+        note: committedNote, 
+        noteId: committedNote.id 
+      });
+    }
+  };
 
   const handleAddNote = () => {
     if (!wine) return;
-    const noteToPass = notes?.find(n => n.id === latestNoteId);
     navigation.navigate('AddTastingNote', {
       wineId: wine.id,
       wine: wine,
-      note: noteToPass
-    });
+      note: noteToEdit,
+      currentUserRating: userRating,
+      onRateWine: rateWine,
+      onNoteTextCommitted: handleNoteTextCommittedByChild,
+    } as any);
   };
 
   const handleBuyWine = () => {
     if (!wine || !offers || offers.length === 0) {
-        console.warn('No offers available to buy.');
         return;
     }
       navigation.navigate('WineOffers', {
@@ -82,35 +106,46 @@ const WineDetailScreen = () => {
       });
   };
 
-  const showInteractionErrorBanner = interactionError && wine;
+  const showInteractionErrorBanner = !!(interactionError && wine);
 
   const renderListHeader = () => (
     <>
       {wine && (
         <WineDetailCard
           wine={wine}
-          onAddToWishlist={handleAddToWishlist}
-          onLike={handleLike}
-          onAddNote={handleAddNote}
-          onRateWine={handleRateWine}
-          onBuyWine={handleBuyWine}
-          isInWishlist={isInWishlist}
-          isLiked={isLiked}
-          hasExistingNotes={hasExistingNotes}
-          rating={userRating}
-          hasOffers={offers && offers.length > 0}
+          rating={userRating === null ? undefined : userRating}
+          noteText={optimisticNoteText}
         />
+      )}
+      {isDataAvailable && (
+        <View style={styles.actionButtonsContainer}>
+          <Button
+            mode="outlined"
+            onPress={handleBuyWine}
+            style={styles.actionButton}
+            labelStyle={styles.buttonLabel}
+            icon="tag-outline"
+            disabled={!offers || offers.length === 0}
+          >
+            View Offers
+          </Button>
+          <Button
+            mode="outlined"
+            onPress={handleAddNote}
+            style={styles.actionButton}
+            labelStyle={styles.buttonLabel}
+            icon={hasExistingNotes ? "note-edit-outline" : "note-plus-outline"}
+          >
+            {hasExistingNotes ? 'Edit Note' : 'Add Note'}
+          </Button>
+        </View>
       )}
     </>
   );
 
-  if (isLoadingDetails) {
+  if (isLoadingDetails && !wine) {
     return (
       <View style={styles.container}>
-        <Appbar.Header style={styles.appbar}>
-          <Appbar.BackAction onPress={() => navigation.goBack()} />
-          <Appbar.Content title="Loading Wine Details" />
-        </Appbar.Header>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading wine details...</Text>
@@ -155,7 +190,26 @@ const WineDetailScreen = () => {
     <View style={styles.container}>
       <Appbar.Header style={styles.appbar}>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={getFormattedWineName(wine) || "Wine Details"} />
+        <Appbar.Content title="" />
+        {isDataAvailable && (
+          <>
+            <IconButton
+              icon={isLiked ? 'thumb-up' : 'thumb-up-outline'}
+              iconColor={isLiked ? theme.colors.primary : theme.colors.onSurface}
+              size={24}
+              onPress={toggleLike}
+              disabled={isSavingInteraction}
+            />
+            <IconButton
+              icon={isInWishlist ? 'bookmark' : 'bookmark-outline'}
+              iconColor={isInWishlist ? theme.colors.primary : theme.colors.onSurface}
+              size={24}
+              onPress={toggleWishlist}
+              disabled={isSavingInteraction}
+            />
+          </>
+        )}
+        {isSavingInteraction && !isDataAvailable && <ActivityIndicator color={theme.colors.primary} style={{ marginRight: 8}}/>}
       </Appbar.Header>
 
       {showInteractionErrorBanner && (
@@ -168,7 +222,7 @@ const WineDetailScreen = () => {
         chatMessages={chatMessages}
         chatInput={chatInput}
         setChatInput={setChatInput}
-        isChatLoading={isChatLoading}
+        isChatLoading={isChatLoadingChat}
         followUpQuestions={followUpQuestions}
         handleSendMessage={handleSendMessage}
         handleFollowupQuestion={handleFollowupQuestion}
@@ -182,7 +236,28 @@ const WineDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+  },
+  scrollContainer: {
+    paddingBottom: 80, // Space for FAB
+  },
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 3 / 4, // Enforce 3:4 aspect ratio
+    backgroundColor: '#e0e0e0', // Placeholder background
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  wineImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  placeholderIcon: {
+    // Styles for the placeholder icon if needed
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
   },
   appbar: {
     backgroundColor: '#FFFFFF',
@@ -226,8 +301,20 @@ const styles = StyleSheet.create({
     color: '#D32F2F',
     flex: 1,
   },
-  errorButtonLabel: {
-    color: '#D32F2F',
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#FFFFFF', // Ensuring buttons have a background
+  },
+  actionButton: {
+    marginHorizontal: 8,
+    flex: 1, // Make buttons take equal width
+    borderColor: '#000000',
   },
 });
 

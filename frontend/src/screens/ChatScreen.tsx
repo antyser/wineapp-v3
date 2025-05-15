@@ -36,9 +36,9 @@ const ChatScreen = () => {
       role: 'assistant',
       timestamp: new Date(),
       followup_questions: [
-        "What food pairs well with this wine?",
-        "Tell me about the winery",
-        "What's the drinking window for this wine?"
+        "food pairing",
+        "the winery",
+        "drinking window"
       ]
     },
   ]);

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, View, FlatList } from 'react-native';
-import { Appbar, Text, Divider } from 'react-native-paper';
+import { StyleSheet, View, FlatList, SafeAreaView } from 'react-native';
+import { Text, Divider } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -21,73 +21,59 @@ const WineOffersScreen = () => {
   }, [offers]);
 
   return (
-    <View style={styles.container}>
-      <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} color="#000000" />
-        <Appbar.Content title="Wine Offers" titleStyle={styles.headerTitle} />
-      </Appbar.Header>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.contentContainer}>
 
-      <View style={styles.header}>
-        <Text variant="headlineSmall" style={styles.title}>
-          Buy {wineName}
-        </Text>
+        <FlatList
+          data={validOffers}
+          renderItem={({ item }) => <WineOfferItem offer={item} />}
+          keyExtractor={(item, index) => `${item.seller_name || ''}-${index}`}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {offers.length > 0 && validOffers.length === 0
+                  ? 'No valid offers available for this wine.'
+                  : 'No offers available for this wine.'}
+              </Text>
+            </View>
+          }
+        />
       </View>
-
-      <Divider style={styles.divider} />
-
-      <FlatList
-        data={validOffers}
-        renderItem={({ item }) => <WineOfferItem offer={item} />}
-        keyExtractor={(item, index) => `${item.seller_name || ''}-${index}`}
-        contentContainerStyle={styles.offersList}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>
-            {offers.length > 0 && validOffers.length === 0
-              ? 'No valid offers available for this wine.'
-              : 'No offers available for this wine.'}
-          </Text>
-        }
-      />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  titleHeaderContainer: {
     backgroundColor: '#FFFFFF',
-  },
-  appbar: {
-    backgroundColor: '#FFFFFF',
-    elevation: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  headerTitle: {
-    color: '#000000', // Black for header title
-    fontWeight: '600',
-  },
-  header: {
     padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
   },
   title: {
     fontWeight: 'bold',
-    color: '#000000', // Black for title text
+    color: '#000000',
   },
-  divider: {
-    backgroundColor: '#E0E0E0',
-    marginBottom: 8,
-    height: 1,
-  },
-  offersList: {
+  emptyContainer: {
+    backgroundColor: '#FFFFFF',
     padding: 16,
+    borderRadius: 8,
+    marginTop: 0,
+    alignItems: 'center',
   },
   emptyText: {
     fontStyle: 'italic',
-    color: '#444444', // Darker gray for empty state text
-    marginBottom: 16,
+    color: '#444444',
     textAlign: 'center',
-    padding: 16,
   },
 });
 

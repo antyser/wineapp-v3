@@ -26,6 +26,8 @@ export type RootStackParamList = {
     wineId: string; // Keep wineId for context if needed, e.g. creating a new note
     wine: Wine;     // Pass the full wine object
     note?: Note;    // Pass the specific note object if editing
+    currentUserRating?: number | null; // NEW: pass current interaction rating
+    onRateWine?: (rating: number | null) => void; // NEW: pass rateWine function
   };
   WineOffers: { wineName: string, offers: Offer[] };
 

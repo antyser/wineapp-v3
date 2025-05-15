@@ -1,403 +1,262 @@
 import React from 'react';
-import { StyleSheet, View, Image, TouchableOpacity } from 'react-native';
-import { Card, Text, Button, IconButton, Chip, useTheme, Icon } from 'react-native-paper';
-import { Wine } from '../types/wine';
+import { StyleSheet, View, Image } from 'react-native';
+import { Card, Text, Chip, useTheme, Icon } from 'react-native-paper';
+import { Wine } from '../api/generated/types.gen';
+import { getFormattedWineName } from '../utils/wineUtils';
 
 /**
  * WineDetailCard Component
- * 
- * A comprehensive card component displaying detailed wine information and actions.
+ *
+ * A comprehensive card component displaying detailed wine information.
  * This component is specifically designed for the Wine Details screen, providing
- * a full view of wine information with interactive elements.
- * 
+ * a focused view of wine information.
+ *
  * Features:
  * - Displays complete wine details (name, vintage, region, type, etc.)
  * - Shows wine image
- * - Provides action buttons for wine management (wishlist, cellar, notes, consumption)
- * - Handles interaction states (e.g., whether a wine is in a wishlist)
- * - Includes rating functionality with support for half-stars (fractional ratings)
- * - Supports like and wishlist toggles that save to user interactions
- * 
+ * - Arranges information in a clear, readable layout.
+ *
  * Used in:
- * - WineDetailScreen as the main content component
- * - Any screen requiring detailed wine information with actions
+ * - WineDetailScreen as the main content component for wine details
  */
 interface WineDetailCardProps {
   wine: Wine;
-  onAddToWishlist?: () => void;
-  onLike?: () => void;
-  onAddNote?: () => void;
-  onRateWine?: (rating: number | null) => void;
-  onBuyWine?: () => void;
-  isInWishlist?: boolean;
-  isLiked?: boolean;
-  hasExistingNotes?: boolean;
-  rating?: number | null;
-  hasOffers?: boolean;
+  rating?: number | null; // Rating is display-only now
+  noteText?: string;
 }
 
 const WineDetailCard: React.FC<WineDetailCardProps> = ({
   wine,
-  onAddToWishlist,
-  onLike,
-  onAddNote,
-  onRateWine,
-  onBuyWine,
-  isInWishlist = false,
-  isLiked = false,
-  hasExistingNotes = false,
   rating = null,
-  hasOffers = false,
+  noteText,
 }) => {
   const theme = useTheme();
-
-  // Helper function to determine which star icon to use
-  const getStarIcon = (position: number, currentRating: number | null): string => {
-    const r = currentRating ?? 0; // Treat null as 0 for calculation
-    if (r >= position) {
-      return 'star'; // Full star
-    } else if (r >= position - 0.5) {
-      return 'star-half-full'; // Half star
-    } else {
-      return 'star-outline'; // Empty star
-    }
-  };
 
   // Helper function to format rating display
   const formatRating = (currentRating: number | null): string => {
     const r = currentRating ?? 0; // Treat null as 0
-    if (r === 0) return ''; // Don't display (0)
-    return Number.isInteger(r) ? r.toString() : r.toFixed(1);
+    if (r === 0) return 'Not rated';
+    return `Rated: ${Number.isInteger(r) ? r.toString() : r.toFixed(1)}/5`;
   };
 
-  // Function to render star rating
-  const renderRating = () => {
-    const stars = [];
-    const maxRating = 5;
-    const currentRatingValue = rating ?? 0; // Use 0 if rating is null
-    
-    for (let i = 1; i <= maxRating; i++) {
-      stars.push(
-        <IconButton
-          key={i}
-          icon={getStarIcon(i, rating)} // Pass original rating (null included)
-          iconColor={'#FFD700'}
-          size={24}
-          onPress={() => {
-            let newRating: number | null = null;
-            if (i === Math.ceil(currentRatingValue) && currentRatingValue % 1 !== 0) {
-              newRating = Math.floor(currentRatingValue) + 1;
-            } else if (i === Math.floor(currentRatingValue) && currentRatingValue % 1 === 0) {
-              newRating = i - 0.5;
-            } else {
-              newRating = i;
-            }
-            // Allow setting rating back to null? 
-            // Currently, clicking an empty star sets it to 1, 
-            // clicking half sets to full, clicking full sets to half.
-            // Consider if clicking star 1 (when rating is 1) should set to 0.5 or null.
-            // For now, onRateWine expects number | null
-            onRateWine && onRateWine(newRating); 
-          }}
-          style={styles.starIcon}
-          testID={`star-${i}`}
-        />
-      );
+  const renderInfoItem = (label: string, value?: string | number | null, icon?: string) => {
+    if (!value && value !== 0 && label !== "Grapes" && label !== "Avg. Price") return null;
+    // Special handling for Grapes and Avg. Price to allow rendering a placeholder if value is null
+    if ((label === "Grapes" || label === "Avg. Price") && (!value && value !==0)) {
+        // Render with a placeholder or specific text if you want to indicate missing info
+        // For now, we pass it through to let the caller decide (e.g. placeholder View)
+        // Or, we can render a placeholder text here directly:
+        // return (
+        //   <View style={styles.infoItemCol}>
+        //     {icon && (
+        //       <View style={styles.infoIconContainer}>
+        //         <Icon source={icon} size={16} color={theme.colors.onSurfaceVariant} />
+        //       </View>
+        //     )}
+        //     <View>
+        //       <Text variant="labelSmall" style={styles.infoLabel}>{label}</Text>
+        //       <Text variant="bodyMedium" style={styles.infoValue}>N/A</Text>
+        //     </View>
+        //   </View>
+        // );
+        // Let the caller handle missing Grapes/Price with a placeholder View for layout integrity
+    } else if (!value && value !== 0) {
+        return null; 
     }
-    
-    return stars;
+
+    return (
+      <View style={styles.infoItemCol}>
+        {icon && (
+          <View style={styles.infoIconContainer}>
+            <Icon source={icon} size={16} color={theme.colors.onSurfaceVariant} />
+          </View>
+        )}
+        <View style={styles.textInfoWrapper}>
+          <Text variant="labelSmall" style={styles.infoLabel}>{label}</Text>
+          <Text 
+            variant="bodyMedium" 
+            style={styles.infoValue}
+            numberOfLines={label === "Winery" ? 2 : undefined}
+            ellipsizeMode={label === "Winery" ? "tail" : undefined}
+          >
+            {String(value)}
+          </Text>
+        </View>
+      </View>
+    );
   };
+
 
   return (
     <Card style={styles.card}>
-      {/* Horizontal layout with image on left, basic info on right */}
       <View style={styles.topContainer}>
         {/* Wine image on left */}
         <View style={styles.imageContainer}>
           {wine.image_url ? (
             <Image
               source={{ uri: wine.image_url }}
-              style={styles.verticalImage}
+              style={styles.wineImage}
               resizeMode="contain"
             />
           ) : (
             <View style={styles.placeholderImage}>
-              <Text variant="bodyLarge" style={styles.placeholderText}>No image</Text>
+              <Icon source="camera-off-outline" size={48} color={theme.colors.onSurfaceDisabled} />
+              <Text variant="bodySmall" style={styles.placeholderText}>No image</Text>
             </View>
+          )}
+        </View>
+
+        {/* Wine Name (Vintage + Name) on right, using getFormattedWineName */}
+        <View style={styles.nameContainer}>
+          <Text variant="titleMedium" style={styles.nameText}>
+            {getFormattedWineName(wine)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Details arranged in 3 rows, 2 columns */}
+      <Card.Content style={styles.detailsContent}>
+        <View style={styles.infoRow}>
+          {renderInfoItem("Winery", wine.winery, "office-building-outline")}
+          {renderInfoItem("Country", wine.country, "earth")}
+        </View>
+        <View style={styles.infoRow}>
+          {renderInfoItem("Region", wine.region, "map-marker-outline")}
+          {renderInfoItem("Type", wine.type, "glass-wine")}
+        </View>
+        <View style={styles.infoRow}>
+          {renderInfoItem("Grapes", wine.varietal, "fruit-grapes-outline")}
+          {wine.average_price !== undefined && wine.average_price !== null ? (
+            renderInfoItem("Avg. Price", `$${wine.average_price.toFixed(2)} / 750ml`, "cash-multiple")
+          ) : (
+            /* Render a placeholder for Avg. Price if null/undefined to maintain 2-column structure */
+            <View style={styles.infoItemCol} />
           )}
         </View>
         
-        {/* Basic info on right */}
-        <View style={styles.basicInfoContainer}>
-          <View style={styles.titleContainer}>
-            {wine.vintage && wine.vintage !== 1 && wine.vintage !== '1' && (
-              <Text variant="titleLarge" style={styles.vintage}>
-                {wine.vintage}
-              </Text>
-            )}
-            <Text variant="titleLarge" style={styles.name}>
-              {wine.name}
-            </Text>
-          </View>
-          
-          {wine.winery && (
-            <Text variant="bodyMedium" style={styles.producer}>
-              {wine.winery}
-            </Text>
-          )}
+        {rating !== null && (
+            <View style={styles.ratingDisplay}>
+                <View style={styles.infoIconContainer}>
+                    <Icon source="star" size={16} color="#FFD700"/>
+                </View>
+                <Text variant="bodyMedium" style={styles.infoValue}>{formatRating(rating)}</Text>
+            </View>
+        )}
 
-          <View style={styles.detailsRow}>
-            {wine.region && (
-              <Chip
-                icon="map-marker"
-                style={styles.chip}
-                textStyle={styles.chipText}
-              >
-                {wine.region}
-              </Chip>
-            )}
-            {wine.type && (
-              <Chip
-                icon="glass-wine"
-                style={styles.chip}
-                textStyle={styles.chipText}
-              >
-                {wine.type}
-              </Chip>
-            )}
-          </View>
-        </View>
-      </View>
-      
-      <Card.Content>
-        <View style={styles.infoContainer}>
-          {wine.varietal && (
-            <Text variant="bodyMedium" style={styles.grapesRow}>
-              <Text style={styles.label}>Grapes: </Text>
-              {wine.varietal}
-            </Text>
-          )}
-
-          {wine.average_price && (
-            <Text variant="bodyMedium" style={styles.price}>
-              <Text style={styles.label}>Avg. Price: </Text>
-              ${wine.average_price.toFixed(2)}
-            </Text>
-          )}
-
-          {/* Rating component */}
-          <View style={styles.ratingContainer}>
-            <Text variant="bodyMedium" style={styles.label}>Your Rating: </Text>
-            <View style={styles.ratingRow}>
-              <View style={styles.starContainer}>
-                {renderRating().map(star => star)}
-              </View>
-              {rating !== null && rating > 0 && (
-                <Text variant="bodyMedium" style={styles.ratingText}>
-                  ({formatRating(rating)})
-                </Text>
-              )}
+        {noteText && (
+          <View style={styles.noteDisplay}>
+            <View style={styles.infoIconContainer}>
+              <Icon source="note-text-outline" size={16} color={theme.colors.onSurfaceVariant} />
+            </View>
+            <View style={styles.noteTextContainer}>
+              <Text variant="labelMedium" style={styles.noteLabel}>Your Note:</Text>
+              <Text variant="bodyMedium" style={styles.noteTextContent}>{noteText}</Text>
             </View>
           </View>
-        </View>
+        )}
       </Card.Content>
-
-      <View style={styles.actionsRow}>
-        <TouchableOpacity 
-          onPress={onLike}
-          style={[styles.actionButton, isLiked && styles.activeActionButton]}
-          testID="like-button"
-        >
-          <Icon source={isLiked ? 'thumb-up' : 'thumb-up-outline'} size={24} color={isLiked ? '#FFFFFF' : '#000000'} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          onPress={onAddToWishlist}
-          style={[styles.actionButton, isInWishlist && styles.activeActionButton]}
-          testID="wishlist-button"
-        >
-          <Icon source={isInWishlist ? 'bookmark' : 'bookmark-outline'} size={24} color={isInWishlist ? '#FFFFFF' : '#000000'} />
-        </TouchableOpacity>
-        
-        <Button
-          mode="outlined"
-          onPress={onAddNote}
-          style={styles.textButton}
-          labelStyle={styles.buttonLabel}
-          icon={hasExistingNotes ? "note-edit-outline" : "note-plus-outline"}
-        >
-          {hasExistingNotes ? 'View/Edit Note' : 'Add Note'}
-        </Button>
-        
-        <Button
-          mode="outlined"
-          onPress={onBuyWine}
-          style={styles.textButton}
-          labelStyle={styles.buttonLabel}
-          icon="tag-outline"
-          disabled={!hasOffers}
-        >
-          View Offers
-        </Button>
-      </View>
     </Card>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    marginVertical: 8,
-    marginHorizontal: 16,
-    elevation: 2,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    marginVertical: 0, // Removed margin as it's part of a larger screen
+    marginHorizontal: 0,
+    borderRadius: 0, // Flat card, no rounded corners
+    elevation: 0, // No shadow for a flatter look
+    backgroundColor: '#FFFFFF', // Explicit white background
   },
   topContainer: {
     flexDirection: 'row',
     padding: 16,
-    alignItems: 'flex-start',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    alignItems: 'flex-start', // Align items to the top for name wrapping
   },
   imageContainer: {
-    width: 120,
-    height: 180,
-    backgroundColor: '#F9F9F9',
+    width: 100, // Fixed width for image
+    height: 150, // Fixed height for image (adjust aspect ratio as needed)
+    marginRight: 16,
+    backgroundColor: '#f0f0f0', // Placeholder background for image
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,
-    marginRight: 16,
+    overflow: 'hidden',
   },
-  verticalImage: {
-    width: 100,
-    height: 160,
+  wineImage: {
+    width: '100%',
+    height: '100%',
   },
   placeholderImage: {
-    width: 100,
-    height: 160,
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#EEEEEE',
-    borderRadius: 8,
+    backgroundColor: '#e0e0e0',
   },
   placeholderText: {
-    color: '#999999',
-    textAlign: 'center',
+    marginTop: 4,
+    color: '#757575',
   },
-  basicInfoContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-    height: 180,
+  nameContainer: {
+    flex: 1, // Allow name to take remaining space
+    justifyContent: 'center', // Vertically center if space allows, but flex-start in parent
   },
-  titleContainer: {
-    marginBottom: 8,
+  nameText: {
+    // No explicit bolding here, relies on variant or theme for titleLarge
   },
-  vintage: {
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  name: {
-    marginBottom: 4,
-    color: '#000000',
-    fontWeight: 'bold',
-  },
-  producer: {
-    marginBottom: 8,
-    fontStyle: 'italic',
-    color: '#000000',
-  },
-  infoContainer: {
-    marginBottom: 16,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  chip: {
-    marginRight: 8,
-    marginBottom: 8,
-    backgroundColor: '#F0F0F0',
-  },
-  chipText: {
-    color: '#000000',
-  },
-  grapesRow: {
-    marginBottom: 8,
-    color: '#000000',
-  },
-  price: {
-    marginBottom: 8,
-    color: '#000000',
-  },
-  label: {
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  ratingContainer: {
-    marginVertical: 8,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  starContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  starIcon: {
-    margin: 0,
-    padding: 0,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
+  detailsContent: {
     paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    paddingBottom: 16, // Add padding at the bottom of the card content
   },
-  actionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12, // Space between rows
+  },
+  infoItemCol: {
+    flex: 1, // Each item takes half the space in a 2-column row
+    flexDirection: 'row',
+    alignItems: 'flex-start', // Align icon and text block to their tops for better label alignment
+    paddingRight: 4, 
+  },
+  textInfoWrapper: {
+    flexShrink: 1,
+  },
+  infoIconContainer: { 
+    marginRight: 6,
+  },
+  infoLabel: {
+    color: '#757575', // Muted color for labels
+    // textTransform: 'uppercase',
+    // fontSize: 10,
+  },
+  infoValue: {
+    // fontWeight: '500',
+  },
+  ratingDisplay: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderColor: '#e0e0e0',
   },
-  activeActionButton: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
+  noteDisplay: {
+    flexDirection: 'row',
+    alignItems: 'flex-start', // Align icon to the top of the text block
+    marginTop: 8,
+    paddingTop: 8,
   },
-  textButton: {
+  noteTextContainer: {
     flex: 1,
-    marginHorizontal: 4,
-    borderColor: '#000000',
-    height: 44,
-    justifyContent: 'center',
   },
-  disabledButton: {
-    borderColor: '#CCCCCC',
-    backgroundColor: '#F0F0F0',
+  noteLabel: {
+    color: '#757575', // Using a common gray color for the label
+    marginBottom: 4, // Space between label and note content
+    // fontWeight: 'bold', // Optional: if you want the label to be bold
   },
-  buttonLabel: {
-    color: '#000000',
-    fontSize: 12,
-  },
-  disabledButtonLabel: {
-    color: '#999999',
-  },
-  activeButtonLabel: {
-    color: '#FFFFFF',
-  },
-  ratingText: {
-    marginLeft: 8,
-    color: '#000000',
+  noteTextContent: {
+    flex: 1,
   },
 });
 

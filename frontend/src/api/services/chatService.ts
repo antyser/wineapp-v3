@@ -55,153 +55,191 @@ export const streamChatMessage = (
     callbacks: StreamChatCallbacks
 ): () => void => {
     
-    // Prepare the request body
     const requestBody = JSON.stringify({
         messages: messages,
         model: model
     });
     
-    // Get the API base URL and construct the full URL
     const baseURL = apiClient.defaults.baseURL || '';
     const url = `${baseURL}/api/v1/chat/wine/stream`;
     
-    // Prepare headers
     const headers: { [key: string]: any } = {
         'Content-Type': 'application/json',
-        'Accept': 'text/event-stream' // Important for SSE
+        'Accept': 'text/event-stream'
     };
     
-    // Add authorization header if it exists
-    if (apiClient.defaults.headers.common?.['Authorization']) {
-        // react-native-sse needs headers in a specific format
+    // Simplified Authorization header
+    const authToken = apiClient.defaults.headers.common?.['Authorization'];
+    if (typeof authToken === 'string') {
+        headers['Authorization'] = authToken;
+    } else if (typeof apiClient.defaults.headers.common?.['Authorization'] === 'object' && apiClient.defaults.headers.common['Authorization'] !== null && typeof (apiClient.defaults.headers.common['Authorization'] as any).toString === 'function') {
+        // Fallback for unusual auth token structure, though direct string is preferred
         headers['Authorization'] = {
-             toString: function () {
-                return apiClient.defaults.headers.common['Authorization'] as string;
+            toString: function () {
+                return apiClient.defaults.headers.common!['Authorization'] as string;
             }
         };
     }
+    console.log(`[chatService] Authorization header: ${headers['Authorization']}`);
 
     console.log(`[chatService] Creating EventSource for URL: ${url}`);
-    console.log(`[chatService] With headers: ${JSON.stringify(Object.keys(headers))}`); // Log header keys only
+    console.log(`[chatService] With headers: ${JSON.stringify(Object.keys(headers))}`); // Log only keys for brevity, or consider more detailed logging if needed for auth debugging
 
-    // Define the custom event types expected from the backend
-    type BackendEvent = 'start' | 'content' | 'followup' | 'error' | 'end';
+    type BackendEvent = 'start' | 'content' | 'error' | 'end';
 
-    // Create the EventSource instance
     const es = new EventSource<BackendEvent>(url, {
         method: 'POST',
         headers: headers,
         body: requestBody,
-        debug: true // Enable library debugging output
+        debug: true, 
+        lineEndingCharacter: '\n',
     });
 
-    // Listener for connection opening
+    let accumulatedContent = '';
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    const clearIdleTimeout = () => {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    };
+
+    const resetIdleTimeout = () => {
+        clearIdleTimeout();
+        timeoutId = setTimeout(() => {
+            console.warn("[chatService] Stream timed out due to 30s inactivity.");
+            callbacks.onError?.("Stream timed out after 30 seconds of inactivity.");
+            es.close(); // Close the connection
+            // Listeners should be removed by the main cleanup function or when es.close() is effective
+        }, 30000); // 30 seconds
+    };
+
     es.addEventListener('open', (event) => {
         console.log("[chatService] Stream connection opened", event);
         callbacks.onStart?.();
+        accumulatedContent = '';
+        resetIdleTimeout(); // Start idle timer
     });
 
-    // Listener for connection errors
     es.addEventListener('error', (event: any) => {
-        console.error("[chatService] EventSource connection error object:", event);
-        // Attempt to extract a meaningful message
+        console.error("[chatService] EventSource connection error object:", event); // Log the full event
         let errorMessage = 'Stream connection failed';
         if (event && typeof event === 'object') {
             if ('message' in event && typeof event.message === 'string') {
                 errorMessage = event.message;
             } else if ('type' in event && typeof event.type === 'string') {
-                // Fallback to event type if message is missing
                 errorMessage = `Stream error event: ${event.type}`;
             } 
         }
-         // Log the raw event if it's not an object or has no useful info
         if (errorMessage === 'Stream connection failed') {
-             console.error("Could not extract specific error message from event:", event);
+             console.error("[chatService] Could not extract specific error message from EventSource error event:", event);
         }
-
         callbacks.onError?.(errorMessage);
-        // Close the connection on error
-        es.close();
+        clearIdleTimeout(); // Clear timeout on error
+        es.close(); // Ensure connection is closed
     });
 
-    // Listener specifically for our backend's custom events
-    // The library maps the SSE 'event:' field to the 'type' property here
     const customEventListener: EventSourceListener<BackendEvent> = (event: any) => {
-        // Basic check for event and type
+        // Enhanced logging for all received events
+        console.log(`[chatService] Raw event received: type=${event?.type}, data=${event?.data}`);
+
         if (!event || typeof event !== 'object' || !('type' in event) || typeof event.type !== 'string') {
             console.warn("[chatService] Received malformed event:", event);
             return;
         }
         
-        // Explicitly cast to access potential data field after checking type
+        resetIdleTimeout(); // Reset idle timer on any valid event from backend
+
         const eventWithType = event as { type: BackendEvent; data?: string | null };
-
-        console.log(`[chatService] Received custom event: type=${eventWithType.type}`);
-
-        // We expect data for most custom events
-        const rawData = eventWithType.data; // Access data safely now
+        // console.log(`[chatService] Processing custom event: type=${eventWithType.type}`); // Original log
+        const rawData = eventWithType.data;
 
         try {
              switch (eventWithType.type) {
                 case 'start':
                     console.log("[chatService] Backend signaled start.", rawData ? JSON.parse(rawData) : '(no data)');
+                    accumulatedContent = '';
+                    // onStart callback is handled by 'open' event listener
                     break;
                 case 'content':
                     if (rawData) {
                         const contentData = JSON.parse(rawData);
-                        if (contentData.text) {
+                        if (contentData.text !== undefined && contentData.text !== null) { // Check for undefined or null explicitly
                             callbacks.onContent(contentData.text);
+                            accumulatedContent += contentData.text;
+                        } else {
+                            console.warn("[chatService] Received 'content' event with valid JSON but no 'text' field or text is null/undefined:", contentData);
                         }
                     } else {
                          console.warn("[chatService] Received 'content' event with no data.");
                     }
                     break;
-                case 'followup':
-                     if (rawData) {
-                        const followupData = JSON.parse(rawData);
-                        if (followupData.questions && Array.isArray(followupData.questions)) {
-                            callbacks.onFollowup?.(followupData.questions);
-                        }
-                    } else {
-                         console.warn("[chatService] Received 'followup' event with no data.");
-                    }
-                    break;
-                case 'error': // Custom error *from the backend*
+                case 'error': 
                      if (rawData) {
                         const errorData = JSON.parse(rawData);
-                        console.error("[chatService] Received custom backend error:", errorData);
+                        console.error("[chatService] Received custom backend error event:", errorData);
                         callbacks.onError?.(errorData.error || 'Unknown backend error');
                     } else {
                          console.warn("[chatService] Received backend 'error' event with no data.");
                          callbacks.onError?.('Backend signaled an error without details.');
                     }
+                    clearIdleTimeout(); // Clear timeout as this is a terminal server-sent error
+                    es.close(); // Close on server-sent error
                     break;
                 case 'end':
-                    console.log("[chatService] Backend signaled end.", rawData ? JSON.parse(rawData) : '(no data)');
+                    console.log("[chatService] Backend signaled end. Full accumulated content (first 200 chars):", accumulatedContent.substring(0, 200) + "...");
+                    
+                    let mainContent = accumulatedContent;
+                    let followupQuestions: string[] = [];
+                    const followupTagStart = "<followup_questions>";
+                    const followupTagEnd = "</followup_questions>";
+                    const followupStartIndex = accumulatedContent.indexOf(followupTagStart);
+
+                    if (followupStartIndex !== -1) {
+                        mainContent = accumulatedContent.substring(0, followupStartIndex).trim();
+                        const followupBlock = accumulatedContent.substring(followupStartIndex);
+                        const followupEndIndex = followupBlock.indexOf(followupTagEnd);
+                        if (followupEndIndex !== -1) {
+                            const questionsXml = followupBlock.substring(followupTagStart.length, followupEndIndex);
+                            const questionRegex = /<question>(.*?)<\/question>/gs;
+                            let match;
+                            while ((match = questionRegex.exec(questionsXml)) !== null) {
+                                followupQuestions.push(match[1].trim());
+                            }
+                        }
+                    }
+                    
+                    // Assuming onContent has progressively built the UI.
+                    // Now send followups if any.
+                    if (followupQuestions.length > 0) {
+                        callbacks.onFollowup?.(followupQuestions);
+                    }
+                    
                     callbacks.onEnd?.();
-                    es.close(); 
+                    clearIdleTimeout(); // Clear timeout as stream ended successfully
+                    es.close(); // Close connection
                     break;
+                default:
+                    console.warn(`[chatService] Received event with unknown type: ${eventWithType.type}`);
             }
-        } catch (e) {
-             console.error(`[chatService] Error parsing JSON for event '${eventWithType.type}':`, e, "Raw data:", rawData);
-             callbacks.onError?.(`Failed to parse data for ${eventWithType.type} event`);
+        } catch (e: any) { // Added type for error object
+             console.error(`[chatService] Error parsing JSON or processing event '${eventWithType.type}':`, e.message, "Raw data:", rawData, "Stack:", e.stack);
+             callbacks.onError?.(`Failed to process event ${eventWithType.type}: ${e.message}`);
+             clearIdleTimeout(); // Clear timeout on processing error
+             es.close(); // Close connection on parsing/processing error
         }
     };
 
-    // Add listeners for *our specific backend events*
     es.addEventListener('start', customEventListener);
     es.addEventListener('content', customEventListener);
-    es.addEventListener('followup', customEventListener);
-    es.addEventListener('error', customEventListener); // Listen for the backend's custom error event
+    es.addEventListener('error', customEventListener); // For server-sent 'error' events
     es.addEventListener('end', customEventListener);
 
-    // --- We are NOT listening to the generic 'message' event anymore --- 
-    // es.addEventListener('message', listener); 
-
-    // Return a function to close the connection
     return () => {
-        console.log("[chatService] Closing EventSource connection.");
-        es.removeAllEventListeners(); // Clean up listeners
+        console.log("[chatService] Cleaning up EventSource connection.");
+        clearIdleTimeout(); // Ensure timeout is cleared on cleanup
+        es.removeAllEventListeners(); 
         es.close();
     };
 }; 

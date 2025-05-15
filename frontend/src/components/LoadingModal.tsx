@@ -51,11 +51,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   imagePreview: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
+    width: 80,
+    height: 80 * (4 / 3),
+    borderRadius: 6,
     marginBottom: 16,
     resizeMode: 'cover',
+    backgroundColor: '#e0e0e0',
   },
 });
 

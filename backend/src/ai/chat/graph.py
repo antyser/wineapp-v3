@@ -3,7 +3,7 @@
 import os
 from typing import Dict, List
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import StateGraph
@@ -22,7 +22,9 @@ If uncertain about specific details, use search to verify before providing infor
 Always be respectful of different preferences and budgets in the wine world.
 
 Return your responses in markdown format with appropriate headings and structure when helpful.
-After your response, provide 3 concise follow-up questions that are relevant to the user's query. The questions should be placed in a xml tag called <followup_questions> and each question should be in a <question> tag.
+After your response, provide 3 concise follow-up questions that are relevant to the user's query.
+The questions should always be related to wine. Each question should be less than 8 words. 
+The questions should be placed in a xml tag called <followup_questions> and each question should be in a <question> tag.
 """
 
 
@@ -41,11 +43,6 @@ def create_llm(model_name: str = GEMINI_2_5_FLASH_PREVIEW):
         temperature=0.7,
         top_p=0.95,
         google_api_key=os.environ.get("GEMINI_API_KEY"),
-        # Enable search
-        generation_config={
-            "response_mime_type": "text/plain",
-        },
-        tools=[{"type": "google_search"}],
     )
 
 
@@ -96,8 +93,6 @@ def wine_assistant_node(
         for msg in message_history:
             prepared_messages.append(msg)
 
-        # Invoke the LLM - LangChain will handle streaming internally
-        # when the graph is called with stream_mode="messages"
         response = llm.invoke(prepared_messages)
 
         # Log the response for debugging

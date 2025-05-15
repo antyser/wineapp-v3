@@ -49,12 +49,12 @@ const RootNavigator = () => {
         <Stack.Screen 
           name="AddTastingNote"
           component={TastingNoteScreen}
-          options={{ presentation: 'modal', headerShown: true, title: 'Add Tasting Note' }}
+          options={{ presentation: 'modal', headerShown: true, title: 'Tasting Note' }}
         />
         <Stack.Screen 
           name="WineOffers"
           component={WineOffersScreen}
-          options={{ presentation: 'modal', headerShown: false }} // Disable stack header
+          options={{ presentation: 'modal', headerShown: true, title: 'Offers' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

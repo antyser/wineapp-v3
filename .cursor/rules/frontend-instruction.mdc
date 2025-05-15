@@ -1,10 +1,11 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: true
 ---
 Below is a **Frontend Guideline Document** tailored to your Wine App, taking into account your preferences for React Native Paper as the UI library, a simple black-and-white color scheme, a drawer-based navigation, and minimal additional libraries. This guideline is intended to help align the development team on best practices and ensure consistency across the entire frontend codebase.
 
+Use Yarn for package management
 ---
 
 # **Wine App – Frontend Guideline Document**

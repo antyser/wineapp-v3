@@ -27,8 +27,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
       style={styles.searchBar}
       inputStyle={styles.input}
       iconColor="#888"
-      elevation={1}
-      disabled={disabled}
+      elevation={0}
     />
   );
 };

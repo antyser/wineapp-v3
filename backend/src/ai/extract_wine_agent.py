@@ -102,7 +102,7 @@ def get_extract_wine_system_prompt() -> str:
 async def extract_wines(
     text_input: Optional[str] = None,
     image_content: Optional[bytes] = None,
-    model: str = "google-gla:gemini-2.0-flash",
+    model: str = "gemini-2.5-flash-preview-04-17",
 ) -> WineResult:
     """
     Extract wine information from text or an image using PydanticAI.
@@ -160,7 +160,7 @@ async def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="google-gla:gemini-2.0-flash",
+        default="gemini-2.5-flash-preview-04-17",
         help="Model to use for extraction (e.g., google-gla:gemini-2.0-flash, openai:gpt-4o)",
     )
 

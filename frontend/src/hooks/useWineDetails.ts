@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-// Remove AsyncStorage import
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-import { cacheService, CachePrefix } from '../api/services/cacheService'; // Import MMKV cache service
+import { cacheService, CachePrefix } from '../api/services/cacheService';
 import { 
     Wine, 
     Interaction, 
@@ -12,31 +10,26 @@ import {
 // Import the correct service function
 import { getUserWineDetails } from '../api/services/wineService'; 
 
-// REMOVE the mapping helper function
-/*
-const mapApiWineToLocalWine = (apiWine: any): Wine => { ... };
-*/
+// Define the expected response structure if not explicitly typed elsewhere
+interface UserWineDetailsResponseStructure {
+    wine?: Wine | null; 
+    offers?: WineSearcherOffer[] | null; // Allow offers to be array, null, or undefined
+    interaction?: Interaction | null;
+    notes?: Note[] | null;
+}
 
-// --- Cache Configuration ---
-// REMOVE AsyncStorage cache logic and related types/constants
-/*
-const ASYNC_STORAGE_WINE_CACHE_PREFIX = 'wine_cache_';
-const CACHE_DURATION_MS = ...;
-export interface CachedWineData { ... }
-const getWineCacheKey = ...;
-export const saveWineToCache = ...;
-export const loadWineFromCache = ...;
-*/
+export interface UseWineDetailsCallbacks {
+    onInteractionUpdate: (updatedInteraction: Interaction | null) => void;
+    onNoteChange: (change: { type: 'created' | 'updated' | 'deleted', note?: Note, noteId?: string }) => void;
+}
 
-// --- Hook Logic ---
-// Define return type for clarity
-interface UseWineDetailsResult {
+export interface UseWineDetailsResult extends UseWineDetailsCallbacks {
     wine: Wine | null;
     offers: WineSearcherOffer[];
-    notes: Note[] | null;
-    userInteractionData: Interaction | null | undefined;
-    isLoading: boolean; // Indicates initial load or fetch after cache miss
-    isRefreshing: boolean; // Indicates background fetch after cache hit
+    notesData: Note[] | null;
+    interactionData: Interaction | null | undefined;
+    isLoading: boolean;
+    isRefreshing: boolean;
     error: string;
     retry: () => void;
 }
@@ -45,8 +38,8 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
     console.log(`[useWineDetails] Hook instantiated for wineId: ${wineId}, initialWineData provided: ${!!initialWineData}`);
     const [wine, setWine] = useState<Wine | null>(initialWineData || null);
     const [offers, setOffers] = useState<WineSearcherOffer[]>([]);
-    const [userInteractionData, setUserInteractionData] = useState<Interaction | null | undefined>(undefined);
-    const [notes, setNotes] = useState<Note[] | null>(null);
+    const [interactionData, setInteractionData] = useState<Interaction | null | undefined>(undefined);
+    const [notesData, setNotesData] = useState<Note[] | null>(null);
     const [isLoading, setIsLoading] = useState(!initialWineData);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string>('');
@@ -86,10 +79,10 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
                 console.log(`[useWineDetails] Cache hit for wine: ${wineId}. Applying cached data and skipping API fetch.`);
                 setWine(cachedWine);
                 setOffers(cachedOffers || []);
-                setNotes(cachedNotes || null);
+                setNotesData(cachedNotes || null);
                 // Handle potential null value for interaction explicitly
                 const interactionToSet = cachedInteraction === null ? null : (cachedInteraction || undefined);
-                setUserInteractionData(interactionToSet);
+                setInteractionData(interactionToSet);
                 console.log(`[useWineDetails] State updated from cache. Interaction set to:`, interactionToSet);
 
 
@@ -119,27 +112,30 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
         // 2. Fetch from API (Stale-While-Revalidate or initial fetch)
         console.log(`[useWineDetails] Fetching from API for ${wineId} (only occurs on cache miss or retry)...`);
         try {
-            const result = await getUserWineDetails(wineId);
-            console.log(`[useWineDetails] API response received for ${wineId}:`, result);
+            const result: UserWineDetailsResponseStructure = await getUserWineDetails(wineId);
+            console.log(
+                `[useWineDetails] API response received for ${wineId}. ` +
+                `Wine: ${!!result?.wine}, Offers: ${!!result?.offers}, ` +
+                `Notes: ${!!result?.notes}, Interaction: ${result?.interaction !== undefined}`
+            );
 
 
             if (result && result.wine) {
-                const fetchedWine = result.wine;
-                const fetchedOffers = result.offers || [];
-                const fetchedInteraction = result.interaction; // Can be null
-                const fetchedNotes = result.notes || null;
+                const { wine: fetchedWineData, offers: fetchedOffersData, interaction: fetchedInteraction, notes: fetchedNotes = null } = result;
+                const fetchedWine = fetchedWineData as Wine; // Assert type if result.wine guarantees it's Wine here
+                const finalOffers = fetchedOffersData || []; // Handle null or undefined for offers
 
                 // Update state
                 console.log(`[useWineDetails] Updating state with API data for ${wineId}.`);
                 setWine(fetchedWine);
-                setOffers(fetchedOffers);
-                setUserInteractionData(fetchedInteraction);
-                setNotes(fetchedNotes);
+                setOffers(finalOffers);
+                setInteractionData(fetchedInteraction);
+                setNotesData(fetchedNotes);
 
                 // Update cache for each item
                 console.log(`[useWineDetails] Updating cache with API data for ${wineId}.`);
                 cacheService.set<Wine>(wineKey, fetchedWine);
-                cacheService.set<WineSearcherOffer[]>(offersKey, fetchedOffers);
+                cacheService.set<WineSearcherOffer[]>(offersKey, finalOffers);
                 cacheService.set<Note[] | null>(notesKey, fetchedNotes);
                 // Explicitly handle undefined case for interaction cache
                 const interactionToCache = fetchedInteraction === undefined ? null : fetchedInteraction;
@@ -157,8 +153,8 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
                     setError('Wine details not found or invalid response.');
                     setWine(null);
                     setOffers([]);
-                    setUserInteractionData(undefined);
-                    setNotes(null);
+                    setInteractionData(undefined);
+                    setNotesData(null);
                 } else {
                      console.warn(`[useWineDetails] API error occurred, but cached data was already loaded. State not cleared.`);
                 }
@@ -171,8 +167,8 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
                 setError(err.message || 'Failed to fetch wine details.');
                 setWine(null);
                 setOffers([]);
-                setUserInteractionData(undefined);
-                setNotes(null);
+                setInteractionData(undefined);
+                setNotesData(null);
             } else {
                  console.warn(`[useWineDetails] API error occurred, but cached data was already loaded. State not cleared. Error:`, err.message);
                  // Optionally set error state even if cache is shown
@@ -194,12 +190,45 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
         // fetchData is wrapped in useCallback with wineId/initialWineData dependency
     }, [wineId, initialWineData, fetchData]);
 
+    // Callback to update interaction data
+    const handleInteractionUpdate = useCallback((updatedInteraction: Interaction | null) => {
+        console.log(`[useWineDetails] handleInteractionUpdate called for wineId ${wineId}. Has interaction: ${!!updatedInteraction}`);
+        setInteractionData(updatedInteraction);
+        const interactionKey = cacheService.generateKey(CachePrefix.WINE_INTERACTIONS, wineId);
+        cacheService.set<Interaction | null>(interactionKey, updatedInteraction);
+        console.log(`[useWineDetails] Updated interactionData state and cache for ${wineId}.`);
+    }, [wineId]);
+
+    // Callback to update notes data
+    const handleNoteChange = useCallback((change: { type: 'created' | 'updated' | 'deleted', note?: Note, noteId?: string }) => {
+        console.log(`[useWineDetails] handleNoteChange called for wineId ${wineId}. Type: ${change.type}, Note ID: ${change.note?.id || change.noteId}`);
+        setNotesData(prevNotesData => {
+            let newNotesData: Note[] = prevNotesData ? [...prevNotesData] : [];
+            if (change.type === 'created' && change.note) {
+                newNotesData.push(change.note);
+            } else if (change.type === 'updated' && change.note) {
+                const index = newNotesData.findIndex(n => n.id === change.note!.id);
+                if (index > -1) {
+                    newNotesData[index] = change.note;
+                } else {
+                    newNotesData.push(change.note); // If update for non-existing, add it
+                }
+            } else if (change.type === 'deleted' && change.noteId) {
+                newNotesData = newNotesData.filter(n => n.id !== change.noteId);
+            }
+            const notesKey = cacheService.generateKey(CachePrefix.WINE_NOTES, wineId);
+            cacheService.set<Note[] | null>(notesKey, newNotesData.length > 0 ? newNotesData : null);
+            console.log(`[useWineDetails] Updated notesData state and cache for ${wineId}. New count: ${newNotesData.length}`);
+            return newNotesData.length > 0 ? newNotesData : null;
+        });
+    }, [wineId]);
+
     // Expose isRefreshing state
     return {
         wine,
         offers,
-        notes,
-        userInteractionData,
+        notesData,
+        interactionData,
         isLoading,
         isRefreshing,
         error,
@@ -207,5 +236,7 @@ export const useWineDetails = (wineId: string, initialWineData?: Wine): UseWineD
             console.log(`[useWineDetails] Manual retry requested for wineId: ${wineId}`);
             fetchData(true); // Pass true to indicate manual retry
         },
+        onInteractionUpdate: handleInteractionUpdate,
+        onNoteChange: handleNoteChange,
     };
 }; 

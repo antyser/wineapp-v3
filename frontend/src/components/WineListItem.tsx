@@ -91,35 +91,36 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    borderRadius: 8,
-    backgroundColor: '#fff',
     elevation: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e0e0e0', 
+    borderRadius: 0, // No rounding for flush list items
   },
   cardContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Align items to the top
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    padding: 10, // Consistent padding
+    alignItems: 'center', // Align items vertically
   },
   imageContainer: {
+    width: 60, // Fixed width
+    height: 80, // Fixed height for 3:4 ratio (60 * 4/3)
+    borderRadius: 4, // Optional: Slight rounding
+    overflow: 'hidden',
     marginRight: 12,
-    width: 60, // Width for the image container
-    height: 80, // Height for the image container (adjust aspect ratio as needed)
+    backgroundColor: '#f0f0f0', // Placeholder background
     justifyContent: 'center',
     alignItems: 'center',
-    overflow: 'hidden', // Ensures image stays within bounds
-    // backgroundColor: '#f0f0f0', // Placeholder bg
   },
   wineImage: {
     width: '100%',
     height: '100%',
-    // borderRadius: 4, // Can remove if using contain resizeMode
   },
   imagePlaceholder: {
     width: '100%',
     height: '100%',
     backgroundColor: '#e0e0e0',
-    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   detailsContainer: {
     flex: 1,
@@ -127,9 +128,9 @@ const styles = StyleSheet.create({
     paddingTop: 2, // Add slight padding to align text better with top of image
   },
   titleText: {
-    fontSize: 16, // Slightly larger title
+    fontSize: 16,
     fontWeight: '500',
-    marginBottom: 4, // Increased space 
+    marginBottom: 4,
   },
   subtitleText: {
     fontSize: 14,

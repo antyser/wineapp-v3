@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, TextInput, Chip, IconButton, MD3Colors, useTheme } from 'react-native-paper';
+import { StyleSheet, View, FlatList, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { Text, TextInput, IconButton, MD3Colors, useTheme, TouchableRipple } from 'react-native-paper';
 import Markdown from 'react-native-markdown-display';
 
 // Define UIMessage interface locally
@@ -34,7 +34,7 @@ const WineChatView: React.FC<WineChatViewProps> = ({
   handleFollowupQuestion,
   listHeaderComponent,
 }) => {
-  const theme = useTheme();
+  const paperTheme = useTheme();
   const flatListRef = useRef<FlatList<UIMessage>>(null);
 
   // Scroll to end when messages change
@@ -49,17 +49,24 @@ const WineChatView: React.FC<WineChatViewProps> = ({
 
   const renderChatMessage = ({ item }: { item: UIMessage }) => {
     const isUser = item.role === 'user';
-    // Ensure content is a string before calling replace, default to empty string if undefined/null
     const content = typeof item.content === 'string' ? item.content : '';
-    // Correctly escaped regex
-    const cleanContent = content.replace(/<\/?questions>/g, '').trim(); 
+    const cleanContent = content.replace(/<\/?questions>/g, '').trim();
 
-    // Optionally, render nothing or an error message if content was originally invalid
-    if (!item.content && !item.isError) { // Add check for isError flag
-        // Log if content is missing and it's not explicitly an error message
-        // console.warn('Rendering empty message due to undefined content for ID:', item.id);
-        // Return null to render nothing for this item
+    if (!item.content && !item.isError) {
         return null; 
+    }
+
+    let userMessageBackgroundColor = MD3Colors.primary40; // Default fallback
+
+    // More robust check for theme and its properties
+    if (
+      paperTheme &&
+      typeof paperTheme === 'object' &&
+      paperTheme.colors &&
+      typeof paperTheme.colors === 'object' &&
+      typeof paperTheme.colors.primary === 'string'
+    ) {
+      userMessageBackgroundColor = paperTheme.colors.primary;
     }
     
     return (
@@ -67,15 +74,13 @@ const WineChatView: React.FC<WineChatViewProps> = ({
         style={[
           styles.messageContainer, 
           isUser ? 
-            [styles.userMessageBubble, { backgroundColor: theme.colors.primary }] : 
+            [styles.userMessageBubble, { backgroundColor: userMessageBackgroundColor }] : 
             styles.assistantMessageContainer
         ]}
       >
          {isUser ? (
-           // Display user message content, or [Error] if flagged
            <Text style={styles.userMessageText}>{item.isError ? '[Error]' : cleanContent}</Text> 
          ) : (
-           // Display assistant message content, or an error message if flagged or content is missing
            cleanContent ? <Markdown style={markdownStyles}>{cleanContent}</Markdown> : <Text>{item.isError ? '[Error processing response]' : ''}</Text>
          )}
       </View>
@@ -104,13 +109,16 @@ const WineChatView: React.FC<WineChatViewProps> = ({
         <View style={styles.followUpContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.followUpScroll}>
             {followUpQuestions.map((q, index) => (
-              <Chip 
-                key={index} 
-                style={styles.followUpChip}
+              <TouchableRipple
+                key={index}
                 onPress={() => handleFollowupQuestion(q)}
+                style={styles.customFollowUpChipTouchable} // Style for the touchable area
+                rippleColor="rgba(0, 0, 0, .32)" // Standard ripple color
               >
-                {q}
-              </Chip>
+                <View style={styles.customFollowUpChipView}> {/* Style for the visual chip body */}
+                  <Text style={styles.customFollowUpChipText} numberOfLines={0}>{q || ''}</Text>
+                </View>
+              </TouchableRipple>
             ))}
           </ScrollView>
         </View>
@@ -119,6 +127,7 @@ const WineChatView: React.FC<WineChatViewProps> = ({
       {/* Chat Input Area */} 
       <View style={styles.inputContainer}>
         <TextInput
+          dense
           style={styles.textInput}
           value={chatInput}
           onChangeText={setChatInput}
@@ -161,13 +170,12 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     marginRight: 8,
-    maxHeight: 60,
     backgroundColor: MD3Colors.neutralVariant95,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 4,
-    borderWidth: 0,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    paddingVertical: 6,
+    minHeight: 30,
   },
   sendButton: {
     margin: 0,
@@ -198,18 +206,41 @@ const styles = StyleSheet.create({
   },
   followUpContainer: {
       paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderTopWidth: 1,
-      borderTopColor: MD3Colors.neutralVariant90, 
+      paddingTop: 8, // Give some space from content above
+      paddingBottom: 4,
+      // Ensure no top border for the container itself
+      // borderTopWidth: 0, (or simply not define it)
       backgroundColor: '#FFFFFF', 
   },
   followUpScroll: {
       paddingVertical: 4,
   },
-  followUpChip: {
+
+  // Styles for the custom chip-like component
+  customFollowUpChipTouchable: {
+    marginRight: 8,
+    borderRadius: 16, // Typical chip border radius
+    maxWidth: (Dimensions.get('window').width * 2) / 3,
+  },
+  customFollowUpChipView: {
+    backgroundColor: MD3Colors.neutralVariant95, // Same as original chip background
+    paddingVertical: 8,   // Vertical padding for the chip content
+    paddingHorizontal: 12, // Horizontal padding for the chip content
+    borderRadius: 16, // Match TouchableRipple for consistent shape
+    // height: undefined is implicit for View, it will grow with content
+  },
+  customFollowUpChipText: {
+    color: MD3Colors.neutral10, // Use a static dark color from MD3Colors
+    fontSize: 14, 
+    textAlign: 'left',
+  },
+  // Remove or comment out the old followUpChip style if it exists
+  /* followUpChip: {
       marginRight: 8,
       backgroundColor: MD3Colors.neutralVariant95,
-  }
+      maxWidth: (Dimensions.get('window').width * 2) / 3,
+      height: undefined, 
+  },*/
 });
 
 const markdownStyles = {

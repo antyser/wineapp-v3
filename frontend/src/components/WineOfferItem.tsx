@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Linking } from 'react-native';
-import { Card, Text, Chip, TouchableRipple } from 'react-native-paper';
+import { Card, Text, TouchableRipple, Icon } from 'react-native-paper';
 import { WineSearcherOffer } from '../api/generated/types.gen';
 
 interface WineOfferItemProps {
@@ -68,9 +68,10 @@ const WineOfferItem: React.FC<WineOfferItemProps> = ({ offer }) => {
                 </Text>
               )}
               {location && (
-                <Chip icon="map-marker" style={styles.offerChip} textStyle={styles.chipText} compact>
-                  {location}
-                </Chip>
+                <View style={styles.locationContainer}>
+                  <Icon source="map-marker" size={16} color="#555555" />
+                  <Text style={styles.locationText}>{location}</Text>
+                </View>
               )}
             </View>
           </View>
@@ -117,12 +118,15 @@ const styles = StyleSheet.create({
     color: '#555555',
     marginBottom: 8,
   },
-  offerChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F0F0F0',
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  chipText: {
-    color: '#222222',
+  locationText: {
+    fontSize: 14,
+    color: '#333333',
+    marginLeft: 4,
   },
 });
 

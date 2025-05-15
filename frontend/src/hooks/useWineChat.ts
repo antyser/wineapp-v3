@@ -96,7 +96,7 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
 
                 const initialMessageContent = `${aboutText.trim()}`;
                 const initialFollowUps = [
-                    "What food would pair well with this wine?",
+                    "What food pairs well?",
                     "Tell me about the winery",
                     "What is the drinking window?"
                 ];
@@ -148,7 +148,7 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
         try {
             const wineContext = `The user is asking about ${getFormattedWineName()}. Context: Region: ${wine.region || 'N/A'}, Country: ${wine.country || 'N/A'}, Varietal: ${wine.varietal || 'N/A'}, Winery: ${wine.winery || 'N/A'}, Description: ${wine.description || 'N/A'}`;
             let apiMessages: Message[] = [
-                { role: 'system', content: { text: wineContext } } // Use system role for context
+                { role: 'user', content: { text: wineContext } }
             ];
             const history = updatedMessagesUser
                 .filter(msg => msg.id !== '0')
@@ -233,9 +233,8 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
                     onError: (error) => {
                         if (!isMounted.current) return;
                         
-                        console.error('[useWineChat] Stream error:', error);
-                        // Add an error message to the chat
-                        const errorMessage: UIMessage = {
+                        console.error('[useWineChat] Stream error reported by chatService:', error);
+                        const errorMessageUI: UIMessage = {
                             id: Date.now().toString() + '-error',
                             content: error || 'Sorry, I encountered an error. Please try again.',
                             role: 'assistant',
@@ -243,17 +242,40 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
                             isError: true,
                         };
                         
-                        const updatedMessagesError = [...updatedMessagesUser, errorMessage];
-                        setChatMessages(updatedMessagesError);
-                        saveChatToCache(updatedMessagesError);
+                        // Ensure we update with user message + error message if stream fails early
+                        setChatMessages(prev => {
+                            // Check if the placeholder assistant message is still the last one
+                            const lastMessage = prev[prev.length -1];
+                            if (lastMessage && lastMessage.id === currentStreamingMessageId && !lastMessage.content && !lastMessage.isError) {
+                                return [...prev.slice(0, -1), errorMessageUI]; // Replace empty placeholder
+                            }
+                            return [...prev, errorMessageUI]; // Append error if placeholder was already filled or removed
+                        });
+                        // saveChatToCache logic might be needed here if you want to persist this error state in chat history
+
+                        setIsChatLoading(false);
+                        setCurrentStreamingMessageId(null);
+                        if (abortStreamRef.current) {
+                            console.log("[useWineChat] onError: Aborting stream due to error.");
+                            abortStreamRef.current(); // Explicitly call the cleanup function
+                            abortStreamRef.current = null; // Clear the ref
+                        }
                     },
                     onEnd: () => {
                         if (!isMounted.current) return;
                         
                         console.log("[useWineChat] Stream ended");
+                        // Final save of potentially completed message in cache is handled here or after followup
+                        setChatMessages(prev => {
+                            // Call saveChatToCache with the latest messages after stream ends
+                            saveChatToCache(prev);
+                            return prev;
+                        });
                         setIsChatLoading(false);
                         setCurrentStreamingMessageId(null);
-                        abortStreamRef.current = null;
+                        if (abortStreamRef.current) { // Should already be null if backend sent 'end' and service closed
+                            abortStreamRef.current = null; 
+                        }
                     }
                 }
             );
