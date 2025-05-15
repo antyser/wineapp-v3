@@ -56,18 +56,8 @@ const WineChatView: React.FC<WineChatViewProps> = ({
         return null; 
     }
 
-    let userMessageBackgroundColor = MD3Colors.primary40; // Default fallback
-
-    // More robust check for theme and its properties
-    if (
-      paperTheme &&
-      typeof paperTheme === 'object' &&
-      paperTheme.colors &&
-      typeof paperTheme.colors === 'object' &&
-      typeof paperTheme.colors.primary === 'string'
-    ) {
-      userMessageBackgroundColor = paperTheme.colors.primary;
-    }
+    // Use a fixed light grey color for user messages
+    const userMessageBackgroundColor = '#F5F5F5';
     
     return (
       <View 
@@ -170,7 +160,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     marginRight: 8,
-    backgroundColor: MD3Colors.neutralVariant95,
+    backgroundColor: '#F5F5F5',
     borderRadius: 20,
     paddingHorizontal: 16,
     fontSize: 16,
@@ -193,13 +183,14 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
     maxWidth: '80%',
     marginRight: 8,
+    backgroundColor: '#F5F5F5', // Light grey background
   },
   assistantMessageContainer: {
     alignSelf: 'flex-start',
     marginLeft: 8, 
   },
   userMessageText: {
-    color: '#FFFFFF',
+    color: '#333333', // Dark text color for contrast on light background
   },
   chatLoadingIndicator: {
     marginVertical: 10,
@@ -223,14 +214,14 @@ const styles = StyleSheet.create({
     maxWidth: (Dimensions.get('window').width * 2) / 3,
   },
   customFollowUpChipView: {
-    backgroundColor: MD3Colors.neutralVariant95, // Same as original chip background
+    backgroundColor: '#F5F5F5', // Light grey background for follow-up questions
     paddingVertical: 8,   // Vertical padding for the chip content
     paddingHorizontal: 12, // Horizontal padding for the chip content
     borderRadius: 16, // Match TouchableRipple for consistent shape
     // height: undefined is implicit for View, it will grow with content
   },
   customFollowUpChipText: {
-    color: MD3Colors.neutral10, // Use a static dark color from MD3Colors
+    color: '#333333', // Dark text for follow-up questions
     fontSize: 14, 
     textAlign: 'left',
   },

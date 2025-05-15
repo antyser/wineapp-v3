@@ -85,7 +85,7 @@ export const streamChatMessage = (
     console.log(`[chatService] Creating EventSource for URL: ${url}`);
     console.log(`[chatService] With headers: ${JSON.stringify(Object.keys(headers))}`); // Log only keys for brevity, or consider more detailed logging if needed for auth debugging
 
-    type BackendEvent = 'start' | 'content' | 'error' | 'end';
+    type BackendEvent = 'start' | 'content' | 'followup' | 'error' | 'end';
 
     const es = new EventSource<BackendEvent>(url, {
         method: 'POST',
@@ -152,7 +152,6 @@ export const streamChatMessage = (
         resetIdleTimeout(); // Reset idle timer on any valid event from backend
 
         const eventWithType = event as { type: BackendEvent; data?: string | null };
-        // console.log(`[chatService] Processing custom event: type=${eventWithType.type}`); // Original log
         const rawData = eventWithType.data;
 
         try {
@@ -175,6 +174,19 @@ export const streamChatMessage = (
                          console.warn("[chatService] Received 'content' event with no data.");
                     }
                     break;
+                case 'followup':
+                    if (rawData) {
+                        const followupData = JSON.parse(rawData);
+                        if (followupData.questions && Array.isArray(followupData.questions)) {
+                            console.log("[chatService] Received 'followup' event with questions:", followupData.questions);
+                            callbacks.onFollowup?.(followupData.questions);
+                        } else {
+                            console.warn("[chatService] Received 'followup' event with invalid or missing 'questions' field:", followupData);
+                        }
+                    } else {
+                        console.warn("[chatService] Received 'followup' event with no data.");
+                    }
+                    break;
                 case 'error': 
                      if (rawData) {
                         const errorData = JSON.parse(rawData);
@@ -190,32 +202,9 @@ export const streamChatMessage = (
                 case 'end':
                     console.log("[chatService] Backend signaled end. Full accumulated content (first 200 chars):", accumulatedContent.substring(0, 200) + "...");
                     
-                    let mainContent = accumulatedContent;
-                    let followupQuestions: string[] = [];
-                    const followupTagStart = "<followup_questions>";
-                    const followupTagEnd = "</followup_questions>";
-                    const followupStartIndex = accumulatedContent.indexOf(followupTagStart);
+                    // Follow-up questions are now handled by the 'followup' event.
+                    // The onContent callback should have progressively built the UI with the main content.
 
-                    if (followupStartIndex !== -1) {
-                        mainContent = accumulatedContent.substring(0, followupStartIndex).trim();
-                        const followupBlock = accumulatedContent.substring(followupStartIndex);
-                        const followupEndIndex = followupBlock.indexOf(followupTagEnd);
-                        if (followupEndIndex !== -1) {
-                            const questionsXml = followupBlock.substring(followupTagStart.length, followupEndIndex);
-                            const questionRegex = /<question>(.*?)<\/question>/gs;
-                            let match;
-                            while ((match = questionRegex.exec(questionsXml)) !== null) {
-                                followupQuestions.push(match[1].trim());
-                            }
-                        }
-                    }
-                    
-                    // Assuming onContent has progressively built the UI.
-                    // Now send followups if any.
-                    if (followupQuestions.length > 0) {
-                        callbacks.onFollowup?.(followupQuestions);
-                    }
-                    
                     callbacks.onEnd?.();
                     clearIdleTimeout(); // Clear timeout as stream ended successfully
                     es.close(); // Close connection
@@ -233,7 +222,8 @@ export const streamChatMessage = (
 
     es.addEventListener('start', customEventListener);
     es.addEventListener('content', customEventListener);
-    es.addEventListener('error', customEventListener); // For server-sent 'error' events
+    es.addEventListener('followup', customEventListener);
+    es.addEventListener('error', customEventListener);
     es.addEventListener('end', customEventListener);
 
     return () => {

@@ -131,90 +131,70 @@ async def stream_chat_response(messages: List[BaseMessage], model_name: str):
     try:
         logger.info("Starting graph astream loop with stream_mode='messages'...")
         # Explicitly set stream_mode to messages!
-        async for chunk_info in wine_agent_graph.astream(
+        async for message, metadata in wine_agent_graph.astream(
             {"messages": messages}, config=config, stream_mode="messages"
         ):
-            logger.debug(f"Received stream chunk_info TYPE: {type(chunk_info)}, CONTENT: {chunk_info}")
+            logger.debug(f"Received stream message: {message}, metadata: {metadata}")
 
-            if isinstance(chunk_info, tuple) and len(chunk_info) == 2:
-                message_chunk, metadata = chunk_info
+            if isinstance(message, AIMessage) and message.content:
+                token = message.content
+                if not token:
+                    continue
 
-                if isinstance(message_chunk, AIMessage) and message_chunk.content:
-                    token = message_chunk.content
-                    if not token: 
-                        continue
-                        
-                    logger.debug(f"Received token: {token}")
+                logger.debug(f"Received token: {token}")
 
-                    # Check if we should stop yielding content based on the flag
-                    if stop_content_yield:
-                        # Still accumulate the full content for later extraction
-                        full_final_content += token
-                        continue  # Don't yield this token
+                # Check if we should stop yielding content based on the flag
+                if stop_content_yield:
+                    # Still accumulate the full content for later extraction
+                    full_final_content += token
+                    continue  # Don't yield this token
 
-                    # Check if this token contains the start of the followup tag
-                    potential_full_response = streamed_response_text_before_followups + token
-                    if "<followup_questions>" in potential_full_response:
-                        part_before_tag = token.split("<followup_questions>", 1)[0]
-                        if part_before_tag:
-                            logger.info(f"Yielding final content token(s) before tag: {part_before_tag}")
-                            json_payload = json.dumps({"text": part_before_tag})
-                            yield f'event: content\ndata: {json_payload}\n\n'
-                            streamed_response_text_before_followups += part_before_tag
-                            full_final_content += part_before_tag  # Add final part to full content too
-                            has_yielded_content = True
-                        logger.info("Follow-up tag detected in stream, stopping content yield.")
-                        stop_content_yield = True
-                        # Accumulate the rest of the token (containing the tag start) for full content
-                        full_final_content += token 
-                        # Don't break the loop, just stop yielding content
-                    else:
-                        # Tag not found yet, yield the token and add to both texts
-                        logger.info(f"Yielding content token: {token}")
-                        json_payload = json.dumps({"text": token})
+                # Check if this token contains the start of the followup tag
+                potential_full_response = streamed_response_text_before_followups + token
+                if "<followup_questions>" in potential_full_response:
+                    part_before_tag = token.split("<followup_questions>", 1)[0]
+                    if part_before_tag:
+                        logger.info(f"Yielding final content token(s) before tag: {part_before_tag}")
+                        json_payload = json.dumps({"text": part_before_tag})
                         yield f'event: content\ndata: {json_payload}\n\n'
-                        streamed_response_text_before_followups += token
-                        full_final_content += token
+                        streamed_response_text_before_followups += part_before_tag
+                        full_final_content += part_before_tag  # Add final part to full content too
                         has_yielded_content = True
-            # ... (handle other chunk types if needed)
+                    logger.info("Follow-up tag detected in stream, stopping content yield but continuing accumulation.")
+                    stop_content_yield = True # Stop yielding content tokens
+                    # Accumulate the *entire current token* to full_final_content,
+                    # as it might contain the start of the tag and part of the questions.
+                    full_final_content += token
+                else:
+                    # Tag not found yet, yield the token and add to both texts
+                    logger.info(f"Yielding content token: {token}")
+                    json_payload = json.dumps({"text": token})
+                    yield f'event: content\ndata: {json_payload}\n\n'
+                    streamed_response_text_before_followups += token
+                    full_final_content += token
+                    has_yielded_content = True
 
         logger.info("Finished graph astream loop.")
+        logger.info(f"Full final content accumulated from stream: {full_final_content[:200]}...") # Log accumulated content
 
-        # --- Follow-up question extraction (Reliable Method) --- 
-        # Re-invoke the graph non-streamingly to get the guaranteed final state
-        logger.info("Invoking graph non-streamingly to get final state for followup extraction...")
-        final_state = await wine_agent_graph.ainvoke({"messages": messages}, config=config)
-        if isinstance(final_state, dict) and "messages" in final_state and final_state["messages"]:
-            final_message_content = final_state["messages"][-1].content
-            logger.info(f"Full final message content: {final_message_content[:200]}...")
-            if isinstance(final_message_content, str) and "<followup_questions>" in final_message_content:
-                parts = final_message_content.split("<followup_questions>", 1)
-                if len(parts) > 1 and "</followup_questions>" in parts[1]:
-                    questions_part = parts[1].split("</followup_questions>", 1)[0]
-                    question_matches = re.findall(r"<question>(.*?)</question>", questions_part)
-                    followup_questions = [q.strip() for q in question_matches if q.strip()]
-                    logger.info(f"Extracted follow-up questions reliably: {followup_questions}")
-                else:
-                    logger.warning("Found followup tag in final message, but structure incomplete.")
+        # --- Follow-up question extraction (from streamed content only) ---
+        if "<followup_questions>" in full_final_content:
+            parts = full_final_content.split("<followup_questions>", 1)
+            # Ensure the closing tag is also present for reliable extraction
+            if len(parts) > 1 and "</followup_questions>" in parts[1]:
+                questions_part = parts[1].split("</followup_questions>", 1)[0]
+                question_matches = re.findall(r"<question>(.*?)</question>", questions_part)
+                followup_questions = [q.strip() for q in question_matches if q.strip()]
+                logger.info(f"Extracted follow-up questions from streamed content: {followup_questions}")
             else:
-                logger.info("No followup tag found in final message content.")
+                logger.warning("Found <followup_questions> tag in streamed content, but no closing tag or incomplete structure.")
         else:
-            logger.warning("Could not get final state or messages from non-streaming invoke.")
-            # Fallback to using `full_final_content` accumulated during stream (less reliable)
-            logger.info(f"Falling back to followup extraction from streamed text: {full_final_content[:100]}...")
-            if "<followup_questions>" in full_final_content:
-                parts = full_final_content.split("<followup_questions>", 1)
-                if len(parts) > 1 and "</followup_questions>" in parts[1]:
-                    questions_part = parts[1].split("</followup_questions>", 1)[0]
-                    question_matches = re.findall(r"<question>(.*?)</question>", questions_part)
-                    fallback_questions = [q.strip() for q in question_matches if q.strip()]
-                    if not followup_questions:  # Only use fallback if primary failed
-                        followup_questions = fallback_questions
-                        logger.info(f"Using fallback extracted questions: {followup_questions}")
+            logger.info("No <followup_questions> tag found in the full streamed content.")
+
 
         # If no content was ever yielded (e.g., immediate error or empty response)
-        if not has_yielded_content:
-            logger.warning("No content was yielded during streaming.")
+        if not has_yielded_content and not followup_questions: # also check if FUs were found, as they might be the only thing
+            logger.warning("No content or follow-up questions were yielded during streaming.")
 
         # Send follow-up questions if any were extracted
         if followup_questions:

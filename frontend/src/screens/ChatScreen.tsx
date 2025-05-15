@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   },
   userBubble: {
     padding: 12,
-    backgroundColor: MD3Colors.primary95,
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     borderBottomRightRadius: 4,
     maxWidth: '80%',
@@ -393,6 +393,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
     maxHeight: 120,
+    backgroundColor: '#F5F5F5',
   },
   sendButton: {
     borderRadius: 20,
@@ -412,6 +413,9 @@ const styles = StyleSheet.create({
   },
   followupSuggestionChip: {
     marginRight: 8,
+    backgroundColor: '#F5F5F5', // Light grey background
+    borderColor: '#E0E0E0', // Light border
+    color: '#333333', // Dark text
   },
 });
 
