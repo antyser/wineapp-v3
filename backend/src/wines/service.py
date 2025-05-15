@@ -379,44 +379,59 @@ async def search_wine_from_db(
     # Add vintage filter if provided
     if vintage is not None:
         query = query.eq("vintage", str(vintage))
-
-    # Combined query approach:
-    # - Direct name match (exact equality)
-    # - name_alias array contains the search term
-    # - Partial name match (name contains search term)
-
-    # Construct the OR query for all matching strategies
-    query = query.or_(
-        f"name.eq.{wine_name},"
-        + f"name.ilike.%{wine_name}%,"
-        + f"name_alias.cs.{{{wine_name}}}"  # Check if name_alias array contains this value
-    )
-
-    # Execute the query
-    response = query.execute()
+    
+    # Use three separate queries and combine the results
+    # This is safer than trying to build a complex OR condition
+    
+    # Query 1: Exact name match
+    query_exact = client.table("wines").select("*")
+    if vintage is not None:
+        query_exact = query_exact.eq("vintage", str(vintage))
+    query_exact = query_exact.eq("name", wine_name)
+    response_exact = query_exact.execute()
+    
+    # Query 2: Case-insensitive partial name match
+    query_partial = client.table("wines").select("*")
+    if vintage is not None:
+        query_partial = query_partial.eq("vintage", str(vintage))
+    query_partial = query_partial.ilike("name", f"%{wine_name}%")
+    response_partial = query_partial.execute()
+    
+    # Query 3: Array contains match (using a simpler query to avoid array escaping issues)
+    # This is a simple check to see if the name_alias column contains the wine name
+    query_alias = client.table("wines").select("*")
+    if vintage is not None:
+        query_alias = query_alias.eq("vintage", str(vintage))
+    # Use a raw query with the contains operator for the array check
+    # This explicitly uses a parameterized query to avoid escaping issues
+    query_alias = query_alias.contains("name_alias", [wine_name])
+    response_alias = query_alias.execute()
+    
+    # Combine results
+    all_results = []
+    
+    # Add exact matches first (highest priority)
+    if response_exact.data:
+        all_results.extend(response_exact.data)
+        
+    # Add alias matches second
+    if response_alias.data:
+        for item in response_alias.data:
+            if not any(r.get("id") == item.get("id") for r in all_results):
+                all_results.append(item)
+                
+    # Add partial matches last
+    if response_partial.data:
+        for item in response_partial.data:
+            if not any(r.get("id") == item.get("id") for r in all_results):
+                all_results.append(item)
 
     logger.info(
-        f"Wine search query for '{wine_name}', results: {len(response.data or [])}"
+        f"Wine search query for '{wine_name}', results: {len(all_results)}"
     )
 
-    if response.data and len(response.data) > 0:
-        # Prioritize exact name matches first, then alias matches, then partial matches
-        # Sort results to prefer exact matches
-        sorted_results = sorted(
-            response.data,
-            key=lambda x: (
-                0
-                if x.get("name") == wine_name  # Exact match gets highest priority
-                else (
-                    1
-                    if x.get("name_alias")
-                    and wine_name in (x.get("name_alias") or [])  # Alias match is next
-                    else 2
-                )
-            ),  # Partial match gets lowest priority
-        )
-
-        return Wine.model_validate(sorted_results[0])
+    if all_results:
+        return Wine.model_validate(all_results[0])
 
     return None
 

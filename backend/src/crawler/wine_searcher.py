@@ -230,7 +230,7 @@ def parse_wine_searcher_html(html: str) -> Optional[WineSearcherWine]:
             int(wine_searcher_id_str[0]) if wine_searcher_id_str else None
         )
 
-        name_elements = root.xpath("//h1/text()")
+        name_elements = root.xpath("//h1[@data-name-id]/text()")
         name = name_elements[0].strip() if name_elements else None
 
         # Extract description (potentially split across multiple p tags)
