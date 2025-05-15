@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Dimensions } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Text, TextInput, IconButton, MD3Colors, useTheme, TouchableRipple } from 'react-native-paper';
 import Markdown from 'react-native-markdown-display';
 
@@ -22,6 +22,8 @@ interface WineChatViewProps {
   handleSendMessage: (text?: string) => void;
   handleFollowupQuestion: (question: string) => void;
   listHeaderComponent?: React.ComponentType<any> | React.ReactElement | null | undefined;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  scrollEventThrottle?: number;
 }
 
 const WineChatView: React.FC<WineChatViewProps> = ({
@@ -33,6 +35,8 @@ const WineChatView: React.FC<WineChatViewProps> = ({
   handleSendMessage,
   handleFollowupQuestion,
   listHeaderComponent,
+  onScroll,
+  scrollEventThrottle,
 }) => {
   const paperTheme = useTheme();
   const flatListRef = useRef<FlatList<UIMessage>>(null);
@@ -92,6 +96,8 @@ const WineChatView: React.FC<WineChatViewProps> = ({
         keyExtractor={(item) => item.id}
         ListHeaderComponent={listHeaderComponent} // Render header passed from parent
         ListFooterComponent={isChatLoading ? <ActivityIndicator style={styles.chatLoadingIndicator} /> : null}
+        onScroll={onScroll}
+        scrollEventThrottle={scrollEventThrottle}
       />
         
       {/* Follow-up Questions Area */} 
@@ -148,6 +154,7 @@ const styles = StyleSheet.create({
   },
   scrollContentContainer: {
     paddingBottom: 10,
+    paddingTop: 56, // Add padding for the fixed appbar
   },
   inputContainer: {
     flexDirection: 'row',
@@ -161,10 +168,10 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
     backgroundColor: '#F5F5F5',
-    borderRadius: 20,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingHorizontal: 12,
     fontSize: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     minHeight: 30,
   },
   sendButton: {
@@ -201,7 +208,7 @@ const styles = StyleSheet.create({
       paddingBottom: 4,
       // Ensure no top border for the container itself
       // borderTopWidth: 0, (or simply not define it)
-      backgroundColor: '#FFFFFF', 
+      backgroundColor: 'transparent', 
   },
   followUpScroll: {
       paddingVertical: 4,

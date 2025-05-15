@@ -31,7 +31,7 @@ interface WineListItemProps {
 }
 
 const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress }) => {
-  const { name, image_url, region, country, vintage } = wine;
+  const { name, image_url, region, country, vintage, average_price } = wine;
   
   // Construct origin string
   const origin = [region, country].filter(Boolean).join(', ');
@@ -39,6 +39,9 @@ const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress 
   
   // Use the utility function to format the display name
   const displayName = getFormattedWineName(wine);
+
+  // Format the price with currency symbol if available
+  const formattedPrice = average_price ? `$${average_price.toFixed(2)}/750ml` : null;
 
   return (
     <TouchableOpacity 
@@ -71,6 +74,11 @@ const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress 
                 {countryFlag ? `${countryFlag}  ` : ''}From {origin}
               </Text>
             )}
+            {formattedPrice && (
+              <Text style={styles.priceText}>
+                Avg. Price: {formattedPrice}
+              </Text>
+            )}
              {/* Optional Badges */}
             {badges.length > 0 && (
               <View style={styles.badgeContainer}>
@@ -88,13 +96,14 @@ const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress 
 
 const styles = StyleSheet.create({
   listItemContainer: {
-    marginBottom: 12,
+    marginBottom: 0,
   },
   card: {
-    elevation: 1,
+    elevation: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#e0e0e0', 
     borderRadius: 0, // No rounding for flush list items
+    backgroundColor: '#FFFFFF',
   },
   cardContent: {
     flexDirection: 'row',
@@ -135,6 +144,12 @@ const styles = StyleSheet.create({
   subtitleText: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 6, // Space before badges
+  },
+  priceText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
     marginBottom: 6, // Space before badges
   },
   badgeContainer: {

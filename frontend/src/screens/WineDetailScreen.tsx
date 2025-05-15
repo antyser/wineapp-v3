@@ -1,5 +1,5 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { StyleSheet, View, ActivityIndicator } from 'react-native';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent, Animated } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Appbar, Text, Button, useTheme, IconButton } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -62,6 +62,41 @@ const WineDetailScreen = () => {
   const noteToEdit = hasExistingNotes ? notesData![notesData!.length - 1] : undefined;
 
   const [optimisticNoteText, setOptimisticNoteText] = useState<string | undefined>(undefined);
+
+  // Add state for scroll position and animation
+  const [isScrolled, setIsScrolled] = useState(false);
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const headerBgOpacity = useRef(new Animated.Value(0)).current;
+  const formattedWineName = wine ? getFormattedWineName(wine) : '';
+  
+  // Animate the title and background opacity when scroll position changes
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(titleOpacity, {
+        toValue: isScrolled ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true
+      }),
+      Animated.timing(headerBgOpacity, {
+        toValue: isScrolled ? 1 : 0,
+        duration: 200,
+        useNativeDriver: false // Background color animation can't use native driver
+      })
+    ]).start();
+  }, [isScrolled, titleOpacity, headerBgOpacity]);
+  
+  // Handle scroll events
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const scrollY = event.nativeEvent.contentOffset.y;
+    // Update scroll state when passing the threshold
+    setIsScrolled(scrollY > 120);
+  };
+  
+  // Calculate background color based on scroll position
+  const headerBackgroundColor = headerBgOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 1)']
+  });
 
   useEffect(() => {
     const latestNoteFromHook = notesData && notesData.length > 0 ? notesData[notesData.length - 1] : undefined;
@@ -188,29 +223,37 @@ const WineDetailScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Appbar.Header style={styles.appbar}>
-        <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title="" />
-        {isDataAvailable && (
-          <>
-            <IconButton
-              icon={isLiked ? 'thumb-up' : 'thumb-up-outline'}
-              iconColor={isLiked ? theme.colors.primary : theme.colors.onSurface}
-              size={24}
-              onPress={toggleLike}
-              disabled={isSavingInteraction}
-            />
-            <IconButton
-              icon={isInWishlist ? 'bookmark' : 'bookmark-outline'}
-              iconColor={isInWishlist ? theme.colors.primary : theme.colors.onSurface}
-              size={24}
-              onPress={toggleWishlist}
-              disabled={isSavingInteraction}
-            />
-          </>
-        )}
-        {isSavingInteraction && !isDataAvailable && <ActivityIndicator color={theme.colors.primary} style={{ marginRight: 8}}/>}
-      </Appbar.Header>
+      <Animated.View style={[styles.appbarContainer, { backgroundColor: headerBackgroundColor }]}>
+        <Appbar.Header style={styles.appbar}>
+          <Appbar.BackAction onPress={() => navigation.goBack()} />
+          <View style={{ flex: 1 }} />
+          <Animated.View style={{ opacity: titleOpacity, position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.centeredTitle} numberOfLines={1} ellipsizeMode="tail">
+              {formattedWineName}
+            </Text>
+          </Animated.View>
+          <View style={{ flex: 1 }} />
+          {isDataAvailable && (
+            <>
+{/*               <IconButton
+                icon={isLiked ? 'thumb-up' : 'thumb-up-outline'}
+                iconColor={isLiked ? theme.colors.primary : theme.colors.onSurface}
+                size={24}
+                onPress={toggleLike}
+                disabled={isSavingInteraction}
+              />
+              <IconButton
+                icon={isInWishlist ? 'bookmark' : 'bookmark-outline'}
+                iconColor={isInWishlist ? theme.colors.primary : theme.colors.onSurface}
+                size={24}
+                onPress={toggleWishlist}
+                disabled={isSavingInteraction}
+              /> */}
+            </>
+          )}
+          {isSavingInteraction && !isDataAvailable && <ActivityIndicator color={theme.colors.primary} style={{ marginRight: 8}}/>}
+        </Appbar.Header>
+      </Animated.View>
 
       {showInteractionErrorBanner && (
         <View style={styles.errorBanner}>
@@ -227,6 +270,8 @@ const WineDetailScreen = () => {
         handleSendMessage={handleSendMessage}
         handleFollowupQuestion={handleFollowupQuestion}
         listHeaderComponent={renderListHeader()}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       />
 
     </View>
@@ -260,7 +305,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   appbar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
+    elevation: 0,
   },
   centered: {
     flex: 1,
@@ -315,6 +361,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     flex: 1, // Make buttons take equal width
     borderColor: '#000000',
+  },
+  appbarContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10, // Ensure it's above other content
+  },
+  centeredTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#000000',
+    textAlign: 'center',
+    paddingHorizontal: 40, // Add padding to avoid overlap with back button and icons
   },
 });
 

@@ -73,8 +73,9 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   listContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: 8,
+    paddingBottom: 16,
+    paddingHorizontal: 0,
   },
   centered: {
     flex: 1,
