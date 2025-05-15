@@ -15,7 +15,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.aisomm.somm"
+      "bundleIdentifier": "app.aisomm.somm",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {

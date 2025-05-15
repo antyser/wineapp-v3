@@ -15,6 +15,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'app.aisomm.somm',
+      buildNumber: '1',
       infoPlist: {
         NSCameraUsageDescription: 'We need access to your camera to scan wine labels',
         NSPhotoLibraryUsageDescription: 'We need access to your photos to upload wine labels',
@@ -34,6 +35,9 @@ export default {
     scheme: 'wineapp',
     extra: {
       env: process.env.ENV,
+      eas: {
+        projectId: '91dae555-3419-4f54-bb71-3e6a1d866047',
+      },
     },
     plugins: [
       'expo-secure-store',
