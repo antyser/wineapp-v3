@@ -6,7 +6,7 @@ export default {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    newArchEnabled: true, // Enable React Native New Architecture
+    newArchEnabled: true,
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
@@ -17,6 +17,7 @@ export default {
       appleTeamId: '2S263GWYYC',
       supportsTablet: true,
       bundleIdentifier: 'app.aisomm.somm',
+      useAppleSignIn: true,
       infoPlist: {
         NSCameraUsageDescription: 'We need access to your camera to scan wine labels',
         NSPhotoLibraryUsageDescription: 'We need access to your photos to upload wine labels',
@@ -34,7 +35,7 @@ export default {
     web: {
       favicon: './assets/favicon.png',
     },
-    scheme: 'wineapp',
+    scheme: 'app.aisomm',
     extra: {
       env: process.env.ENV,
       eas: {
@@ -42,7 +43,14 @@ export default {
       },
     },
     plugins: [
+      'expo-apple-authentication',
       'expo-secure-store',
+      [
+        '@react-native-google-signin/google-signin',
+        {
+          iosUrlScheme: 'com.googleusercontent.apps.189158143517-d8677bm1i5ml3o28qf1n8nr2l0eu41gm',
+        },
+      ],
       [
         'expo-image-picker',
         {

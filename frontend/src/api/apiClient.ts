@@ -22,7 +22,16 @@ console.log('[API Client] Environment setup:', {
 // Use the URL from environment variables for production
 let baseURL = process.env.EXPO_PUBLIC_API_URL;
 console.log('[API Client] Using URL:', baseURL);
-
+console.log(
+  '[JSI check] nativeCallSyncHook =',
+  // @ts-ignore because nativeCallSyncHook is not in standard global types
+  global.nativeCallSyncHook ?? 'undefined'
+);
+console.log(
+  '[TurboModules check] isNewArch =',
+  // @ts-ignore because _IS_NEW_ARCH_ENABLED is not in standard global types
+  global._IS_NEW_ARCH_ENABLED ?? 'undefined' // Use undefined if not present
+);
 // Create Axios instance
 export const apiClient = axios.create({
   baseURL,

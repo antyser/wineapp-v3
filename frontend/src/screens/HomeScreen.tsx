@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
-  ScrollView,
   TouchableOpacity,
   Alert,
   Keyboard,
@@ -11,9 +10,6 @@ import {
 import {
   Text,
   Button,
-  Card,
-  Searchbar,
-  ActivityIndicator,
   Portal,
   Modal,
   FAB,
@@ -128,9 +124,13 @@ const HomeScreen = () => {
 
   const displayLoading = isImageSearchLoading || isTextSearchLoading;
 
-  // Component to render the search bar and title, to be passed as header
-  const renderListHeader = () => (
-    <>
+  return (
+    <SafeAreaView style={styles.container} edges={['right', 'bottom', 'left']}>
+      <Appbar.Header style={styles.appbar}>
+        <Appbar.Content title="Somm" />
+        <Appbar.Action icon="account" onPress={handleProfilePress} />
+      </Appbar.Header>
+
       <View style={styles.header}>
         <SearchBar
           searchQuery={searchQuery}
@@ -142,25 +142,13 @@ const HomeScreen = () => {
       <View style={styles.historyHeader}>
         <Text style={styles.sectionTitle}>Recent Searches</Text>
       </View>
-    </>
-  );
 
-  return (
-    <SafeAreaView style={styles.container} edges={['right', 'bottom', 'left']}>
-      <Appbar.Header style={styles.appbar}>
-        <Appbar.Content title="Somm" />
-        <Appbar.Action icon="account" onPress={handleProfilePress} />
-      </Appbar.Header>
-
-      {/* Remove ScrollView, SearchBar View, and History Section View */}
-      {/* Render SearchHistoryList directly and pass header */}
       <SearchHistoryList
         onSearchPress={handleSearchPress}
-        maxItems={5} // You can adjust maxItems as needed
-        ListHeaderComponent={renderListHeader()} // Pass the header component
+        maxItems={5}
+        containerStyle={styles.searchHistoryContainer}
       />
 
-      {/* Keep FAB and Modals outside the list */}
       <FAB
         style={styles.fab}
         icon="camera"
@@ -214,21 +202,21 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   header: {
-    // Styles for the search bar container (within the header component)
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 8,
   },
   historyHeader: {
-    // Styles for the title container (within the header component)
     paddingHorizontal: 16,
-    paddingTop: 16, // Keep padding for the title
-    paddingBottom: 0, // Remove bottom padding as list items will have their own spacing
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
+  },
+  searchHistoryContainer: {
+    flex: 1,
   },
   signInModal: {
     backgroundColor: 'white',
@@ -253,7 +241,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     margin: 16,
     alignSelf: 'center',
-    bottom: 0,
+    bottom: 16,
     backgroundColor: '#000000',
   },
 });
