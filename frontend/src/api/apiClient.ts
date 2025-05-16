@@ -20,26 +20,8 @@ console.log('[API Client] Environment setup:', {
 
 // Configure baseURL based on environment
 // Use the URL from environment variables for production
-let baseURL = process.env.EXPO_PUBLIC_API_URL || 'https://wineapp-backend.vercel.app';
-
-if (isDevelopment) {
-  if (isWeb) {
-    // For web in development - use localhost
-    baseURL = 'http://localhost:8000';
-    console.log('[API Client] Using web development URL:', baseURL);
-  } else if (Platform.OS === 'android') {
-    // For Android emulator
-    baseURL = 'http://10.0.2.2:8000';
-    console.log('[API Client] Using Android emulator URL:', baseURL);
-  } else {
-    // For iOS simulator or other platforms
-    baseURL = 'http://localhost:8000';
-    console.log('[API Client] Using iOS/other development URL:', baseURL);
-  }
-} else {
-  // Production URL
-  console.log('[API Client] Using production URL:', baseURL);
-}
+let baseURL = process.env.EXPO_PUBLIC_API_URL;
+console.log('[API Client] Using URL:', baseURL);
 
 // Create Axios instance
 export const apiClient = axios.create({

@@ -1,16 +1,32 @@
 {
   "cli": {
-    "version": ">= 10.2.2"
+    "version": ">= 10.2.2",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "23.7.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wineapp-backend.vercel.app"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "23.7.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wineapp-backend.vercel.app"
+      }
     },
-    "production": {}
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "node": "23.7.0",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wineapp-backend.vercel.app"
+      }
+    }
   },
   "submit": {
     "production": {}

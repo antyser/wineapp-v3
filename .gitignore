@@ -57,3 +57,11 @@ ENV/
 .env.prod
 
 .langgraph_api
+
+frontend/ios
+frontend/android
+
+# Expo
+frontend/.expo/
+frontend/.expo-shared/
+frontend/dist/

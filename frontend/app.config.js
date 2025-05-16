@@ -2,10 +2,11 @@ export default {
   expo: {
     name: 'wineapp',
     slug: 'wineapp',
-    version: '1.0.0',
+    version: '1.0.9',
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
+    newArchEnabled: true, // Enable React Native New Architecture
     splash: {
       image: './assets/splash.png',
       resizeMode: 'contain',
@@ -13,13 +14,14 @@ export default {
     },
     assetBundlePatterns: ['**/*'],
     ios: {
+      appleTeamId: '2S263GWYYC',
       supportsTablet: true,
       bundleIdentifier: 'app.aisomm.somm',
-      buildNumber: '1',
       infoPlist: {
         NSCameraUsageDescription: 'We need access to your camera to scan wine labels',
         NSPhotoLibraryUsageDescription: 'We need access to your photos to upload wine labels',
         LSApplicationQueriesSchemes: ['https', 'http'],
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {

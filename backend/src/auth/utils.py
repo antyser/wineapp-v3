@@ -7,7 +7,6 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 
-from src.core import get_supabase_client
 from src.core.config import settings
 
 
