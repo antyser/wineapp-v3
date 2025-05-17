@@ -49,3 +49,52 @@ Allow users to set or update the overall wine interaction rating (the star ratin
 *   Verify that setting/changing the rating on `TastingNoteScreen` updates the `userRating` in `useWineInteractions`.
 *   Confirm this updated rating is reflected on `WineDetailScreen` (in `WineDetailCard`).
 *   Ensure saving a tasting note (text/date) is independent of changing the wine's interaction rating.
+
+## 4. Image Caching Implementation
+
+### Goal
+Implement image caching to improve loading performance and reduce network requests for images across the application, particularly in lists and detail views.
+
+### Strategy
+Utilize `expo-image` for its built-in caching capabilities, as it's designed for Expo projects and offers straightforward integration.
+
+### Affected Components
+*   `frontend/src/components/SearchHistoryList.tsx`
+*   `frontend/src/components/WineListItem.tsx` (This component is used by `SearchResultsScreen.tsx`)
+*   `frontend/src/components/WineDetailCard.tsx`
+*   Any other components displaying network images from URLs.
+
+### Steps
+
+1.  **Install `expo-image`**:
+    *   Ensure `expo-image` is installed. If not, run: `yarn add expo-image`.
+    *   Verify it's listed in `package.json`.
+
+2.  **Replace `react-native` `Image` with `expo-image` `Image`**:
+    *   **`frontend/src/components/SearchHistoryList.tsx`**:
+        *   Change the import from `react-native` to `import { Image } from 'expo-image';`.
+        *   Review props used; `expo-image` has a similar API but may have different or additional props for cache control (e.g., `cachePolicy`). The default policy is usually sufficient.
+    *   **`frontend/src/components/WineListItem.tsx`**:
+        *   Perform the same import change and review props.
+    *   **`frontend/src/components/WineDetailCard.tsx`**:
+        *   Perform the same import change and review props.
+    *   **Placeholder and Styling**: Ensure that placeholder logic and styles are compatible or adjusted for `expo-image`. `expo-image` has a `placeholder` prop and handles transitions.
+
+3.  **Configure Caching (Optional but Recommended)**:
+    *   While `expo-image` has default caching, you can explicitly set the `cachePolicy` prop on the `Image` component if needed:
+        *   `cachePolicy="memory-disk"` (default): Tries to load from memory, then disk, then network.
+        *   `cachePolicy="disk"`: Tries to load from disk, then network.
+        *   `cachePolicy="memory"`: Tries to load from memory, then network.
+        *   `cachePolicy="none"`: Only loads from the network.
+    *   For most cases, the default `memory-disk` is good.
+
+4.  **Test Caching Behavior**:
+    *   Load screens that display images (e.g., `SearchResultsScreen`, `WineDetailScreen`, and any screen using `SearchHistoryList`).
+    *   Navigate away and back, or reload the app (after the first load).
+    *   Observe if images load faster on subsequent views.
+    *   Test in an offline scenario (after images have been cached) to confirm they are served from the cache.
+    *   Check for any console warnings or errors related to image loading.
+
+5.  **Review and Refine**:
+    *   Ensure image aspect ratios and styling are preserved.
+    *   Address any layout shifts or visual glitches that might occur after switching the `Image` component.

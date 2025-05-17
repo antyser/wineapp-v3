@@ -7,6 +7,7 @@ Starting from version 20240629, we have consolidated our migrations to make them
 1. **20240629000000_consolidated_rls_policies.sql**: All row-level security policies in one place
 2. **20240629000002_consolidated_schema_changes.sql**: Schema changes for notes, interactions, etc.
 3. **20240629000003_search_history_rls_cleanup.sql**: Search history RLS consolidation
+4. **20240705000000_add_performance_indexes.sql**: Performance optimization indexes
 
 ## Handling Migration Conflicts
 

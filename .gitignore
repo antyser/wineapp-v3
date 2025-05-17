@@ -65,3 +65,4 @@ frontend/android
 frontend/.expo/
 frontend/.expo-shared/
 frontend/dist/
+*.ipa
