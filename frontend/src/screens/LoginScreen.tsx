@@ -23,21 +23,15 @@ const LoginScreen = () => {
   const theme = useTheme();
 
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [emailLinkSent, setEmailLinkSent] = useState(false);
 
   // If user becomes authenticated, navigate away (e.g., back to Main)
   React.useEffect(() => {
     // Check specifically if the user is NOT anonymous
     if (isAuthenticated && user && !user.isAnonymous) {
       console.log('User authenticated (non-anonymous), navigating away from LoginScreen');
-      // Optional: Navigate back or to a specific screen upon successful login
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        // If cannot go back (e.g., app started here), navigate to main
-        navigation.replace('Main', { screen: 'Home' }); // Use replace to avoid back button to login
-      }
+      // Navigate to home screen upon successful login
+      navigation.replace('Main', { screen: 'Home' }); // Use replace to avoid back button to login
     }
   }, [isAuthenticated, user, navigation]);
 
@@ -51,27 +45,16 @@ const LoginScreen = () => {
     // Auth context handles state update and navigation via useEffect
   };
 
-  const handleSendOtp = async () => {
+  const handleSendEmailLink = async () => {
     if (!email) {
       return;
     }
     await signInWithEmailOtp(email);
     
     if (!error) {
-      setOtpSent(true);
+      setEmailLinkSent(true);
     } else {
-      setOtpSent(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      return;
-    }
-    const success = await verifyEmailOtp(email, otp);
-    // Auth context handles state update on success
-    if (!success) {
-       // Error state should already be set by the context
+      setEmailLinkSent(false);
     }
   };
   
@@ -91,7 +74,7 @@ const LoginScreen = () => {
           <ActivityIndicator animating={true} size="large" style={styles.loadingIndicator} />
         )}
 
-        {!otpSent ? (
+        {!emailLinkSent ? (
           <>
             {/* --- Social Logins --- */} 
             <Button
@@ -127,7 +110,7 @@ const LoginScreen = () => {
                 <View style={styles.dividerLine} />
             </View>
             
-            {/* --- Email OTP Input --- */} 
+            {/* --- Email Input --- */} 
             <TextInput
               label="Email Address"
               value={email}
@@ -140,42 +123,29 @@ const LoginScreen = () => {
             />
             <Button
               mode="contained"
-              onPress={handleSendOtp}
+              onPress={handleSendEmailLink}
               style={styles.button}
               disabled={isLoading || !email}
               labelStyle={styles.buttonLabel}
             >
-              Send Login Code
+              Send Login Link
             </Button>
           </>
         ) : (
           <> 
-            {/* --- OTP Verification --- */} 
+            {/* --- Email Link Instructions --- */} 
             <Text style={styles.infoText}>
-              Enter the 6-digit code sent to {email}
+              We've sent a login link to {email}
             </Text>
-            <TextInput
-              label="OTP Code"
-              value={otp}
-              onChangeText={setOtp}
-              mode="outlined"
-              style={styles.input}
-              keyboardType="number-pad"
-              maxLength={6}
-              disabled={isLoading}
-            />
+            <Text style={styles.instructionText}>
+              Please check your email and click the link to sign in.
+            </Text>
+            <Text style={styles.instructionText}>
+              You'll be automatically redirected to the app.
+            </Text>
             <Button
-              mode="contained"
-              onPress={handleVerifyOtp}
-              style={styles.button}
-              disabled={isLoading || !otp || otp.length !== 6}
-              labelStyle={styles.buttonLabel}
-            >
-              Verify Code & Sign In
-            </Button>
-             <Button
               mode="text"
-              onPress={() => { setOtpSent(false); setOtp(''); }} 
+              onPress={() => { setEmailLinkSent(false); }} 
               style={styles.linkButton}
               disabled={isLoading}
             >
@@ -242,9 +212,16 @@ const styles = StyleSheet.create({
   infoText: {
     marginBottom: 16,
     color: '#666666',
+    textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  instructionText: {
+    marginBottom: 8,
+    color: '#666666',
+    textAlign: 'center',
   },
   linkButton: {
-    marginTop: 8,
+    marginTop: 24,
     marginBottom: 24,
   },
 });

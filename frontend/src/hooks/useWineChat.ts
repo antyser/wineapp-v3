@@ -208,7 +208,7 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
                         if (!isMounted.current) return;
                         
                         console.log("[useWineChat] Received followup questions:", followupQuestions);
-                        setFollowUpQuestions(followupQuestions);
+                        // Store followup questions but don't display them until streaming completes
                         
                         // Update the assistant's message with follow-up questions
                         setChatMessages(prev => {
@@ -229,6 +229,9 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
                             
                             return updatedMessages;
                         });
+                        
+                        // Don't set followup questions to display until streaming is complete
+                        // This is moved to onEnd for proper timing
                     },
                     onError: (error) => {
                         if (!isMounted.current) return;
@@ -267,6 +270,13 @@ export const useWineChat = ({ wineId, wine }: UseWineChatProps): UseWineChatResu
                         console.log("[useWineChat] Stream ended");
                         // Final save of potentially completed message in cache is handled here or after followup
                         setChatMessages(prev => {
+                            // Get the latest completed message to find its follow-up questions
+                            const lastMessage = prev[prev.length - 1];
+                            if (lastMessage && lastMessage.followup_questions) {
+                                // Now that streaming is complete, set follow-up questions to be displayed
+                                setFollowUpQuestions(lastMessage.followup_questions);
+                            }
+                            
                             // Call saveChatToCache with the latest messages after stream ends
                             saveChatToCache(prev);
                             return prev;

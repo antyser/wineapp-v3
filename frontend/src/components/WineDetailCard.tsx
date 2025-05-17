@@ -1,8 +1,14 @@
 import React from 'react';
-import { StyleSheet, View, Image } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Card, Text, Chip, useTheme, Icon } from 'react-native-paper';
 import { Wine } from '../api/generated/types.gen';
 import { getFormattedWineName } from '../utils/wineUtils';
+import { Image } from 'expo-image';
+
+// Import default images
+const redDefaultImage = require('../../assets/images/red_default_realistic.png');
+const whiteDefaultImage = require('../../assets/images/white_default_realistic.png');
+const winePlaceholder = require('../../assets/images/wine-placeholder.png');
 
 /**
  * WineDetailCard Component
@@ -92,18 +98,13 @@ const WineDetailCard: React.FC<WineDetailCardProps> = ({
       <View style={styles.topContainer}>
         {/* Wine image on left */}
         <View style={styles.imageContainer}>
-          {wine.image_url ? (
-            <Image
-              source={{ uri: wine.image_url }}
-              style={styles.wineImage}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.placeholderImage}>
-              <Icon source="camera-off-outline" size={48} color={theme.colors.onSurfaceDisabled} />
-              <Text variant="bodySmall" style={styles.placeholderText}>No image</Text>
-            </View>
-          )}
+          <Image
+            source={wine.image_url ? { uri: wine.image_url } : (wine.type && wine.type.toLowerCase() === 'red' ? redDefaultImage : whiteDefaultImage)}
+            style={styles.wineImage}
+            placeholder={winePlaceholder}
+            transition={300}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Wine Name (Vintage + Name) on right, using getFormattedWineName */}

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, FlatList, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, View, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Text, Divider, Card, Icon } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Wine, SearchHistoryItemResponse } from '../api';
@@ -10,6 +10,12 @@ import { getCountryFlagEmoji } from '../utils/countryUtils';
 import { getFormattedWineName } from '../utils/wineUtils';
 import { getSearchHistory } from '../api/services/searchService';
 import { useAuth } from '../auth/AuthContext';
+import { Image } from 'expo-image';
+
+// Import default images
+const redDefaultImage = require('../../assets/images/red_default_realistic.png');
+const whiteDefaultImage = require('../../assets/images/white_default_realistic.png');
+const winePlaceholder = require('../../assets/images/wine-placeholder.png');
 
 interface SearchHistoryListProps {
   onSearchPress?: (query: string) => void;
@@ -35,16 +41,14 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
   const navigation = useNavigation<NavigationProp>();
   const { isLoading: isAuthLoading, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    if (!isAuthLoading && isAuthenticated) {
-      fetchSearchHistory();
-    } else if (!isAuthLoading && !isAuthenticated) {
+  const fetchSearchHistoryCallback = useCallback(async (currentOffset = 0) => {
+    if (!isAuthenticated) {
       setError('Authentication required to view history.');
       setComponentLoading(false);
+      setHistory([]); // Clear history if not authenticated
+      return;
     }
-  }, [isAuthLoading, isAuthenticated]);
 
-  const fetchSearchHistory = async (currentOffset = 0) => {
     if (currentOffset === 0) {
       setComponentLoading(true);
     } else {
@@ -61,7 +65,6 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
         setHistory(prevHistory => [...prevHistory, ...historyItems]);
       }
       
-      // If we get fewer items than maxItems, we've reached the end
       setHasMore(historyItems.length === maxItems);
     } catch (err) {
       console.error('Error fetching search history:', err);
@@ -70,13 +73,32 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
       setComponentLoading(false);
       setLoadingMore(false);
     }
-  };
+  }, [isAuthenticated, maxItems]);
+
+  // Effect for initial load and auth changes
+  useEffect(() => {
+    if (!isAuthLoading) {
+        fetchSearchHistoryCallback(0); // Initial fetch or when auth changes
+    }
+  }, [isAuthLoading, isAuthenticated, fetchSearchHistoryCallback]);
+
+  // Effect for refreshing when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (!isAuthLoading && isAuthenticated) {
+        // Fetch history from the beginning when screen is focused
+        fetchSearchHistoryCallback(0);
+      }
+      // Optional: return a cleanup function if needed, though not strictly necessary for this fetch
+      return () => {}; 
+    }, [isAuthLoading, isAuthenticated, fetchSearchHistoryCallback])
+  );
 
   const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
+    if (!loadingMore && hasMore && isAuthenticated) { // Ensure authenticated before loading more
       const newOffset = offset + maxItems;
       setOffset(newOffset);
-      fetchSearchHistory(newOffset);
+      fetchSearchHistoryCallback(newOffset);
     }
   };
 
@@ -105,18 +127,32 @@ const SearchHistoryList: React.FC<SearchHistoryListProps> = ({
     const firstWine = item.wines?.[0];
     const isImageSearch = item.search_type === 'image';
     
-    const imageUrl = isImageSearch ? item.search_query : (firstWine?.image_url || null);
+    let imageSource: any = null;
+
+    if (isImageSearch && item.search_query) {
+      imageSource = { uri: item.search_query };
+    } else if (firstWine?.image_url) {
+      imageSource = { uri: firstWine.image_url };
+    } else if (firstWine) {
+      imageSource = firstWine.type && firstWine.type.toLowerCase() === 'red' ? redDefaultImage : whiteDefaultImage;
+    } else if (isImageSearch) {
+      // Fallback for image search if search_query (scanned image) is somehow null but we know it was an image search
+      // Or if no wine was identified from the scan
+      imageSource = whiteDefaultImage; // Or a more generic "scanned image placeholder"
+    }
 
     return (
       <TouchableOpacity onPress={() => handleSearchItemPress(item)}>
         <Card style={styles.card}>
           <Card.Content style={styles.cardContent}>
             <View style={styles.imageContainer}>
-              {imageUrl ? (
+              {imageSource ? (
                 <Image 
-                  source={{ uri: imageUrl }} 
+                  source={imageSource} 
                   style={styles.image} 
-                  resizeMode="cover"
+                  resizeMode="cover" // cover might be better for cards, or contain if full bottle is desired
+                  placeholder={winePlaceholder}
+                  transition={300}
                 />
               ) : (
                 <View style={[styles.image, styles.imagePlaceholder]}>

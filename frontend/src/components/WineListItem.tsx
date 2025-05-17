@@ -1,9 +1,14 @@
 import React from 'react';
-import { StyleSheet, View, TouchableOpacity, Image, Text } from 'react-native';
-import { Card, Badge } from 'react-native-paper';
+import { StyleSheet, View, TouchableOpacity } from 'react-native';
+import { Card, Badge, Text } from 'react-native-paper';
 import { Wine } from '../api';
 import { getCountryFlagEmoji } from '../utils/countryUtils';
 import { getFormattedWineName } from '../utils/wineUtils';
+import { Image } from 'expo-image';
+
+// Import default images
+const redDefaultImage = require('../../assets/images/red_default_realistic.png');
+const whiteDefaultImage = require('../../assets/images/white_default_realistic.png');
 
 /**
  * WineListItem Component
@@ -31,7 +36,7 @@ interface WineListItemProps {
 }
 
 const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress }) => {
-  const { name, image_url, region, country, vintage, average_price } = wine;
+  const { name, image_url, region, country, vintage, average_price, type: wineType } = wine;
   
   // Construct origin string
   const origin = [region, country].filter(Boolean).join(', ');
@@ -52,16 +57,14 @@ const WineListItem: React.FC<WineListItemProps> = ({ wine, badges = [], onPress 
         <Card.Content style={styles.cardContent}>
           {/* Wine Image */}
           <View style={styles.imageContainer}>
-            {image_url ? (
-              <Image 
-                source={{ uri: image_url }} 
-                style={styles.wineImage} 
-                resizeMode="contain" // Contain preserves aspect ratio
-              />
-            ) : (
-              // Placeholder view if no image
-              <View style={styles.imagePlaceholder} />
-            )}
+            <Image 
+              source={image_url ? { uri: image_url } : (wineType && wineType.toLowerCase() === 'red' ? redDefaultImage : whiteDefaultImage)} 
+              style={styles.wineImage} 
+              resizeMode="contain" // Contain preserves aspect ratio
+              // Add a placeholder for expo-image for better UX during network loads or if default images also need time
+              placeholder={require('../../assets/images/wine-placeholder.png')} // Generic placeholder
+              transition={300} // Optional: smooth transition
+            />
           </View>
           
           {/* Details Section */}

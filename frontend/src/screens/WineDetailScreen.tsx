@@ -1,13 +1,14 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent, Animated } from 'react-native';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import { StyleSheet, View, ActivityIndicator, NativeSyntheticEvent, NativeScrollEvent, Animated, FlatList, Platform, KeyboardAvoidingView, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Appbar, Text, Button, useTheme, IconButton } from 'react-native-paper';
+import { Appbar, Text, Button, useTheme, IconButton, FAB } from 'react-native-paper';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import WineDetailCard from '../components/WineDetailCard';
 import { useWineDetails } from '../hooks/useWineDetails';
 import { useWineInteractions } from '../hooks/useWineInteractions';
-import WineChatView from '../components/wine/WineChatView';
+import WineChatView, { UIMessage } from '../components/wine/WineChatView';
+import ChatMessageItem from '../components/wine/ChatMessageItem';
 import { useWineChat } from '../hooks/useWineChat';
 import { getFormattedWineName } from '../utils/wineUtils';
 import { Note } from '../api';
@@ -15,11 +16,20 @@ import { Note } from '../api';
 type WineDetailScreenRouteProp = RouteProp<RootStackParamList, 'WineDetail'>;
 type WineDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList<UIMessage>);
+
 const WineDetailScreen = () => {
   const route = useRoute<WineDetailScreenRouteProp>();
   const navigation = useNavigation<WineDetailScreenNavigationProp>();
   const theme = useTheme();
   const { wineId, wine: routeWine } = route.params;
+
+  const flatListRef = useRef<FlatList<UIMessage>>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  // Memoize wineId to prevent unnecessary hook reinitializations
+  const memoizedWineId = useMemo(() => wineId, [wineId]);
+  const memoizedRouteWine = useMemo(() => routeWine, [routeWine]);
 
   const {
     wine,
@@ -31,7 +41,10 @@ const WineDetailScreen = () => {
     retry: retryDetailsFetch,
     onInteractionUpdate,
     onNoteChange,
-  } = useWineDetails(wineId, routeWine);
+  } = useWineDetails(memoizedWineId, memoizedRouteWine);
+
+  // Memoize the wine and interaction data to prevent unnecessary hook reinitializations
+  const memoizedInteractionData = useMemo(() => interactionData, [interactionData?.id]);
 
   const {
     isInWishlist,
@@ -43,10 +56,13 @@ const WineDetailScreen = () => {
     toggleLike,
     rateWine,
   } = useWineInteractions(
-    wineId,
-    interactionData,
+    memoizedWineId,
+    memoizedInteractionData,
     onInteractionUpdate
   );
+
+  // Memoize wine object for useWineChat to prevent unnecessary reinitializations
+  const memoizedWine = useMemo(() => wine, [wine?.id]);
 
   const {
     chatMessages,
@@ -54,45 +70,76 @@ const WineDetailScreen = () => {
     setChatInput,
     isChatLoading: isChatLoadingChat,
     followUpQuestions,
-    handleSendMessage,
-    handleFollowupQuestion,
-  } = useWineChat({ wineId, wine });
+    handleSendMessage: originalHandleSendMessage,
+    handleFollowupQuestion: originalHandleFollowupQuestion,
+  } = useWineChat({ wineId: memoizedWineId, wine: memoizedWine });
+
+  // Scroll to bottom function
+  const scrollToBottom = useCallback(() => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, []);
+
+  // Add a scrollToTop function
+  const scrollToTop = useCallback(() => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, []);
+
+  // Wrap the original handlers to also scroll to bottom
+  const handleSendMessage = useCallback((text?: string) => {
+    originalHandleSendMessage(text);
+    // No need to scroll here as new message will trigger the useEffect below
+  }, [originalHandleSendMessage]);
+
+  const handleFollowupQuestion = useCallback((question: string) => {
+    originalHandleFollowupQuestion(question);
+    // Scroll to bottom after a brief delay to allow the new message to be added
+    setTimeout(scrollToBottom, 100);
+  }, [originalHandleFollowupQuestion, scrollToBottom]);
+
+  // Scroll to end when messages change
+  useEffect(() => {
+    if (chatMessages.length > 0 && flatListRef.current) {
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [chatMessages, scrollToBottom]);
 
   const hasExistingNotes = notesData && notesData.length > 0;
   const noteToEdit = hasExistingNotes ? notesData![notesData!.length - 1] : undefined;
 
   const [optimisticNoteText, setOptimisticNoteText] = useState<string | undefined>(undefined);
 
-  // Add state for scroll position and animation
   const [isScrolled, setIsScrolled] = useState(false);
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const headerBgOpacity = useRef(new Animated.Value(0)).current;
   const formattedWineName = wine ? getFormattedWineName(wine) : '';
   
-  // Animate the title and background opacity when scroll position changes
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(titleOpacity, {
-        toValue: isScrolled ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true
-      }),
-      Animated.timing(headerBgOpacity, {
-        toValue: isScrolled ? 1 : 0,
-        duration: 200,
-        useNativeDriver: false // Background color animation can't use native driver
-      })
+      Animated.timing(titleOpacity, { toValue: isScrolled ? 1 : 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(headerBgOpacity, { toValue: isScrolled ? 1 : 0, duration: 200, useNativeDriver: false })
     ]).start();
   }, [isScrolled, titleOpacity, headerBgOpacity]);
   
-  // Handle scroll events
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const scrollY = event.nativeEvent.contentOffset.y;
-    // Update scroll state when passing the threshold
+    const layoutHeight = event.nativeEvent.layoutMeasurement.height;
+    const contentHeight = event.nativeEvent.contentSize.height;
+    
+    // Update appbar animation state
     setIsScrolled(scrollY > 120);
+    
+    // Check if we're at the bottom (with a small threshold)
+    const distanceFromBottom = contentHeight - layoutHeight - scrollY;
+    setIsAtBottom(distanceFromBottom < 20); // 20px threshold
   };
   
-  // Calculate background color based on scroll position
   const headerBackgroundColor = headerBgOpacity.interpolate({
     inputRange: [0, 1],
     outputRange: ['rgba(255, 255, 255, 0)', 'rgba(255, 255, 255, 1)']
@@ -178,6 +225,11 @@ const WineDetailScreen = () => {
     </>
   );
 
+  const renderListFooter = () => {
+    if (!isChatLoadingChat || chatMessages.length === 0) return null;
+    return <ActivityIndicator style={{ marginVertical: 10, paddingBottom: 10 }} />;
+  };
+
   if (isLoadingDetails && !wine) {
     return (
       <View style={styles.container}>
@@ -227,28 +279,20 @@ const WineDetailScreen = () => {
         <Appbar.Header style={styles.appbar}>
           <Appbar.BackAction onPress={() => navigation.goBack()} />
           <View style={{ flex: 1 }} />
-          <Animated.View style={{ opacity: titleOpacity, position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={styles.centeredTitle} numberOfLines={1} ellipsizeMode="tail">
-              {formattedWineName}
-            </Text>
-          </Animated.View>
+          <TouchableOpacity 
+            style={{ position: 'absolute', left: 0, right: 0, alignItems: 'center', justifyContent: 'center', height: '100%' }}
+            onPress={scrollToTop}
+            activeOpacity={0.7}
+          >
+            <Animated.View style={{ opacity: titleOpacity }}>
+              <Text style={styles.centeredTitle} numberOfLines={1} ellipsizeMode="tail">
+                {formattedWineName}
+              </Text>
+            </Animated.View>
+          </TouchableOpacity>
           <View style={{ flex: 1 }} />
           {isDataAvailable && (
             <>
-{/*               <IconButton
-                icon={isLiked ? 'thumb-up' : 'thumb-up-outline'}
-                iconColor={isLiked ? theme.colors.primary : theme.colors.onSurface}
-                size={24}
-                onPress={toggleLike}
-                disabled={isSavingInteraction}
-              />
-              <IconButton
-                icon={isInWishlist ? 'bookmark' : 'bookmark-outline'}
-                iconColor={isInWishlist ? theme.colors.primary : theme.colors.onSurface}
-                size={24}
-                onPress={toggleWishlist}
-                disabled={isSavingInteraction}
-              /> */}
             </>
           )}
           {isSavingInteraction && !isDataAvailable && <ActivityIndicator color={theme.colors.primary} style={{ marginRight: 8}}/>}
@@ -261,19 +305,51 @@ const WineDetailScreen = () => {
         </View>
       )}
 
-      <WineChatView
-        chatMessages={chatMessages}
-        chatInput={chatInput}
-        setChatInput={setChatInput}
-        isChatLoading={isChatLoadingChat}
-        followUpQuestions={followUpQuestions}
-        handleSendMessage={handleSendMessage}
-        handleFollowupQuestion={handleFollowupQuestion}
-        listHeaderComponent={renderListHeader()}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      />
-
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF', marginTop: 56 }}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"} 
+          style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 34 : 0}
+        >
+          <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+            <AnimatedFlatList
+              ref={flatListRef}
+              style={{ flex: 1, backgroundColor: '#FFFFFF' }}
+              contentContainerStyle={styles.flatListContentContainer}
+              data={chatMessages}
+              renderItem={({ item }) => <ChatMessageItem item={item} />}
+              keyExtractor={(item) => item.id}
+              ListHeaderComponent={renderListHeader}
+              ListFooterComponent={renderListFooter}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              keyboardShouldPersistTaps="handled"
+            />
+          </View>
+          
+          <View style={styles.fixedInputContainer}>
+            <WineChatView
+              chatInput={chatInput}
+              setChatInput={setChatInput}
+              isChatLoading={isChatLoadingChat}
+              followUpQuestions={followUpQuestions}
+              handleSendMessage={handleSendMessage}
+              handleFollowupQuestion={handleFollowupQuestion}
+            />
+          </View>
+        </KeyboardAvoidingView>
+        
+        {/* FAB positioned outside KeyboardAvoidingView */}
+        {!isAtBottom && chatMessages.length > 0 && (
+          <FAB
+            icon="chevron-down"
+            style={styles.scrollToBottomFab}
+            size="small"
+            onPress={scrollToBottom}
+            color="#000000"
+          />
+        )}
+      </View>
     </View>
   );
 };
@@ -281,6 +357,7 @@ const WineDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   scrollContainer: {
     paddingBottom: 80, // Space for FAB
@@ -352,8 +429,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
     borderColor: '#e0e0e0',
     backgroundColor: '#FFFFFF', // Ensuring buttons have a background
   },
@@ -375,6 +450,36 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
     paddingHorizontal: 40, // Add padding to avoid overlap with back button and icons
+  },
+  flatListContentContainer: {
+    paddingTop: 0,
+    paddingBottom: 10,
+  },
+  fixedInputContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    // Shadow for Android
+    elevation: 5,
+  },
+  scrollToBottomFab: {
+    position: 'absolute',
+    right: undefined,
+    left: '50%',
+    transform: [{ translateX: -28 }],
+    bottom: 140,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    elevation: 5,
+    zIndex: 20,
+    // Add a border for better contrast against white backgrounds
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
 });
 

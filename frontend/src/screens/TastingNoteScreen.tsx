@@ -103,12 +103,14 @@ const NoteScreen = () => {
                 {/* Overall Wine Rating Input */}
                 <View style={styles.ratingSectionContainer}>
                     <Rating
-                        type='star'
+                        type='custom'
                         ratingCount={5}
-                        imageSize={38}
+                        imageSize={56}
                         startingValue={localDisplayedRating}
                         showRating={true}
                         fractions={1}
+                        ratingBackgroundColor="grey"
+                        tintColor="white"
                         jumpValue={0.1}
                         ratingTextColor={theme.colors.primary}
                         onFinishRating={(rating: number) => {
@@ -117,7 +119,6 @@ const NoteScreen = () => {
                                 onRateWine(rating);
                             }
                         }}
-                        tintColor={theme.colors.surface}
                         style={styles.ratingComponentStyle}
                     />
                 </View>
