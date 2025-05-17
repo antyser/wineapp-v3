@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from pydantic import BaseModel
 from pydantic_ai import Agent, BinaryContent
+from langsmith import traceable
 
 
 class WineInformation(BaseModel):
@@ -99,6 +100,7 @@ def get_extract_wine_system_prompt() -> str:
     return INFER_PROMPT
 
 
+@traceable
 async def extract_wines(
     text_input: Optional[str] = None,
     image_content: Optional[bytes] = None,
